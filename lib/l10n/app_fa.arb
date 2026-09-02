@@ -1,0 +1,21 @@
+{
+  "@@locale": "fa",
+  "appTitle": "YOURVPN",
+  "connect": "اتصال",
+  "disconnect": "قطع اتصال",
+  "@connect": { "description": "دکمه اتصال" },
+  "settings": "تنظیمات",
+  "vpnPermissionTitle": "مجوز VPN",
+  "vpnPermissionBody": "اندروید برای ساخت تونل VPN به اجازه شما نیاز دارد. یک دیالوگ سیستمی ظاهر می‌شود.",
+  "vpnPermissionGrant": "اعطای مجوز VPN",
+  "vpnPermissionGranted": "اعطا شد",
+  "batteryTitle": "معافیت باتری",
+  "batteryBody": "بدون معافیت، اندروید ممکن است تونل را در حالت Doze بکشد. برنامه‌های VPN مجاز به درخواست این هستند.",
+  "batteryAllow": "اجازه دادن",
+  "skip": "رد کردن",
+  "perAppTitle": "تقسیم بر اساس برنامه",
+  "allowlist": "فهرست مجاز",
+  "bypass": "دور زدن",
+  "finish": "پایان",
+  "wizardStepOf": "مرحله {step} از 3"
+}

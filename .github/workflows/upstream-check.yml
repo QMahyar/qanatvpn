@@ -1,0 +1,34 @@
+name: upstream-check
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # weekly Monday 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Fetch upstream amnezia-box
+        working-directory: go/amnezia-box
+        run: |
+          git fetch --all --tags
+          git describe --tags || true
+          git log --oneline -5
+
+      - name: Report drift
+        run: |
+          PINNED=$(git -C go/amnezia-box rev-parse HEAD)
+          echo "pinned: $PINNED"
+          echo "If upstream has a new awg tag, open a bump PR:"
+          echo "  chore(upstream): bump amnezia-box to <tag>"
+          echo "  → make lib_android + strings sanity + flutter test + sing-box check"
+          echo "  → log to docs/decisions.tsv (what/why/evidence/result)"

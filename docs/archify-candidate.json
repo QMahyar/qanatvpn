@@ -1,0 +1,318 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "YOURVPN \u2014 Flutter+Go VPN (All Protocols, WG+AWG Star, 1 TUN)",
+    "quality_profile": "showcase",
+    "viewBox": [
+      950,
+      560
+    ]
+  },
+  "components": [
+    {
+      "id": "users",
+      "type": "external",
+      "label": "Users",
+      "sublabel": "censored",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "flutter",
+      "type": "frontend",
+      "label": "Flutter App",
+      "sublabel": "M3E + cue",
+      "pos": [
+        250,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "tunnel",
+      "type": "security",
+      "label": "Tunnel",
+      "sublabel": "1 TUN \u2022 WFP",
+      "pos": [
+        460,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "core",
+      "type": "backend",
+      "label": "Go Core",
+      "sublabel": "amnezia-box",
+      "pos": [
+        670,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "routing",
+      "type": "backend",
+      "label": "Routing",
+      "sublabel": "30 fields \u2022 3-tier",
+      "pos": [
+        250,
+        120
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "Ingestion",
+      "sublabel": "7 parsers",
+      "pos": [
+        460,
+        160
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "amnezia",
+      "type": "backend",
+      "label": "AmneziaWG",
+      "sublabel": "all values",
+      "pos": [
+        670,
+        120
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "geo",
+      "type": "cloud",
+      "label": "GeoAsset",
+      "sublabel": "SRS \u2022 ETag",
+      "pos": [
+        250,
+        430
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "health",
+      "type": "backend",
+      "label": "Health",
+      "sublabel": "snapshot",
+      "pos": [
+        460,
+        480
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "updates",
+      "type": "cloud",
+      "label": "Updates",
+      "sublabel": "GitHub",
+      "pos": [
+        670,
+        430
+      ],
+      "size": [
+        130,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Android + Windows \u2022 Flutter+Go",
+      "wraps": [
+        "flutter",
+        "tunnel",
+        "core",
+        "routing",
+        "ingest",
+        "amnezia",
+        "geo",
+        "health",
+        "updates"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "sg-tunnel",
+      "wraps": [
+        "tunnel",
+        "core"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "users-flutter",
+      "from": "users",
+      "to": "flutter",
+      "label": "tap power"
+    },
+    {
+      "id": "flutter-tunnel",
+      "from": "flutter",
+      "to": "tunnel",
+      "label": "connect(tag)",
+      "labelAt": [
+        355,
+        374
+      ]
+    },
+    {
+      "id": "tunnel-core",
+      "from": "tunnel",
+      "to": "core",
+      "label": "start"
+    },
+    {
+      "id": "ingest-routing",
+      "from": "ingest",
+      "to": "routing",
+      "label": "endpoint",
+      "labelAt": [
+        345,
+        210
+      ]
+    },
+    {
+      "id": "routing-amnezia",
+      "from": "routing",
+      "to": "amnezia",
+      "label": "profile",
+      "via": [
+        [
+          380,
+          70
+        ],
+        [
+          670,
+          70
+        ]
+      ],
+      "labelAt": [
+        525,
+        52
+      ]
+    },
+    {
+      "id": "flutter-ingest",
+      "from": "flutter",
+      "to": "ingest",
+      "label": "raw sub",
+      "via": [
+        [
+          380,
+          230
+        ],
+        [
+          460,
+          230
+        ]
+      ],
+      "labelAt": [
+        400,
+        215
+      ]
+    },
+    {
+      "id": "geo-health",
+      "from": "geo",
+      "to": "health",
+      "label": "path",
+      "via": [
+        [
+          380,
+          520
+        ],
+        [
+          460,
+          520
+        ]
+      ],
+      "labelAt": [
+        350,
+        562
+      ]
+    },
+    {
+      "id": "updates-geo",
+      "from": "updates",
+      "to": "geo",
+      "label": "refresh",
+      "via": [
+        [
+          670,
+          545
+        ],
+        [
+          380,
+          545
+        ]
+      ],
+      "labelAt": [
+        525,
+        563
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "1 TUN Unified",
+      "items": [
+        "Flutter M3E + Go amnezia-box with_awg via gomobile",
+        "Tunnel.connect(tag) owns 12 steps: grant->battery->foreground->protect->start->firewall"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Deep 6",
+      "items": [
+        "03 Tunnel -> 01 Routing + 02 Ingestion -> 04 AmneziaWG -> 05 GeoAsset -> 06 Health",
+        "WG/AWG star: all values Jc/H1/I1/Id/Ip/Ib + VLESS Reality + Hysteria2 + Tor sidecar"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Security",
+      "items": [
+        "FakeIP 198.18/15 + DoH split + WFP max firewall, 7 leak tests"
+      ]
+    }
+  ]
+}

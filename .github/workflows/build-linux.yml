@@ -1,0 +1,15 @@
+name: build-linux
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Placeholder (v1.1)
+        run: echo "Linux build lands in v1.1 — SPEC.md out-of-scope for MVP"

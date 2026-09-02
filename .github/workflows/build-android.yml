@@ -1,0 +1,117 @@
+name: build-android
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install sagernet gomobile
+        run: |
+          go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.13
+          go install -v github.com/sagernet/gomobile/cmd/gobind@v0.1.13
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+
+      - name: Install Android SDK + NDK 28
+        run: |
+          sdkmanager --install "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0" >/dev/null
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+
+      - name: Build libbox.aar (with_awg)
+        run: make -C . lib_android
+
+      - name: Sanity — amneziawg symbols present, stub absent
+        run: |
+          cd android/app/libs
+          mkdir -p extracted && cd extracted
+          unzip -o ../libbox.aar 'jni/arm64-v8a/*' >/dev/null
+          strings jni/arm64-v8a/libbox.so | grep -q amneziawg || { echo "AWG missing — with_awg tag?"; exit 1; }
+          if strings jni/arm64-v8a/libbox.so | grep -q "Awg is not included"; then echo "AWG stub shipped"; exit 1; fi
+
+      - name: Flutter test + analyze
+        run: |
+          flutter pub get
+          flutter gen-l10n
+          flutter analyze
+          flutter test
+
+      - name: Setup signing (if secrets present)
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Build APKs (split per ABI)
+        run: flutter build apk --release --split-per-abi --no-tree-shake-icons
+
+      - name: Rename artifacts
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          cd build/app/outputs/flutter-apk
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "app-$abi-release.apk" "yourvpn_v${V}_${abi}.apk"
+          done
+
+      - name: Generate latest.json + sha256
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, glob
+          v = os.environ['V'].lstrip('v')
+          artifacts = glob.glob('build/app/outputs/flutter-apk/yourvpn_*.apk')
+          platforms = {}
+          sha = {}
+          for path in artifacts:
+              name = os.path.basename(path)
+              abi = name.split('_')[2].replace('.apk', '')
+              key = {'arm64-v8a': 'android-arm64', 'armeabi-v7a': 'android-arm', 'x86_64': 'android-x64'}[abi]
+              platforms[key] = {'url': f'https://github.com/yourvpn/yourvpn/releases/download/v{v}/{name}', 'version': f'v{v}'}
+              sha[name] = hashlib.sha256(open(path, 'rb').read()).hexdigest()
+          json.dump({'version': f'v{v}', 'platforms': platforms}, open('build/app/outputs/flutter-apk/latest.json', 'w'), indent=2)
+          json.dump(sha, open('build/app/outputs/flutter-apk/sha256.json', 'w'), indent=2)
+          PY
+        env:
+          V: ${{ github.ref_name }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/app/outputs/flutter-apk/yourvpn_*.apk
+            build/app/outputs/flutter-apk/sha256.json
+            build/app/outputs/flutter-apk/latest.json
+          generate_release_notes: true

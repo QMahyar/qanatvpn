@@ -1,0 +1,83 @@
+name: build-windows
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build sing-box.exe (with_awg, CGO off)
+        working-directory: go/amnezia-box
+        shell: pwsh
+        run: |
+          $env:CGO_ENABLED = '0'
+          $version = git describe --tags
+          $ldflags = "-X github.com/sagernet/sing-box/constant.Version=$version -X runtime.godebugDefault=multipathtcp=0,tlssha1=1,tlsunsafeekm=1 -checklinkname=0 -s -w -buildid="
+          $tags = "with_gvisor,with_quic,with_wireguard,with_utls,with_naive_outbound,with_clash_api,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_tailscale,ts_omit_logtail,ts_omit_ssh,ts_omit_drive,ts_omit_taildrop,ts_omit_webclient,ts_omit_doctor,ts_omit_capture,ts_omit_kube,ts_omit_aws,ts_omit_synology,ts_omit_bird,with_awg,with_purego"
+          go build -trimpath -buildvcs=false -ldflags "$ldflags" -tags "$tags" -o ../../windows/sing-box.exe ./cmd/sing-box
+          if (-not (Test-Path ../../windows/sing-box.exe)) { throw "sing-box.exe missing" }
+          $env:PATH = "$PWD\..\..\windows;$env:PATH"
+          sing-box version | Select-String awg
+
+      - name: Flutter test + analyze
+        run: |
+          flutter pub get
+          flutter gen-l10n
+          flutter analyze
+          flutter test
+
+      - name: Build Windows app
+        run: flutter build windows --release
+
+      - name: Bundle zip
+        shell: pwsh
+        run: |
+          $v = $env:GITHUB_REF_NAME.TrimStart('v')
+          $dir = "build/windows/x64/runner/Release"
+          Copy-Item windows/sing-box.exe "$dir/sing-box.exe"
+          Compress-Archive -Path "$dir/*" -DestinationPath "yourvpn_v${v}_windows-x64.zip"
+          $hash = (Get-FileHash "yourvpn_v${v}_windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
+          @{ "yourvpn_v${v}_windows-x64.zip" = $hash } | ConvertTo-Json | Set-Content sha256.json
+
+      - name: Update latest.json (windows entry)
+        shell: pwsh
+        run: |
+          $v = $env:GITHUB_REF_NAME.TrimStart('v')
+          $entry = @{
+            version = "v$v"
+            platforms = @{
+              'windows-x64' = @{
+                url = "https://github.com/yourvpn/yourvpn/releases/download/v$v/yourvpn_v${v}_windows-x64.zip"
+                version = "v$v"
+              }
+            }
+          } | ConvertTo-Json -Depth 5
+          $entry | Set-Content latest.json
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            yourvpn_v*_windows-x64.zip
+            sha256.json
+            latest.json
+          generate_release_notes: true

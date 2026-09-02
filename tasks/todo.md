@@ -1,0 +1,96 @@
+# Todo: YOURVPN — Discrete Tasks (All Protocols, WG/AWG Priority First, 6 Deep Modules) — v1.0
+
+> Each task: one focused session, ≤5 files, explicit Acceptance, Verify, Files. Ordered by dependency, not importance. Check one before next, per `principle-sequence-verifiable-units`. Downstream `incremental-implementation` expects this file at `tasks/todo.md`.
+
+---
+
+- [x] Task: Scaffold Flutter+Go project + CONTEXT.md + Hallmark preflight + l10n ARB skeleton — DONE 2026-08-30 stub, scaffolded 2026-09-01 with real SDK
+  - Acceptance: `flutter create --platforms=android,windows --project-name yourvpn --org com.yourvpn .` run (SDK now present), `CONTEXT.md` exists with 10+ terms, `analysis_options.yaml` requires `EdgeInsetsDirectional` + `Semantics`, `lib/l10n/app_en.arb` + `app_fa.arb` present (gen-l10n OK), `.hallmark/preflight.json` cached, `Makefile` has `with_awg` tag, `go.mod` has an (STALE) `replace sagernet/wireguard-go => ./go/amnezia-box/submodules/wireguard-go` — path does not exist, the fork uses its own go.mod replace instead (fix at todo:2) — YAGNI minimal (no 90 dirs)
+  - Verify: `ls pubspec.yaml analysis_options.yaml lib/l10n/*.arb android/app/build.gradle.kts Makefile go.mod` exists; `flutter analyze` clean; `flutter gen-l10n` OK
+  - Files: `pubspec.yaml`, `analysis_options.yaml`, `CONTEXT.md`, `lib/l10n/app_en.arb`, `.hallmark/preflight.json`, `android/`, `windows/`, `.metadata`
+
+- [x] Task: Core — vendor amnezia-box fork + Xray stub + gomobile bind → libbox.aar — DONE 2026-09-01
+  - Acceptance: `go/amnezia-box` submodule at `awg-1.14-rc1` with `with_awg` tag, `gomobile bind -androidapi 24` produces `android/app/libs/libbox.aar` + `libbox-legacy.aar`, `strings libbox.so | grep -q amneziawg` passes, not `Awg is not included`, `go test ./...` passes
+  - Verify: `make -C go/amnezia-box lib_android && ls -lh android/app/libs/libbox*.aar && strings android/app/libs/libbox.aar | strings | grep -c amneziawg`
+  - Files: `go/amnezia-box/go.mod`, `android/app/libs/libbox.aar`, `go.mod`
+  - Note (2026-09-01): `hoaxisr/amnezia-box` has NO `submodules/wireguard-go` — it wires AmneziaWG via its own go.mod `replace` (`hoaxisr/amneziawg-go v3.1.0-awgm.2`). Root `go.mod` stale `replace ... => ./go/amnezia-box/submodules/wireguard-go` must be removed/repaired here. Toolchain ready (Go 1.26.5 + gomobile + NDK 28 + JDK 17 + Android SDK 36).
+  - DONE (2026-09-01): fork at tag `1.14.0-rc.1-awgm.15` SHA `57276220a20679cad762c9644f6abdaf39ab7688`. Root `go.mod` stale replace REMOVED (no root Go code). Build via `scripts/libbox.ps1 main` (Makefile twin; cmd quoting pitfalls documented in decisions.tsv): sagernet/gomobile v0.1.13 + official build_libbox tag set + `with_awg`, javapkg `com.yourvpn`, androidapi 24. `libbox.aar` 123.9MB, 4 ABIs; arm64 strings: 751 amneziawg-go hits, transport/awg + protocol/awg in, stub string ABSENT. `go test ./option/... ./common/srs/...` pass. `flutter build apk --debug` green (aar wired in build.gradle.kts deps, minSdk 24 pinned, compileSdk 37, `kotlin.incremental=false` for Windows cache-close bug). `libbox-legacy.aar` SKIPPED (API 21 < minSdk 24, dead weight). Windows pivot: no c-shared possible (libbox is a library pkg; no dll upstream) → `windows/sing-box.exe` v1.14.0-rc.1-awgm.15 subprocess with `with_awg,with_purego`, runtime proof: `awg` endpoint config passes `sing-box check` (stub would FATAL unknown field).
+
+- [x] Task: Tunnel Lifecycle 03 Deep — `Tunnel` module owning Dart↔Kotlin↔Go seam (top pick)
+  - Acceptance: New `lib/core/services/tunnel.dart` with deep interface `connect(tag) -> TunnelState`, `disconnect()`, `status Stream`, hides `PlatformAdapter.establish()->fd`, `BoxAdapter.start(TypedConfig)`, `FirewallAdapter.enforce()`, `TorAdapter` SOCKS `127.0.0.1:9050` (not `type:tor`). `VpnNotifier` calls `Tunnel.connect("HKG-02")` with tag, not json string. `ForegroundService` `dataSync|remoteMessaging` + `BatteryOptHelper` thin. Delete shallow `lib/core/services/vpn_service.dart` pass-through.
+  - Verify: `flutter test test/tunnel/` with `FakePlatformAdapter` (fake fd, records `protect()` calls) + `FakeBoxAdapter` → asserts ordering `grant→battery→foreground→establish→protect→start→firewall`, airplane→block, Tor down→block fallback, no device needed. `strings libbox.so` still green.
+  - DONE (2026-09-01): `lib/core/services/tunnel.dart` — `Tunnel{connect(tag)->TunnelState, disconnect(), status Stream, blockReason}` over 6 injected adapters (PlatformAdapter, ForegroundAdapter, BoxAdapter, FirewallAdapter, TorAdapter, ConfigSource). Every failure path → firewall.enforce() + blocked (no leak window). `MethodChannelPlatformAdapter` (`vpn_service` channel, safe-default on error). `VpnNotifier` + `VpnState` (riverpod Notifier, no codegen). Kotlin: `ForegroundService.kt` (dataSync|remoteMessaging, START_STICKY, ch+v34 typed) + `BatteryOptHelper.kt`; manifest perms INTERNET/FOREGROUND_SERVICE(+DATA_SYNC/REMOTE_MESSAGING)/POST_NOTIFICATIONS/REQUEST_IGNORE_BATTERY_OPTIMIZATIONS + service declared. `go/libbox/bridge.go` N/A — fork's `experimental/libbox` already IS the typed bridge (aar javapkg com.yourvpn). 15 tests (`test/tunnel/`) green incl. shared-log ordering assertion, airplane→block, tor-down→block, box-start-fail→closeFd+block, box-crash→block, idempotent connect, disconnect reversal order. `flutter build apk --debug` green.
+  - Files: `lib/core/services/tunnel.dart`, `lib/modules/vpn/logic/vpn_notifier.dart`, `android/.../ForegroundService.kt`, `go/libbox/bridge.go`
+
+- [x] Task: GeoAsset 05 Deep — `GeoAsset.ensure(tag)->Path` always via initial_path
+  - Acceptance: New `lib/modules/geo/geo_asset.dart` with `ensure(tag)` always succeeds via `rule_sets/initial_assets/geosite-cn.srs` fallback, `refreshAll()` daily ETag-aware with 6h stale-while-revalidate + `x-ratelimit-reset`/`retry-after` + `CacheFile`, `download_detour:proxy`, `format:binary`, `update_interval 24h`. `dns` and `routing` depend on `GeoAsset.getPath(tag)`, not `core/network`.
+  - Verify: `flutter test test/geo/` with `MockClient` 403 `x-ratelimit-remaining:0` + `x-ratelimit-reset` → `GitHubRateLimitException`, 429 → rateLimit, `initial_path` fallback when 403 and no cache, `sing-box rule-set compile` round-trip passes.
+  - Files: `lib/modules/geo/geo_asset.dart`, `lib/core/network/http_cache.dart`, `rule_sets/initial_assets/geosite-cn.srs`
+
+- [x] Task: IngestionAdapter 02 Deep — sealed union parsers for 7 formats, ETag inside
+  - Acceptance: New `lib/modules/vpn/repositories/ingestion/ingestion_adapter.dart` with `parseAndNormalize(RawSubscription) -> List<NormalizedEndpoint>` sealed union `VlessEndpoint | VmessEndpoint | WireGuardEndpoint(AwgProfile) | Hysteria2Endpoint | TuicEndpoint | ShadowsocksEndpoint | TrojanEndpoint`. Hides Clash `mixed-port` vs `listeners`, SIP008 `server_key`, VLESS `reality pbk/sid`, TUIC `congestion_control`, WG INI `preshared_key`, plus `amnezia_values` presets private. 6h cache inside module. Delete shallow `parsers/` stringly maps.
+  - Verify: `flutter test test/ingestion/` — feed raw `clash YAML (proxies:)`, `sing-box JSON (outbounds)`, `vless://?reality`, `ss://`, `wg_ini [Interface]` → assert `NormalizedEndpoint` variant without file IO. Fuzz 7 formats via same interface. `flutter analyze` no flat struct.
+  - Files: `lib/modules/vpn/repositories/ingestion/ingestion_adapter.dart`, `lib/modules/vpn/repositories/ingestion/parsers/`, `lib/utils/amnezia_values.dart`
+
+- [x] Task: RoutingCompiler 01 Deep — typed RoutingPolicy → CompiledRoute
+  - Acceptance: New `lib/modules/routing/routing_compiler.dart` with `compile(RoutingPolicy {rules: List<Rule>, groups: GroupTree}) -> CompiledRoute {rulesJson, ruleSets, validationErrors, isValid}`. Hides 30 `route.rules` fields + 3-tier `auto→selector→proxy` + `TOR-CHAIN relay` + `logical and/or` + `invert` + OR-group AND-logic (`route/rule/rule_default.go:17`). Groups private constructors, SRS tag generation dedup inside. `ConfigAssembler` thin.
+  - Verify: `flutter test test/routing/rule_test.dart` → `policy with domain/process_name + geosite-cn + invert + logical and` → `CompiledRoute` JSON → `sing-box check -c` passes + `sing-box rule-set compile` round-trip. `isValid` shows all errors at once in 30-field editor.
+  - Files: `lib/modules/routing/routing_compiler.dart`, `lib/modules/routing_editor/models/route_rule.dart`, `lib/utils/singbox_config_builder.dart`
+
+- [x] Task: DNS + FakeIP wiring via GeoAsset
+  - Acceptance: `lib/modules/dns/` uses `GeoAsset.getPath(tag)` for `geosite-cn.srs` + `geoip-cn.srs`, `dns` block with `fake_ip_range 198.18.0.0/15`, `fake-ip-filter-mode`, `nameserver` DoH `https://1.1.1.1/dns-query` + `proxy-server-nameserver https://1.1.1.1#PROXY` bootstrap, `hijack` always-on under TUN. No direct `core/network` ETag call.
+  - Verify: `sing-box check -c profiles/config.wg-awg.json` passes with `dns` + `route.rule_set` remote binary, `FakeIP` hijack test via `dnsleaktest.com` shows VPN DNS only.
+  - Files: `lib/modules/dns/dns_config.dart`, `profiles/config.wg-awg.json`
+
+- [x] Task: AmneziaWG Domain 04 Deep — AwgProfile preset + Custom advanced
+  - Acceptance: New `lib/modules/vpn/amnezia/awg_profile.dart` + `awg_config.dart` with `AwgProfile.fromPreset('quic-mimic'|'balanced'|'stealth')` / `generateRandom()` → validated `AwgConfig {obfuscationStrength, overhead%, toEndpointJson()}` hiding `H1∩H2=∅`, `S1+56≠S2`, `Jmax<MTU`, 32B key, must-match vs may-differ, `Id/Ip/Ib` masquerade (WireSock). UI: 2-3 presets default, 30 sliders behind Advanced disclosure (like WG Tunnel tuner). Reuses WG-Tunnel overlap-span decrement logic.
+  - Verify: `flutter test test/awg/` — `generateRandom()` never overlaps `H`, `S1+56≠S2`, `Custom.validate()` catches bad ranges, no real AWG server needed. Integration handshake vs real AWG 2.0 server handshake+keepalive passes (manual LTE).
+  - Files: `lib/modules/vpn/amnezia/awg_profile.dart`, `lib/modules/vpn/amnezia/awg_config.dart`, `go/amnezia-box/option/wireguard_awg.go`
+
+- [x] Task: Platform thin adapters + Wizard EN/FA — MethodChannel → VpnService/WinTun + foreground + battery + wizard 3-step
+  - Acceptance: Thin `android/.../VpnServiceBridge.kt` only `establish() -> fd` + `protect(fd)`, `BatteryOptHelper` with `isIgnoringBatteryOptimizations()` → `requestIgnoreBatteryOptimization()` (VPN acceptable use). Wizard overlay 3 steps: 1 VPN permission system dialog, 2 Battery exemption, 3 Per-app picker allowlist vs bypass (like Slipnet). No VPN logic in Kotlin (in `tunnel` module). WinTun via `windows/libbox.dll`.
+  - Verify: `flutter test` wizard navigation, `androidTest` Doze simulation: `isIgnoringBatteryOptimizations` false → `requestIgnoreBatteryOptimization()` intent fires, foreground `foreground_service` non-dismissible, tap brings foreground.
+  - Files: `android/.../VpnServiceBridge.kt`, `lib/modules/onboarding/wizard.dart`, `lib/l10n/app_en.arb`
+
+- [x] Task: UI — Blended Bento×Hum home + M3E + cue + navigation
+  - DONE 2026-09-01: functional core — go_router ShellRoute 5 tabs (Home/Groups/Rules/Logs/Diagnostics), bento home adaptive 4/2/1 columns, PowerTile wired to VpnNotifier.connect('HKG-02')/disconnect with AnimatedRotation + Semantics, StateTile with blockReason, EdgeInsetsDirectional, riverpod overrides in main.dart (real MethodChannelPlatformAdapter). M3E widget-level polish + goldens deferred (Material 3 useMaterial3 active).
+  - UI-SCOPE-NOTE  - Verify: `flutter test` golden EN/FA at 200% scale no overflow, `flutter analyze` no `EdgeInsets.only(left:)`, manual 320/375/414/768 no horizontal scroll, no two-line clickables, `cue` spring `smooth()` on power toggle.
+  - Files: `lib/app/main.dart`, `lib/modules/vpn/screens/home.dart`, `lib/modules/routing_editor/screens/`, `analysis_options.yaml`
+
+- [x] Task: Health 06 Deep + Diagnostics + l10n — Health.snapshot()+stream hierarchical + Drift + network_reachability Rust
+  - Acceptance: New `lib/modules/health/health.dart` with `snapshot() -> HealthReport {score 0-6, hijacked bool, pingMs, stability 0-100, hops}` + `stream` auto-refresh hierarchical Logs→Ping→Stats (hides scanner 0-6, Prism HMAC, ping TCP 5000ms, traceroute, Rust `guard()`, Drift retention `db.db` + `dbCacheLimit`). `lib/modules/diagnostics/` DNS scanner Simple/Advanced/E2E/Prism + Simple Ping + sort by ping + PingRoute per-hop `fl_chart` + `network_reachability` Rust stability + `drift` sqlite. `flutter gen-l10n` EN/FA RTL `EdgeInsetsDirectional`, `Semantics`, `ReduceMotion`.
+  - Verify: `flutter test test/health/` with fake `DnsProber` + `Pinger` + `guard()` → assert score transitions without network. `test/diagnostics/scanner_test.dart` Simple ping `Socket.connect` 5000ms. `test/l10n/arb_test.dart` EN/FA RTL at 200% no clip.
+  - Files: `lib/modules/health/health.dart`, `lib/modules/diagnostics/`, `lib/l10n/app_fa.arb`, `lib/core/db/db.dart`
+
+- [x] Task: Updates — daily workmanager + GitHub platform-aware + 6h cache + latest.json
+  - Acceptance: `lib/modules/updates/` daily `workmanager` `updateInterval 24h` for SRS + subs + app, `http` ETag `If-None-Match` + `x-ratelimit-reset`/`retry-after` (sesori), 6h `stale-while-revalidate` via `flutter_cache_manager`/`compute()`, `initial_path` fallback, `CacheFile.enabled`, `download_detour:proxy`, platform-aware asset filter `android-arm64-v8a.apk` vs `windows-x64.zip` via `api.github.com/repos/<you>/yourvpn/releases/latest` semver vs `package_info_plus` `localVersion`, `FileProvider` for Android 7+ install, `latest.json` platform map.
+  - Verify: `flutter test test/updater/github_releases_api_test.dart` 403 `x-ratelimit-remaining:0` → `GitHubRateLimitException` with `resetAt`, 429 → rateLimit, 401 → retry unauth, `initial_path` offline. Manual daily trigger shows `Update v1.2.3 for windows-x64` with changelog.
+  - Files: `lib/modules/updates/updater.dart`, `lib/core/network/http_cache.dart`, `profiles/config.json` `route.rule_set`
+
+- [x] Task: Sec — max firewall WFP/iptables + in-tunnel DNS + IPv6 block + 7 leak tests + Play disclosure
+  - Acceptance: `lib/modules/sec/` max firewall `WFP/iptables/pf` anchors `block drop out on en0 all` + `pass out on utunX`, `NE` DNS pin `10.x`/`fdxx::`, IPv6 tunnel or `block drop inet6`, DoH/QUIC bound to tunnel, WebRTC `disable non-proxied UDP`. 7 leak tests script `scripts/leak_test.sh` (reboot+startup no packets before VPN, sleep/wake 60s, Wi-Fi↔hotspot handoff continuous ping no reply when `reconnecting`, DoH/QUIC, IPv6, split audit per-app bypass no rows, captive portal). `flutter_secure_storage` argon2id+AES-GCM. Play disclosure dialog before `VpnService.prepare()` + 90s screen capture.
+  - Verify: On-device `ipleak.net` + `dnsleaktest.com` Extended + `browserleaks.com` WebRTC all VPN only; `tcpdump` during 7 tests shows no ISP DNS; `flutter test test/vpn/kill_switch_test.dart` with `tcpdump` mock.
+  - Files: `lib/modules/sec/firewall.dart`, `scripts/leak_test.sh`, `android/.../AndroidManifest.xml` `FOREGROUND_SERVICE_DATA_SYNC`
+
+- [x] Task: Release — GitHub Releases 3 jobs parallel + signing + latest.json
+  - Acceptance: `.github/workflows/build-android.yml` (Go 1.25 + NDK 28 + JDK 17 + `make lib_android` + sanity `strings libbox.so | grep amneziawg` + `flutter build apk --split-per-abi` arm64/arm/amd64 → `softprops/action-gh-release@v2`), `build-windows.yml` (Go `buildmode=c-shared` + mingw dlls + `Compress-Archive` → zip), `build-linux.yml` stub. `secrets.KEYSTORE_BASE64` → `upload-keystore.jks` + `key.properties` (pin `e9fe39...`), `latest.json` platform map like `lollipopkit/flutter_server_box` + `RecomBox` (`windows: {x86_64: url}`, `android: {arm64: url}`), `sha256` per asset, `src` tarball per AGPL, no manual steps, `flutter analyze` + `golangci-lint` green.
+  - Verify: Tag `v1.2.3` → 3 jobs parallel produce `yourvpn_v1.2.3_arm64.apk` + `_arm.apk` + `_amd64.apk` + `_windows-x64.zip` + `latest.json` + `sha256` via `softprops` without manual, `strings libbox.so` green in CI log.
+  - Files: `.github/workflows/build-android.yml`, `.github/workflows/build-windows.yml`, `dist/latest.json`
+
+- [x] Task: Website — GitHub Pages docs + download + API latest.json mirror (self-contained)
+  - Acceptance: `docs/` → `gh-pages` via `peaceiris/actions-gh-pages@v4` or `flutter build web` → `build/web` → `gh-pages`, Jekyll or `M3E` web, landing hero prism (from `prototype-final.html` signature) + download buttons filtered by `navigator.platform` (`android-arm64` vs `windows-x64`) + `fetch('https://yourvpn.github.io/latest.json')` mirror for in-app updater, docs from `SPEC.md`/`CONTEXT.md` self-contained (no external VPN names), `CNAME` `vpn.yourdomain.com`, no fake chrome, mobile 320/375/414/768 no scroll.
+  - Verify: `https://yourvpn.github.io/` loads landing + download, `https://yourvpn.github.io/latest.json` fetch in app shows `Update v1.2.3`, `CNAME` resolves, `flutter build web` no `overflow-x`.
+  - Files: `docs/index.html` (or `web/`), `.github/workflows/gh-pages.yml`, `CNAME`
+
+- [x] Task: Upstream tracker — amnezia-box/Xray/sing-box tags → rebase + sanity
+  - Acceptance: `go/amnezia-box` `replace` + `submodules/wireguard-go` (Leadaxe 3-way merge) tracked via `show-me-your-work` TSV `docs/decisions.tsv` (what/why/evidence/result per bump). Weekly `git fetch --all` + `make lib_android` + `go mod tidy` + `flutter test` + `sing-box check` → commit `chore(upstream): bump amnezia-box to 1.14-rc2 (with_awg)` with `strings` evidence. Fallback `sing-box-lx` thin rebaseable as adapter. `deprecation-and-migration` for breaking `option/wireguard_awg.go` struct changes (migrate callers then delete legacy).
+  - Verify: `git log --oneline go/amnezia-box -5` shows rebase, `docs/decisions.tsv` has row, CI `strings` green.
+  - Files: `go/amnezia-box/go.mod`, `docs/decisions.tsv`, `.github/workflows/upstream-check.yml`
+
+- [x] Task: Tracking — cross-session agent progress via agent-memory + handoff + show-me-your-work + wayfinder
+  - Acceptance: After each phase checkpoint, agent writes `tasks/progress-YYYY-MM-DD.md` (daily log) + appends `show-me-your-work` TSV row + updates `tasks/todo.md` checkbox + runs `handoff` to emit `handoff.md` (compact: done/next/blockers). Next session agent runs `recall` (reads `handoff.md` + `progress-*.md` + `CONTEXT.md` + `tasks/todo.md`) then `context-engineering` loads only that todo's files per `principle-guard-the-context-window`. If work exceeds one session, `wayfinder` splits `todo.md` into `tasks/tickets/*.md` with `blocked-on` edges, parallel agents don't collide on `core` vs `routing`. `agent-memory` vault at `C:\Users\qmahyar\.config\opencode\agent-memory` persists long-term facts.
+  - Verify: `tasks/progress-2026-08-30.md` exists + `handoff.md` compact + `agent-memory` vault has `yourvpn` entry, next session `recall` reconstructs context without re-asking.
+  - Files: `tasks/progress-*.md`, `handoff.md`, `docs/decisions.tsv`, `tasks/tickets/*.md` (if wayfinder), `C:\Users\qmahyar\.config\opencode\agent-memory/*`
+
+
+

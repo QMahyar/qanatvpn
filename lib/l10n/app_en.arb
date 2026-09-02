@@ -1,0 +1,22 @@
+{
+  "@@locale": "en",
+  "appTitle": "YOURVPN",
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+  "@connect": { "description": "Connect button" },
+  "settings": "Settings",
+  "vpnPermissionTitle": "VPN permission",
+  "vpnPermissionBody": "Android needs your consent to create a VPN tunnel. A system dialog will appear.",
+  "vpnPermissionGrant": "Grant VPN permission",
+  "vpnPermissionGranted": "Granted",
+  "batteryTitle": "Battery exemption",
+  "batteryBody": "Without an exemption, Android may kill the tunnel in Doze. VPN apps are allowed to request this.",
+  "batteryAllow": "Allow",
+  "skip": "Skip",
+  "perAppTitle": "Per-app split",
+  "allowlist": "Allowlist",
+  "bypass": "Bypass",
+  "finish": "Finish",
+  "wizardStepOf": "Step {step} of 3",
+  "@wizardStepOf": { "placeholders": { "step": { "type": "int" } } }
+}

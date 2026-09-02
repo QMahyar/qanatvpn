@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "preset": "classic",
+  "tokens": "var(--color-*) + var(--font-*)",
+  "checked": "2026-08-30",
+  "status": "pass"
+}

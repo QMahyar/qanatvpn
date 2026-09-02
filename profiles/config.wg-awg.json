@@ -1,0 +1,156 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "dns-proxy",
+        "type": "https",
+        "server": "1.1.1.1",
+        "path": "/dns-query",
+        "detour": "PROXY"
+      },
+      {
+        "tag": "dns-local",
+        "type": "local"
+      },
+      {
+        "tag": "dns-fakeip",
+        "type": "fakeip",
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18"
+      }
+    ],
+    "rules": [
+      {
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "server": "dns-local"
+      },
+      {
+        "clash_mode": "Direct",
+        "server": "dns-local"
+      },
+      {
+        "clash_mode": "Global",
+        "server": "dns-proxy"
+      },
+      {
+        "query_type": [
+          "A",
+          "AAAA"
+        ],
+        "server": "dns-fakeip"
+      }
+    ],
+    "final": "dns-proxy",
+    "strategy": "prefer_ipv4"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "fdfe:dcba:9876::1/126",
+        "198.18.0.0/15"
+      ],
+      "auto_route": true,
+      "strict_route": true
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "PROXY",
+      "outbounds": [
+        "DIRECT"
+      ]
+    },
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    }
+  ],
+  "endpoints": [
+    {
+      "type": "awg",
+      "tag": "awg-hkg-02",
+      "private_key": "eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=",
+      "address": [
+        "10.7.0.2/32"
+      ],
+      "mtu": 1408,
+      "jc": 5,
+      "jmin": 30,
+      "jmax": 1000,
+      "s1": 56,
+      "s2": 152,
+      "h1": "1234567",
+      "h2": "2345678",
+      "h3": "3456789",
+      "h4": "4567890",
+      "peers": [
+        {
+          "address": "203.0.113.10",
+          "port": 51820,
+          "public_key": "7f3f0a5df0c497ef3f4a05c99a3a2d8d3c4b5a6e7f8091a2b3c4d5e6f708192a",
+          "allowed_ips": [
+            "0.0.0.0/0",
+            "::/0"
+          ],
+          "persistent_keepalive_interval": 25
+        }
+      ]
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "PROXY",
+    "default_domain_resolver": {
+      "server": "dns-local"
+    },
+    "rule_set": [
+      {
+        "type": "remote",
+        "tag": "geosite-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs",
+        "download_detour": "PROXY",
+        "update_interval": "24h"
+      },
+      {
+        "type": "remote",
+        "tag": "geoip-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs",
+        "download_detour": "PROXY",
+        "update_interval": "24h"
+      }
+    ],
+    "rules": [
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "domain_suffix": [
+          "cn"
+        ],
+        "rule_set": [
+          "geosite-cn",
+          "geoip-cn"
+        ],
+        "outbound": "DIRECT"
+      },
+      {
+        "process_name": [
+          "steam.exe"
+        ],
+        "action": "reject"
+      }
+    ]
+  }
+}
