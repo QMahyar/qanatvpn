@@ -62,4 +62,67 @@ class AppLocalizationsEn extends AppLocalizations {
   String wizardStepOf(int step) {
     return 'Step $step of 3';
   }
+
+  @override
+  String get updatesIdle =>
+      'No check yet. The app checks daily in the background.';
+
+  @override
+  String updatesUpToDate(String version) {
+    return 'Up to date (v$version)';
+  }
+
+  @override
+  String get updatesCheckNow => 'Check now';
+
+  @override
+  String get updatesInstall => 'Download & install';
+
+  @override
+  String get groups => 'Groups';
+
+  @override
+  String get rules => 'Rules';
+
+  @override
+  String get logs => 'Logs';
+
+  @override
+  String get diagnostics => 'Diagnostics';
+
+  @override
+  String get stateConnected => 'Connected';
+
+  @override
+  String get stateConnecting => 'Connecting…';
+
+  @override
+  String get stateDisconnecting => 'Disconnecting…';
+
+  @override
+  String get stateBlocked => 'Blocked';
+
+  @override
+  String get stateReconnecting => 'Reconnecting…';
+
+  @override
+  String get stateTapToConnect => 'Tap to connect';
+
+  @override
+  String get blockVpnPermissionDenied => 'VPN permission denied';
+
+  @override
+  String get blockEstablishFailed => 'Tunnel setup failed';
+
+  @override
+  String get blockAirplaneMode => 'Airplane mode is on';
+
+  @override
+  String get blockTorDown => 'Tor chain is down';
+
+  @override
+  String get blockBoxStartFailed => 'Engine failed to start';
+
+  @override
+  String get blockBoxCrashed => 'Engine crashed';
 }

@@ -3,6 +3,9 @@ package com.yourvpn.yourvpn
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.net.VpnService
 import android.os.PowerManager
 import android.provider.Settings
@@ -23,6 +26,18 @@ object VpnServiceBridge {
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL,
         )
+        // Engine lifecycle events flow Kotlin→Dart on a dedicated channel;
+        // MethodChannelBoxAdapter subscribes for crashed/stopped events.
+        val eventChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "box_events",
+        )
+        BoxEngine.setEventSink { kind, message ->
+            eventChannel.invokeMethod(
+                "onEngineEvent",
+                mapOf("kind" to kind, if (message != null) "message" to message else "message" to null),
+            )
+        }
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "isVpnPermissionGranted" -> result.success(isVpnPrepared(activity))
@@ -42,26 +57,38 @@ object VpnServiceBridge {
                     result.success(null)
                 }
                 "isAirplaneMode" -> result.success(isAirplaneMode(activity))
-                "establish" -> {
-                    val prepare = VpnService.prepare(activity)
-                    if (prepare != null) {
-                        result.error(
-                            "vpn_permission_required",
-                            "VpnService.prepare() returned an intent; grant consent first",
-                            null,
-                        )
+                "boxStart" -> {
+                    val config = call.argument<String>("config")
+                    if (config.isNullOrEmpty()) {
+                        result.error("invalid_args", "config is required", null)
                     } else {
-                        startEstablish(activity, result)
+                        BoxEngine.boxStart(
+                            activity.applicationContext,
+                            config,
+                            call.argument<List<String>>("includePackages") ?: emptyList(),
+                            call.argument<List<String>>("excludePackages") ?: emptyList(),
+                            result,
+                        )
                     }
                 }
-                "protect" -> {
-                    val fd = call.argument<Int>("fd") ?: -1
-                    val ok = YourVpnService.INSTANCE?.protect(fd) ?: false
-                    result.success(ok)
+                "boxStop" -> BoxEngine.boxStop(activity.applicationContext, result)
+                "listInstalledApps" -> {
+                    result.success(listInstalledApps(activity))
                 }
-                "closeFd" -> {
-                    val fd = call.argument<Int>("fd") ?: -1
-                    result.success(YourVpnService.closeFd(fd))
+                "installUpdate" -> {
+                    val url = call.argument<String>("url")
+                    if (url.isNullOrEmpty()) {
+                        result.error("invalid_args", "url is required", null)
+                    } else {
+                        try {
+                            activity.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                            )
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("install_failed", e.message, null)
+                        }
+                    }
                 }
                 "startForeground" -> {
                     ForegroundService.start(activity)
@@ -99,9 +126,25 @@ object VpnServiceBridge {
         ) != 0
     }
 
-    private fun startEstablish(activity: Activity, result: MethodChannel.Result) {
-        YourVpnService.pushEstablishCallback(result)
-        val intent = Intent(activity, YourVpnService::class.java)
-        activity.startService(intent)
+    /// User-installed launchable apps for the wizard's per-app picker.
+    /// System packages and this app are excluded — splitting yourself
+    /// through the tunnel is always a footgun.
+    private fun listInstalledApps(activity: Activity): List<Map<String, String>> {
+        val packages = activity.packageManager
+            .getInstalledPackages(PackageManager.GET_META_DATA)
+        return packages.mapNotNull { info ->
+            val name = info.packageName ?: return@mapNotNull null
+            if (info.applicationInfo == null) return@mapNotNull null
+            if ((info.applicationInfo!!.flags and ApplicationInfo.FLAG_SYSTEM) != 0) {
+                return@mapNotNull null
+            }
+            if (name == activity.packageName) return@mapNotNull null
+            val label = try {
+                info.applicationInfo!!.loadLabel(activity.packageManager).toString()
+            } catch (e: Exception) {
+                name
+            }
+            mapOf("packageName" to name, "label" to label)
+        }
     }
 }

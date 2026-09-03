@@ -24,7 +24,8 @@ void main() {
       expect(v6Block['outbound'], 'BLOCK');
       final lanBlock = rules.firstWhere(
         (r) =>
-            (r['ip_cidr'] as List<dynamic>?)?.contains('192.168.0.0/16') == true,
+            (r['ip_cidr'] as List<dynamic>?)?.contains('192.168.0.0/16') ==
+            true,
       );
       expect(lanBlock['outbound'], 'BLOCK');
     });

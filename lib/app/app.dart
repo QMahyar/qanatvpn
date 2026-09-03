@@ -4,11 +4,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../l10n/app_localizations.dart';
+import '../modules/health/diagnostics_screen.dart' as diag;
+import '../modules/logs/logs_screen.dart' as logs;
 import '../modules/onboarding/wizard.dart';
+import '../modules/routing/groups_screen.dart' as groups;
+import '../modules/routing/rules_screen.dart' as rules;
+import '../modules/updates/updates_screen.dart';
+import '../modules/vpn/repositories/endpoints_screen.dart';
 import '../modules/vpn/screens/home.dart';
-import 'tabs.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
+/// Accessibility floor/ceiling: below 0.9 text becomes unreadably dense,
+/// above 1.35 bento tiles overflow. WireGuard-grade UI stays legible at both.
+const double minTextScale = 0.9;
+const double maxTextScale = 1.35;
+
+TextScaler clampTextScaler(TextScaler scaler) {
+  final double scale = scaler.scale(10) / 10;
+  return TextScaler.linear(scale.clamp(minTextScale, maxTextScale));
+}
 
 final GoRouter appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
@@ -26,22 +41,32 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/groups',
           builder: (BuildContext context, GoRouterState state) =>
-              const GroupsScreen(),
+              const groups.GroupsScreen(),
+        ),
+        GoRoute(
+          path: '/endpoints',
+          builder: (BuildContext context, GoRouterState state) =>
+              const EndpointsScreen(),
         ),
         GoRoute(
           path: '/rules',
           builder: (BuildContext context, GoRouterState state) =>
-              const RulesScreen(),
+              const rules.RulesScreen(),
         ),
         GoRoute(
           path: '/logs',
           builder: (BuildContext context, GoRouterState state) =>
-              const LogsScreen(),
+              const logs.LogsScreen(),
         ),
         GoRoute(
           path: '/diagnostics',
           builder: (BuildContext context, GoRouterState state) =>
-              const DiagnosticsScreen(),
+              const diag.DiagnosticsScreen(),
+        ),
+        GoRoute(
+          path: '/updates',
+          builder: (BuildContext context, GoRouterState state) =>
+              const UpdatesScreen(),
         ),
       ],
     ),
@@ -73,6 +98,13 @@ class YourVpnApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (BuildContext context, Widget? child) {
+        final MediaQueryData mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: clampTextScaler(mq.textScaler)),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       routerConfig: appRouter,
     );
   }
@@ -85,12 +117,16 @@ class AppShell extends ConsumerWidget {
 
   static const List<({String path, IconData icon, String labelKey})> tabs =
       <({String path, IconData icon, String labelKey})>[
-    (path: '/home', icon: Icons.power_settings_new, labelKey: 'connect'),
-    (path: '/groups', icon: Icons.hub, labelKey: 'groups'),
-    (path: '/rules', icon: Icons.rule, labelKey: 'rules'),
-    (path: '/logs', icon: Icons.article, labelKey: 'logs'),
-    (path: '/diagnostics', icon: Icons.monitor_heart, labelKey: 'diagnostics'),
-  ];
+        (path: '/home', icon: Icons.power_settings_new, labelKey: 'connect'),
+        (path: '/groups', icon: Icons.hub, labelKey: 'groups'),
+        (path: '/rules', icon: Icons.rule, labelKey: 'rules'),
+        (path: '/logs', icon: Icons.article, labelKey: 'logs'),
+        (
+          path: '/diagnostics',
+          icon: Icons.monitor_heart,
+          labelKey: 'diagnostics',
+        ),
+      ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -123,12 +159,11 @@ class AppShell extends ConsumerWidget {
   String _label(BuildContext context, String key) {
     final AppLocalizations l10n = AppLocalizations.of(context)!;
     return switch (key) {
-      'groups' => 'Groups',
-      'rules' => 'Rules',
-      'logs' => 'Logs',
-      'diagnostics' => 'Diagnostics',
+      'groups' => l10n.groups,
+      'rules' => l10n.rules,
+      'logs' => l10n.logs,
+      'diagnostics' => l10n.diagnostics,
       _ => l10n.connect,
     };
   }
 }
-

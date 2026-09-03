@@ -79,39 +79,67 @@ jobs:
       - name: Build APKs (split per ABI)
         run: flutter build apk --release --split-per-abi --no-tree-shake-icons
 
-      - name: Rename artifacts
+      - name: Rename artifacts + sha256
         run: |
           V="${GITHUB_REF_NAME#v}"
           cd build/app/outputs/flutter-apk
           for abi in arm64-v8a armeabi-v7a x86_64; do
-            cp "app-$abi-release.apk" "yourvpn_v${V}_${abi}.apk"
+            name="yourvpn_v${V}_${abi}.apk"
+            cp "app-$abi-release.apk" "$name"
+            sha256sum "$name" >> sha256-android.json
           done
 
-      - name: Generate latest.json + sha256
-        run: |
-          python3 - <<'PY'
-          import hashlib, json, os, glob
-          v = os.environ['V'].lstrip('v')
-          artifacts = glob.glob('build/app/outputs/flutter-apk/yourvpn_*.apk')
-          platforms = {}
-          sha = {}
-          for path in artifacts:
-              name = os.path.basename(path)
-              abi = name.split('_')[2].replace('.apk', '')
-              key = {'arm64-v8a': 'android-arm64', 'armeabi-v7a': 'android-arm', 'x86_64': 'android-x64'}[abi]
-              platforms[key] = {'url': f'https://github.com/yourvpn/yourvpn/releases/download/v{v}/{name}', 'version': f'v{v}'}
-              sha[name] = hashlib.sha256(open(path, 'rb').read()).hexdigest()
-          json.dump({'version': f'v{v}', 'platforms': platforms}, open('build/app/outputs/flutter-apk/latest.json', 'w'), indent=2)
-          json.dump(sha, open('build/app/outputs/flutter-apk/sha256.json', 'w'), indent=2)
-          PY
-        env:
-          V: ${{ github.ref_name }}
-
-      - name: Release
+      - name: Release android assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/app/outputs/flutter-apk/yourvpn_*.apk
-            build/app/outputs/flutter-apk/sha256.json
-            build/app/outputs/flutter-apk/latest.json
+            build/app/outputs/flutter-apk/sha256-android.json
           generate_release_notes: true
+
+  # Single producer of latest.json: waits until BOTH platform jobs have
+  # attached their assets, then builds the merged platform map from the
+  # release's real asset list. The parallel windows job writes only its own
+  # artifacts, so no two writers can race the file.
+  metadata:
+    needs: apk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for windows asset, then generate + attach latest.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 2400))
+          until gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets[].name' | grep -q 'windows-x64.zip'; do
+            if [ $SECONDS -ge $deadline ]; then
+              echo "windows asset never appeared; proceeding with android-only map" >&2
+              break
+            fi
+            sleep 60
+          done
+          python3 - <<'PY'
+          import json, os, subprocess
+          repo, tag = os.environ['REPO'], os.environ['TAG']
+          doc = json.loads(subprocess.check_output(
+              ['gh', 'api', f'repos/{repo}/releases/tags/{tag}']))
+          assets = {a['name']: a['browser_download_url'] for a in doc['assets']}
+          filters = {
+              'android-arm64': ['arm64-v8a', '.apk'],
+              'android-arm': ['armeabi-v7a', '.apk'],
+              'android-x64': ['x86_64', '.apk'],
+              'windows-x64': ['windows-x64', '.zip'],
+          }
+          platforms = {}
+          for key, needles in filters.items():
+              for name, url in assets.items():
+                  if all(n in name for n in needles):
+                      platforms[key] = {'url': url, 'version': tag}
+                      break
+          json.dump({'version': tag, 'platforms': platforms},
+                    open('latest.json', 'w'), indent=2)
+          PY
+          gh release upload "$TAG" latest.json --clobber
+          gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets[].name' | grep -q latest.json

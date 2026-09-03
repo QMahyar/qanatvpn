@@ -95,7 +95,9 @@ void main() {
 
     test('trojan:// → TrojanEndpoint', () {
       final endpoints = adapter.parseAndNormalize(
-        raw('trojan://passw0rd@trojan.example.com:443?sni=tls.example.com#T-01'),
+        raw(
+          'trojan://passw0rd@trojan.example.com:443?sni=tls.example.com#T-01',
+        ),
       );
 
       final e = endpoints.single as TrojanEndpoint;
@@ -182,8 +184,7 @@ void main() {
   group('clash yaml', () {
     test('proxies block → typed variants incl. amnezia-wg-option', () {
       final endpoints = adapter.parseAndNormalize(
-        raw(
-          '''
+        raw('''
 port: 7890
 proxies:
   - name: "HK-AWG"
@@ -223,9 +224,7 @@ proxies:
     password: pw123
     up: "50 Mbps"
     down: "200 Mbps"
-''',
-          url: Uri.parse('https://sub.example.test/clash'),
-        ),
+''', url: Uri.parse('https://sub.example.test/clash')),
       );
 
       expect(endpoints, hasLength(3));
@@ -247,6 +246,35 @@ proxies:
       expect(hy2.downMbps, 200);
       expect(hy2.upMbps, 50);
     });
+
+    test(
+      'mixed listeners are local inbounds — skipped, never sentinel endpoints',
+      () {
+        final endpoints = adapter.parseAndNormalize(
+          raw('''
+proxies:
+  - name: "HK-Trojan"
+    type: trojan
+    server: hk.example.com
+    port: 443
+    password: pw
+listeners:
+  - name: mixed-in
+    type: mixed
+    port: 7890
+''', url: Uri.parse('https://sub.example.test/listeners')),
+        );
+
+        // Only the proxy; no 127.0.0.1 uuid-local vmess sentinel.
+        expect(endpoints, hasLength(1));
+        final trojan = endpoints.single as TrojanEndpoint;
+        expect(trojan.tag, 'HK-Trojan');
+        expect(
+          endpoints.whereType<VmessEndpoint>().where((e) => e.uuid == 'local'),
+          isEmpty,
+        );
+      },
+    );
   });
 
   group('sing-box json', () {
@@ -265,7 +293,10 @@ proxies:
                 'tls': <String, dynamic>{
                   'enabled': true,
                   'server_name': 'www.microsoft.com',
-                  'utls': <String, dynamic>{'enabled': true, 'fingerprint': 'chrome'},
+                  'utls': <String, dynamic>{
+                    'enabled': true,
+                    'fingerprint': 'chrome',
+                  },
                   'reality': <String, dynamic>{
                     'enabled': true,
                     'public_key': 'PBK',
@@ -329,8 +360,10 @@ proxies:
   });
 
   group('wg ini', () {
-    test('[Interface] + [Peer] + Amnezia keys → WireGuardEndpoint with awg', () {
-      const ini = '''
+    test(
+      '[Interface] + [Peer] + Amnezia keys → WireGuardEndpoint with awg',
+      () {
+        const ini = '''
 [Interface]
 PrivateKey = aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ABCDE=
 Address = 10.7.0.2/32, fd00::2/128
@@ -352,21 +385,25 @@ AllowedIPs = 0.0.0.0/0, ::/0
 Endpoint = 9.8.7.6:51820
 PersistentKeepalive = 25
 ''';
-      final endpoints = adapter.parseAndNormalize(raw(ini));
+        final endpoints = adapter.parseAndNormalize(raw(ini));
 
-      final wg = endpoints.single as WireGuardEndpoint;
-      expect(wg.addresses, containsAll(<String>['10.7.0.2/32', 'fd00::2/128']));
-      expect(wg.mtu, 1420);
-      expect(wg.peers, hasLength(1));
-      expect(wg.peers.single.presharedKey, isNotNull);
-      expect(wg.peers.single.endpoint, '9.8.7.6:51820');
-      expect(wg.peers.single.persistentKeepalive, 25);
-      expect(wg.awg, isNotNull);
-      expect(wg.awg!.jc, 4);
-      expect(wg.awg!.s1, 86);
-      expect(wg.awg!.s2, 25);
-      expect(wg.awg!.h1, '1');
-    });
+        final wg = endpoints.single as WireGuardEndpoint;
+        expect(
+          wg.addresses,
+          containsAll(<String>['10.7.0.2/32', 'fd00::2/128']),
+        );
+        expect(wg.mtu, 1420);
+        expect(wg.peers, hasLength(1));
+        expect(wg.peers.single.presharedKey, isNotNull);
+        expect(wg.peers.single.endpoint, '9.8.7.6:51820');
+        expect(wg.peers.single.persistentKeepalive, 25);
+        expect(wg.awg, isNotNull);
+        expect(wg.awg!.jc, 4);
+        expect(wg.awg!.s1, 86);
+        expect(wg.awg!.s2, 25);
+        expect(wg.awg!.h1, '1');
+      },
+    );
 
     test('plain wg ini without Amnezia → awg null', () {
       const ini = '''
@@ -383,6 +420,39 @@ AllowedIPs = 0.0.0.0/0
       final wg = endpoints.single as WireGuardEndpoint;
       expect(wg.awg, isNull);
     });
+
+    test('WireSock masquerade Id/Ip/Ib keys round-trip into awg values', () {
+      const ini = '''
+[Interface]
+PrivateKey = ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDE=
+Address = 10.7.0.2/32
+Jc = 4
+Jmin = 40
+Jmax = 70
+S1 = 86
+S2 = 25
+H1 = 1
+H2 = 2
+H3 = 3
+H4 = 4
+I1 = bV0kflF3SkdZV0p4T0dJd016QT0=
+ID = 12345678
+IP = 1234567890abcdef
+IB = 87654321
+
+[Peer]
+PublicKey = QWERTYUIOPASDFGHJKLZXCVBNM1234567890QWER=
+Endpoint = 9.8.7.6:51820
+AllowedIPs = 0.0.0.0/0
+''';
+      final endpoints = adapter.parseAndNormalize(raw(ini));
+      final wg = endpoints.single as WireGuardEndpoint;
+
+      expect(wg.awg!.i1, 'bV0kflF3SkdZV0p4T0dJd016QT0=');
+      expect(wg.awg!.id, '12345678');
+      expect(wg.awg!.ip, '1234567890abcdef');
+      expect(wg.awg!.ib, '87654321');
+    });
   });
 
   group('cache', () {
@@ -395,9 +465,17 @@ AllowedIPs = 0.0.0.0/0
     });
 
     test('different url parses fresh', () {
-      adapter.parseAndNormalize(raw('trojan://pw@a.example.com:443#A', url: Uri.parse('https://x.test/1')));
+      adapter.parseAndNormalize(
+        raw(
+          'trojan://pw@a.example.com:443#A',
+          url: Uri.parse('https://x.test/1'),
+        ),
+      );
       final other = adapter.parseAndNormalize(
-        raw('vless://u@b.example.com:443#B', url: Uri.parse('https://x.test/2')),
+        raw(
+          'vless://u@b.example.com:443#B',
+          url: Uri.parse('https://x.test/2'),
+        ),
       );
       expect(other.single, isA<VlessEndpoint>());
     });
@@ -419,7 +497,8 @@ PublicKey = PEER2PEER2PEER2PEER2PEER2PEER2PEER2PEER2PEER2PEE=
 AllowedIPs = 10.2.0.0/16
 Endpoint = 2.2.2.2:51820
 ''';
-      final wg = adapter.parseAndNormalize(raw(ini)).single as WireGuardEndpoint;
+      final wg =
+          adapter.parseAndNormalize(raw(ini)).single as WireGuardEndpoint;
       expect(wg.peers, hasLength(2));
       expect(wg.peers[0].endpoint, '1.1.1.1:51820');
       expect(wg.peers[0].allowedIps, <String>['10.1.0.0/16']);
@@ -431,13 +510,21 @@ Endpoint = 2.2.2.2:51820
   group('real-world base64 alphabets', () {
     test('vmess with standard-alphabet payload (contains +/)', () {
       final doc = <String, dynamic>{
-        'v': '2', 'ps': 'Mix', 'add': 'm.example.com', 'port': '443',
-        'id': 'u', 'aid': '0', 'net': 'ws', 'scy': 'auto', 'tls': 'tls',
+        'v': '2',
+        'ps': 'Mix',
+        'add': 'm.example.com',
+        'port': '443',
+        'id': 'u',
+        'aid': '0',
+        'net': 'ws',
+        'scy': 'auto',
+        'tls': 'tls',
         'path': '/ws+extra/x',
       };
       final payload = base64.encode(utf8.encode(jsonEncode(doc)));
-      final e = adapter.parseAndNormalize(raw('vmess://$payload')).single
-          as VmessEndpoint;
+      final e =
+          adapter.parseAndNormalize(raw('vmess://$payload')).single
+              as VmessEndpoint;
       expect(e.address, 'm.example.com');
       expect(e.wsPath, '/ws+extra/x');
     });
@@ -446,24 +533,38 @@ Endpoint = 2.2.2.2:51820
   group('fuzz: malformed input throws FormatException, not TypeError', () {
     test('clash port as string / missing server', () {
       expect(
-        () => adapter.parseAndNormalize(raw(
-          'proxies:\n  - name: bad\n    type: ss\n    port: "443"\n    cipher: a\n    password: b',
-          url: Uri.parse('https://f.test/1'),
-        )),
+        () => adapter.parseAndNormalize(
+          raw(
+            'proxies:\n  - name: bad\n    type: ss\n    port: "443"\n    cipher: a\n    password: b',
+            url: Uri.parse('https://f.test/1'),
+          ),
+        ),
         throwsA(isA<FormatException>()),
       );
       expect(
-        () => adapter.parseAndNormalize(raw(
-          'proxies:\n  - name: bad\n    type: ss\n    cipher: a\n    password: b',
-          url: Uri.parse('https://f.test/2'),
-        )),
+        () => adapter.parseAndNormalize(
+          raw(
+            'proxies:\n  - name: bad\n    type: ss\n    cipher: a\n    password: b',
+            url: Uri.parse('https://f.test/2'),
+          ),
+        ),
         throwsA(isA<FormatException>()),
       );
     });
 
     test('vmess aid float / port float → FormatException', () {
-      final doc1 = <String, dynamic>{'add': 'a', 'port': 8443, 'id': 'u', 'aid': 0.5};
-      final doc2 = <String, dynamic>{'add': 'a', 'port': 8443.5, 'id': 'u', 'aid': 0};
+      final doc1 = <String, dynamic>{
+        'add': 'a',
+        'port': 8443,
+        'id': 'u',
+        'aid': 0.5,
+      };
+      final doc2 = <String, dynamic>{
+        'add': 'a',
+        'port': 8443.5,
+        'id': 'u',
+        'aid': 0,
+      };
       expect(
         () => adapter.parseAndNormalize(
           raw('vmess://${base64.encode(utf8.encode(jsonEncode(doc1)))}'),

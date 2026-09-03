@@ -72,6 +72,30 @@ class AwgValues {
     if (ip != null) 'ip': ip,
     if (ib != null) 'ib': ib,
   };
+
+  /// The subset this engine actually accepts. `id`/`ip`/`ib` are WireSock
+  /// masquerade keys; the fork's option struct has no such fields and its
+  /// config parser FATALs on unknown fields (probed: `endpoints[0].id: json:
+  /// unknown field "id"`). They stay on the model for editor round-trips but
+  /// must never reach the engine JSON.
+  Map<String, dynamic> toEngineJson() => <String, dynamic>{
+    if (jc != null) 'jc': jc,
+    if (jmin != null) 'jmin': jmin,
+    if (jmax != null) 'jmax': jmax,
+    if (s1 != null) 's1': s1,
+    if (s2 != null) 's2': s2,
+    if (s3 != null) 's3': s3,
+    if (s4 != null) 's4': s4,
+    if (h1 != null) 'h1': h1,
+    if (h2 != null) 'h2': h2,
+    if (h3 != null) 'h3': h3,
+    if (h4 != null) 'h4': h4,
+    if (i1 != null) 'i1': i1,
+    if (i2 != null) 'i2': i2,
+    if (i3 != null) 'i3': i3,
+    if (i4 != null) 'i4': i4,
+    if (i5 != null) 'i5': i5,
+  };
 }
 
 enum AwgPreset { quicMimic, balanced, stealth }

@@ -29,16 +29,31 @@ class TypedConfig {
     required this.tag,
     required this.json,
     this.requiresTor = false,
+    this.includePackages = const <String>[],
+    this.excludePackages = const <String>[],
   });
 
   final String tag;
   final Map<String, dynamic> json;
   final bool requiresTor;
+
+  /// Per-app split from the wizard: allowlist goes to include (only these
+  /// apps tunnel), bypass list goes to exclude. Never both non-empty.
+  final List<String> includePackages;
+  final List<String> excludePackages;
+}
+
+/// One installed application (per-app split picker row).
+class InstalledApp {
+  const InstalledApp({required this.packageName, required this.label});
+
+  final String packageName;
+  final String label;
 }
 
 /// Resolves a user-facing endpoint tag (for example `HKG-02`) into a [TypedConfig].
 abstract interface class ConfigSource {
-  TypedConfig resolve(String tag);
+  Future<TypedConfig> resolve(String tag);
 }
 
 /// Android/Windows platform seam: permissions, airplane mode, TUN fd.
@@ -48,9 +63,19 @@ abstract interface class PlatformAdapter {
   Future<bool> isIgnoringBatteryOptimizations();
   Future<void> requestIgnoreBatteryOptimizations();
   Future<bool> isAirplaneMode();
+
+  /// True when the engine opens the TUN itself (libbox 1.14 calls
+  /// `PlatformInterface.openTun` from Go during box start, so establish and
+  /// protect happen inside [BoxAdapter.start], not here).
+  bool get engineManagedTun;
+
   Future<int?> establish();
   void protect(int fd);
   void closeFd(int fd);
+
+  /// Installed user apps for the per-app split picker. Unimplemented on
+  /// platforms without a package manager.
+  Future<List<InstalledApp>> listInstalledApps();
 }
 
 /// Foreground service (notification) keeping the process alive on Android.
@@ -170,7 +195,7 @@ class Tunnel {
 
     TypedConfig config;
     try {
-      config = configSource.resolve(tag);
+      config = await configSource.resolve(tag);
     } on Object {
       await _block(TunnelBlockReason.establishFailed);
       return;
@@ -182,27 +207,35 @@ class Tunnel {
       return;
     }
 
-    // establish
-    final fd = await platform.establish();
-    if (fd == null) {
-      await _block(TunnelBlockReason.establishFailed);
-      return;
-    }
-    if (epoch != _epoch) {
-      platform.closeFd(fd);
-      return;
-    }
-    _fd = fd;
+    // establish — engine-managed platforms (libbox 1.14) open the TUN from
+    // Go via openTun while box.start runs; fd never crosses to Dart.
+    final int? fd;
+    if (platform.engineManagedTun) {
+      fd = null;
+    } else {
+      fd = await platform.establish();
+      if (fd == null) {
+        await _block(TunnelBlockReason.establishFailed);
+        return;
+      }
+      if (epoch != _epoch) {
+        platform.closeFd(fd);
+        return;
+      }
+      _fd = fd;
 
-    // protect
-    platform.protect(fd);
+      // protect
+      platform.protect(fd);
+    }
 
     // start
     try {
       await box.start(config);
     } on Object {
-      platform.closeFd(fd);
-      _fd = null;
+      if (fd != null) {
+        platform.closeFd(fd);
+        _fd = null;
+      }
       await _block(TunnelBlockReason.boxStartFailed);
       return;
     }
@@ -211,8 +244,10 @@ class Tunnel {
     try {
       await firewall.enforce();
     } on Object {
-      platform.closeFd(fd);
-      _fd = null;
+      if (fd != null) {
+        platform.closeFd(fd);
+        _fd = null;
+      }
       try {
         await box.stop();
       } on Object {
@@ -267,8 +302,7 @@ class Tunnel {
   }
 
   void _onBoxEvent(BoxEvent event) {
-    if (event.kind == BoxEventKind.crashed &&
-        _state == TunnelState.connected) {
+    if (event.kind == BoxEventKind.crashed && _state == TunnelState.connected) {
       _block(TunnelBlockReason.boxCrashed);
     }
   }
@@ -293,42 +327,44 @@ class MethodChannelPlatformAdapter implements PlatformAdapter {
   static const _channel = MethodChannel('vpn_service');
 
   @override
-  Future<bool> isVpnPermissionGranted() =>
-      _channel
-          .invokeMethod<bool>('isVpnPermissionGranted')
-          .then((v) => v ?? false)
-          .onError((_, _) => false);
+  Future<bool> isVpnPermissionGranted() => _channel
+      .invokeMethod<bool>('isVpnPermissionGranted')
+      .then((v) => v ?? false)
+      .onError((_, _) => false);
 
   @override
   Future<void> requestVpnPermission() =>
       _channel.invokeMethod<void>('requestVpnPermission');
 
   @override
-  Future<bool> isIgnoringBatteryOptimizations() =>
-      _channel
-          .invokeMethod<bool>('isIgnoringBatteryOptimizations')
-          .then((v) => v ?? false)
-          .onError((_, _) => false);
+  Future<bool> isIgnoringBatteryOptimizations() => _channel
+      .invokeMethod<bool>('isIgnoringBatteryOptimizations')
+      .then((v) => v ?? false)
+      .onError((_, _) => false);
 
   @override
   Future<void> requestIgnoreBatteryOptimizations() =>
       _channel.invokeMethod<void>('requestIgnoreBatteryOptimizations');
 
   @override
-  Future<bool> isAirplaneMode() =>
-      _channel
-          .invokeMethod<bool>('isAirplaneMode')
-          .then((v) => v ?? true)
-          .onError((_, _) => true);
+  Future<bool> isAirplaneMode() => _channel
+      .invokeMethod<bool>('isAirplaneMode')
+      .then((v) => v ?? true)
+      .onError((_, _) => true);
 
   @override
-  Future<int?> establish() =>
-      _channel.invokeMethod<int>('establish').then((fd) {
+  bool get engineManagedTun => true;
+
+  @override
+  Future<int?> establish() => _channel
+      .invokeMethod<int>('establish')
+      .then((fd) {
         if (fd == null || fd <= 0) {
           return null;
         }
         return fd;
-      }).onError((_, _) => null);
+      })
+      .onError((_, _) => null);
 
   @override
   void protect(int fd) {
@@ -338,5 +374,26 @@ class MethodChannelPlatformAdapter implements PlatformAdapter {
   @override
   void closeFd(int fd) {
     _channel.invokeMethod<void>('closeFd', {'fd': fd});
+  }
+
+  @override
+  Future<List<InstalledApp>> listInstalledApps() async {
+    try {
+      final raw = await _channel.invokeListMethod<Map<Object?, Object?>>(
+        'listInstalledApps',
+      );
+      if (raw == null) {
+        return const <InstalledApp>[];
+      }
+      return <InstalledApp>[
+        for (final item in raw)
+          InstalledApp(
+            packageName: item['packageName'] as String? ?? '',
+            label: item['label'] as String? ?? '',
+          ),
+      ].where((app) => app.packageName.isNotEmpty).toList();
+    } on Object {
+      return const <InstalledApp>[];
+    }
   }
 }

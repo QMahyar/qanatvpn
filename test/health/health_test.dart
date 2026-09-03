@@ -99,4 +99,3 @@ void main() {
     expect(HealthLevel.values.length, 6);
   });
 }
-

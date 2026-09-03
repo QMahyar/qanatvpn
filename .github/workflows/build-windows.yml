@@ -56,28 +56,14 @@ jobs:
           Copy-Item windows/sing-box.exe "$dir/sing-box.exe"
           Compress-Archive -Path "$dir/*" -DestinationPath "yourvpn_v${v}_windows-x64.zip"
           $hash = (Get-FileHash "yourvpn_v${v}_windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
-          @{ "yourvpn_v${v}_windows-x64.zip" = $hash } | ConvertTo-Json | Set-Content sha256.json
+          @{ "yourvpn_v${v}_windows-x64.zip" = $hash } | ConvertTo-Json | Set-Content sha256-windows.json
 
-      - name: Update latest.json (windows entry)
-        shell: pwsh
-        run: |
-          $v = $env:GITHUB_REF_NAME.TrimStart('v')
-          $entry = @{
-            version = "v$v"
-            platforms = @{
-              'windows-x64' = @{
-                url = "https://github.com/yourvpn/yourvpn/releases/download/v$v/yourvpn_v${v}_windows-x64.zip"
-                version = "v$v"
-              }
-            }
-          } | ConvertTo-Json -Depth 5
-          $entry | Set-Content latest.json
-
-      - name: Release
+      - name: Release windows asset
         uses: softprops/action-gh-release@v2
         with:
           files: |
             yourvpn_v*_windows-x64.zip
-            sha256.json
-            latest.json
+            sha256-windows.json
           generate_release_notes: true
+        # latest.json is produced by build-android's metadata job (single
+        # producer) after this asset lands, so no second writer races it.

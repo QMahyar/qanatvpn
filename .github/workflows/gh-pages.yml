@@ -20,11 +20,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Stage site
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
           mkdir -p site
           cp docs/site/index.html site/
-          # latest.json mirror lands from release artifacts when present
-          if [ -f latest.json ]; then cp latest.json site/; fi
+          # Mirror latest.json straight from the release the metadata job
+          # attached (single producer: build-android metadata job).
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'latest.json' --output site/latest.json || \
+            echo "latest.json not on release yet — site ships without it"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

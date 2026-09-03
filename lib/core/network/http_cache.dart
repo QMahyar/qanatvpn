@@ -103,7 +103,8 @@ class HttpCache {
       return null;
     }
     try {
-      final meta = jsonDecode(metaFile.readAsStringSync()) as Map<String, dynamic>;
+      final meta =
+          jsonDecode(metaFile.readAsStringSync()) as Map<String, dynamic>;
       final entry = _CacheEntry(
         body: bodyFile.readAsBytesSync(),
         etag: meta['etag'] as String?,
@@ -154,11 +155,7 @@ class HttpCache {
 }
 
 class _CacheEntry {
-  const _CacheEntry({
-    required this.body,
-    required this.fetchedAt,
-    this.etag,
-  });
+  const _CacheEntry({required this.body, required this.fetchedAt, this.etag});
 
   final Uint8List body;
   final String? etag;

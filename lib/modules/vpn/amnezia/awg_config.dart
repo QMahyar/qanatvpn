@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import '../../../utils/amnezia_values.dart' show AwgValues, AwgPreset, AwgPresetValues;
+import '../../../utils/amnezia_values.dart'
+    show AwgValues, AwgPreset, AwgPresetValues;
 import '../../../utils/amnezia_values.dart' as awg_lib;
 
 /// Public for tests and the advanced editor: build any [AwgValues] shape and
@@ -63,7 +64,22 @@ class AwgConfig {
     if (peerPresharedKey != null) {
       _validateKey(peerPresharedKey!, 'preshared_key', errors);
     }
-    if (peerEndpoint.isEmpty || !peerEndpoint.contains(':')) {
+    if (peerEndpoint.isEmpty) {
+      errors.add('peer endpoint must be host:port');
+    } else if (peerEndpoint.contains(']')) {
+      // Bracketed IPv6: [host]:port
+      final close = peerEndpoint.indexOf(']');
+      if (close <= 1 ||
+          !peerEndpoint.substring(close + 1).startsWith(':') ||
+          int.tryParse(peerEndpoint.substring(close + 2)) == null) {
+        errors.add('peer endpoint must be [host]:port for IPv6');
+      }
+    } else if (':'.allMatches(peerEndpoint).length > 1) {
+      // Bare multiple colons without brackets = ambiguous v6, UAPI would
+      // parse it wrong; require [..] form.
+      errors.add('IPv6 endpoint needs brackets: [host]:port');
+    } else if (!peerEndpoint.contains(':') ||
+        int.tryParse(peerEndpoint.split(':').last) == null) {
       errors.add('peer endpoint must be host:port');
     }
     if (addresses.isEmpty) {
@@ -103,6 +119,9 @@ class AwgConfig {
     if (set.length != provided) {
       errors.add('H1-H4 must be pairwise distinct (H1∩H2=∅ rule)');
     }
+    _validateMasquerade(values.id, 'Id', errors);
+    _validateMasquerade(values.ip, 'Ip', errors);
+    _validateMasquerade(values.ib, 'Ib', errors);
     return errors;
   }
 
@@ -116,11 +135,11 @@ class AwgConfig {
       'private_key': privateKey,
       'address': List<String>.from(addresses),
       'mtu': mtu,
-      ...values.toJson(),
+      ...values.toEngineJson(),
       'peers': <dynamic>[
         <String, dynamic>{
-          'address': peerEndpoint.split(':').first,
-          'port': int.parse(peerEndpoint.split(':').last),
+          'address': peerHost(peerEndpoint),
+          'port': peerPort(peerEndpoint),
           'public_key': peerPublicKey,
           if (peerPresharedKey != null) 'preshared_key': peerPresharedKey,
           'allowed_ips': <String>['0.0.0.0/0', '::/0'],
@@ -128,6 +147,28 @@ class AwgConfig {
         },
       ],
     };
+  }
+
+  /// IPv6-safe endpoint host: `[::1]:51820` → `::1`, `vpn.example.com:443` →
+  /// `vpn.example.com`. Bare `::1:51820` (UAPI-ambiguous) must use brackets;
+  /// [AwgConfig.validate] rejects it.
+  static String peerHost(String endpoint) {
+    if (endpoint.startsWith('[')) {
+      final close = endpoint.indexOf(']');
+      if (close > 0) {
+        return endpoint.substring(1, close);
+      }
+    }
+    final lastColon = endpoint.lastIndexOf(':');
+    return lastColon < 0 ? endpoint : endpoint.substring(0, lastColon);
+  }
+
+  /// IPv6-safe endpoint port: `[::1]:51820` → 51820, `host:51820` → 51820.
+  static int peerPort(String endpoint) {
+    final suffix = endpoint.startsWith('[')
+        ? endpoint.substring(endpoint.indexOf(']') + 1)
+        : endpoint.substring(endpoint.lastIndexOf(':') + 1);
+    return int.tryParse(suffix.replaceFirst(':', '')) ?? 0;
   }
 }
 
@@ -140,16 +181,16 @@ enum AwgProfile {
   AwgValues get presetValues => preset.values;
 
   AwgPreset get preset => switch (this) {
-        AwgProfile.quicMimic => AwgPreset.quicMimic,
-        AwgProfile.balanced => AwgPreset.balanced,
-        AwgProfile.stealth => AwgPreset.stealth,
-      };
+    AwgProfile.quicMimic => AwgPreset.quicMimic,
+    AwgProfile.balanced => AwgPreset.balanced,
+    AwgProfile.stealth => AwgPreset.stealth,
+  };
 
   String get label => switch (this) {
-        AwgProfile.quicMimic => 'QUIC mimic',
-        AwgProfile.balanced => 'Balanced',
-        AwgProfile.stealth => 'Stealth',
-      };
+    AwgProfile.quicMimic => 'QUIC mimic',
+    AwgProfile.balanced => 'Balanced',
+    AwgProfile.stealth => 'Stealth',
+  };
 
   /// Preset + endpoint material → validated-shape [AwgConfig].
   static AwgConfig fromPreset(
@@ -203,5 +244,20 @@ void _validateKey(String key, String what, List<String> errors) {
   }
   if (!validLength || !validBase64) {
     errors.add('$what must be 32-byte base64 (44 chars), got ${key.length}');
+  }
+}
+
+/// WireSock masquerade knobs (Id/Ip/Ib). Hex strings up to 16 chars (64-bit);
+/// Id additionally accepts decimal. The engine does not receive them
+/// (see [AwgValues.toEngineJson]), but a broken value still means a profile
+/// the server will not masquerade-match, so the editor surfaces it.
+void _validateMasquerade(String? value, String what, List<String> errors) {
+  if (value == null || value.isEmpty) {
+    return;
+  }
+  final isHex = RegExp(r'^[0-9a-fA-F]{1,16}$').hasMatch(value);
+  final isDecimal = int.tryParse(value) != null;
+  if (!isHex && !isDecimal) {
+    errors.add('$what must be hex (1-16 chars) or decimal, got "$value"');
   }
 }

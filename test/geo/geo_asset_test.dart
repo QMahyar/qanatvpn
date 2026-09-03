@@ -27,7 +27,11 @@ class MockFetch {
       call(url, headers);
 }
 
-CachedResponse srs(int statusCode, {Map<String, String> headers = const {}, List<int>? body}) {
+CachedResponse srs(
+  int statusCode, {
+  Map<String, String> headers = const {},
+  List<int>? body,
+}) {
   return CachedResponse(
     statusCode: statusCode,
     headers: headers,
@@ -52,20 +56,23 @@ void main() {
   });
 
   group('ensure', () {
-    test('copies the bundled initial asset when cache is empty, never throws', () async {
-      final bytes = <int>[1, 2, 3, 4];
-      await File('${initialDir.path}/geosite-cn.srs').writeAsBytes(bytes);
-      final geo = GeoAsset(
-        cacheDir: cacheDir,
-        initialDir: initialDir,
-        http: HttpCache(fetch: MockFetch(<Uri, CachedResponse>{}).fetch),
-      );
+    test(
+      'copies the bundled initial asset when cache is empty, never throws',
+      () async {
+        final bytes = <int>[1, 2, 3, 4];
+        await File('${initialDir.path}/geosite-cn.srs').writeAsBytes(bytes);
+        final geo = GeoAsset(
+          cacheDir: cacheDir,
+          initialDir: initialDir,
+          http: HttpCache(fetch: MockFetch(<Uri, CachedResponse>{}).fetch),
+        );
 
-      final path = await geo.ensure('geosite-cn');
+        final path = await geo.ensure('geosite-cn');
 
-      expect(path, '${cacheDir.path}/geosite-cn.srs');
-      expect(await File(path).readAsBytes(), bytes);
-    });
+        expect(path, '${cacheDir.path}/geosite-cn.srs');
+        expect(await File(path).readAsBytes(), bytes);
+      },
+    );
 
     test('returns cache without any HTTP when cached', () async {
       final mock = MockFetch(<Uri, CachedResponse>{});
@@ -138,26 +145,32 @@ void main() {
   });
 
   group('refreshAll rate limits', () {
-    test('403 + x-ratelimit-remaining:0 + x-ratelimit-reset → GitHubRateLimitException', () async {
-      final url = Uri.parse(GeoAsset.registry['geosite-cn']!.url);
-      final mock = MockFetch(<Uri, CachedResponse>{
-        url: srs(
-          403,
-          headers: <String, String>{
-            'x-ratelimit-remaining': '0',
-            'x-ratelimit-reset': '1700000000',
-          },
-        ),
-      });
-      final geo = GeoAsset(
-        cacheDir: cacheDir,
-        initialDir: initialDir,
-        http: HttpCache(fetch: mock.fetch),
-      );
+    test(
+      '403 + x-ratelimit-remaining:0 + x-ratelimit-reset → GitHubRateLimitException',
+      () async {
+        final url = Uri.parse(GeoAsset.registry['geosite-cn']!.url);
+        final mock = MockFetch(<Uri, CachedResponse>{
+          url: srs(
+            403,
+            headers: <String, String>{
+              'x-ratelimit-remaining': '0',
+              'x-ratelimit-reset': '1700000000',
+            },
+          ),
+        });
+        final geo = GeoAsset(
+          cacheDir: cacheDir,
+          initialDir: initialDir,
+          http: HttpCache(fetch: mock.fetch),
+        );
 
-      await expectLater(geo.refreshAll(), throwsA(isA<GitHubRateLimitException>()));
-      expect(mock.calls.single.headers.containsKey('If-None-Match'), isFalse);
-    });
+        await expectLater(
+          geo.refreshAll(),
+          throwsA(isA<GitHubRateLimitException>()),
+        );
+        expect(mock.calls.single.headers.containsKey('If-None-Match'), isFalse);
+      },
+    );
 
     test('429 + retry-after → RateLimitException with duration', () async {
       final url = Uri.parse(GeoAsset.registry['geosite-cn']!.url);
@@ -194,7 +207,9 @@ void main() {
       );
 
       await geo.refreshAll();
-      final before = await File('${cacheDir.path}/geosite-cn.srs').readAsBytes();
+      final before = await File(
+        '${cacheDir.path}/geosite-cn.srs',
+      ).readAsBytes();
 
       final offline = MockFetch(<Uri, CachedResponse>{});
       final offlineGeo = GeoAsset(
@@ -213,7 +228,10 @@ void main() {
     test('second refresh within 6h makes no HTTP calls', () async {
       final mock = MockFetch(<Uri, CachedResponse>{
         for (final spec in GeoAsset.registry.values)
-          Uri.parse(spec.url): srs(200, headers: <String, String>{'etag': '"v1"'}),
+          Uri.parse(spec.url): srs(
+            200,
+            headers: <String, String>{'etag': '"v1"'},
+          ),
       });
       final geo = GeoAsset(
         cacheDir: cacheDir,
@@ -228,53 +246,78 @@ void main() {
       expect(mock.calls, hasLength(2));
     });
 
-    test('stale entry revalidates with If-None-Match; 304 keeps bytes', () async {
-      final urls = <Uri>[
-        for (final spec in GeoAsset.registry.values) Uri.parse(spec.url),
-      ];
-      var revision = 0;
-      DateTime clock() => DateTime(2026, 9, 1, 12);
+    test(
+      'stale entry revalidates with If-None-Match; 304 keeps bytes',
+      () async {
+        final urls = <Uri>[
+          for (final spec in GeoAsset.registry.values) Uri.parse(spec.url),
+        ];
+        var revision = 0;
+        DateTime clock() => DateTime(2026, 9, 1, 12);
 
-      CachedResponse respond(Uri url, Map<String, String> headers) {
-        if (headers['If-None-Match'] == '"v$revision"') {
-          return srs(304, headers: <String, String>{'etag': '"v$revision"'});
+        CachedResponse respond(Uri url, Map<String, String> headers) {
+          if (headers['If-None-Match'] == '"v$revision"') {
+            return srs(304, headers: <String, String>{'etag': '"v$revision"'});
+          }
+          return srs(
+            200,
+            headers: <String, String>{'etag': '"v$revision"'},
+            body: <int>[0x53, 0x52, 0x53, 2, 1, revision],
+          );
         }
-        return srs(
-          200,
-          headers: <String, String>{'etag': '"v$revision"'},
-          body: <int>[0x53, 0x52, 0x53, 2, 1, revision],
+
+        Future<CachedResponse> fetch(
+          Uri url,
+          Map<String, String> headers,
+        ) async => respond(url, headers);
+
+        final cache = HttpCache(fetch: fetch, cacheDir: cacheDir, now: clock);
+        final geo2 = GeoAsset(
+          cacheDir: cacheDir,
+          initialDir: initialDir,
+          http: cache,
         );
-      }
 
-      Future<CachedResponse> fetch(Uri url, Map<String, String> headers) async =>
-          respond(url, headers);
+        revision = 1;
+        await geo2.refreshAll();
+        final v1 = await File('${cacheDir.path}/geosite-cn.srs').readAsBytes();
 
-      final cache = HttpCache(fetch: fetch, cacheDir: cacheDir, now: clock);
-      final geo2 = GeoAsset(cacheDir: cacheDir, initialDir: initialDir, http: cache);
+        // Age beyond the 6h window, server content unchanged → 304
+        DateTime staleClock() => DateTime(2026, 9, 1, 20);
+        final cache3 = HttpCache(
+          fetch: fetch,
+          cacheDir: cacheDir,
+          now: staleClock,
+        );
+        final geo3 = GeoAsset(
+          cacheDir: cacheDir,
+          initialDir: initialDir,
+          http: cache3,
+        );
 
-      revision = 1;
-      await geo2.refreshAll();
-      final v1 = await File('${cacheDir.path}/geosite-cn.srs').readAsBytes();
+        await geo3.refreshAll();
+        final v1b = await File('${cacheDir.path}/geosite-cn.srs').readAsBytes();
+        expect(v1b, v1);
 
-      // Age beyond the 6h window, server content unchanged → 304
-      DateTime staleClock() => DateTime(2026, 9, 1, 20);
-      final cache3 = HttpCache(fetch: fetch, cacheDir: cacheDir, now: staleClock);
-      final geo3 = GeoAsset(cacheDir: cacheDir, initialDir: initialDir, http: cache3);
-
-      await geo3.refreshAll();
-      final v1b = await File('${cacheDir.path}/geosite-cn.srs').readAsBytes();
-      expect(v1b, v1);
-
-      // Content changed → 200 v2 body lands (clock 12h past the 304 refresh)
-      revision = 2;
-      DateTime changedClock() => DateTime(2026, 9, 2, 8);
-      final cache4 = HttpCache(fetch: fetch, cacheDir: cacheDir, now: changedClock);
-      final geo4 = GeoAsset(cacheDir: cacheDir, initialDir: initialDir, http: cache4);
-      await geo4.refreshAll();
-      final v2 = await File('${cacheDir.path}/geosite-cn.srs').readAsBytes();
-      expect(v2, isNot(v1));
-      expect(urls, hasLength(2));
-    });
+        // Content changed → 200 v2 body lands (clock 12h past the 304 refresh)
+        revision = 2;
+        DateTime changedClock() => DateTime(2026, 9, 2, 8);
+        final cache4 = HttpCache(
+          fetch: fetch,
+          cacheDir: cacheDir,
+          now: changedClock,
+        );
+        final geo4 = GeoAsset(
+          cacheDir: cacheDir,
+          initialDir: initialDir,
+          http: cache4,
+        );
+        await geo4.refreshAll();
+        final v2 = await File('${cacheDir.path}/geosite-cn.srs').readAsBytes();
+        expect(v2, isNot(v1));
+        expect(urls, hasLength(2));
+      },
+    );
   });
 
   test('real bundled geosite-cn.srs has SRS magic bytes', () {
@@ -286,4 +329,3 @@ void main() {
     expect(utf8.decode(magic), 'SRS');
   });
 }
-

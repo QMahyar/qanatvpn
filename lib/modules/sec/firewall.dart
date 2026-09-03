@@ -27,10 +27,7 @@ class FirewallPolicy {
   /// leaks are impossible even for one packet.
   List<Map<String, dynamic>> baseRules() {
     return <Map<String, dynamic>>[
-      const <String, dynamic>{
-        'protocol': 'dns',
-        'action': 'hijack-dns',
-      },
+      const <String, dynamic>{'protocol': 'dns', 'action': 'hijack-dns'},
       if (allowPinnedDnsOnly)
         for (final dns in pinnedDns)
           <String, dynamic>{
@@ -44,11 +41,7 @@ class FirewallPolicy {
         },
       if (!allowLan)
         const <String, dynamic>{
-          'ip_cidr': <String>[
-            '10.0.0.0/8',
-            '172.16.0.0/12',
-            '192.168.0.0/16',
-          ],
+          'ip_cidr': <String>['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
           'outbound': 'BLOCK',
         },
     ];

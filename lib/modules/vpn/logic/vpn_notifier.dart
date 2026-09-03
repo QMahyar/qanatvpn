@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/tunnel.dart';
+import '../../onboarding/wizard.dart';
 
 /// UI-facing VPN state. Mirrors [TunnelState] plus the connected tag.
 class VpnState {
@@ -37,6 +38,38 @@ class VpnState {
 /// Provides the app's [Tunnel]. Overridden in tests with fakes.
 final tunnelProvider = Provider<Tunnel>((ref) {
   throw UnimplementedError('override with real adapters in main.dart');
+});
+
+final foregroundAdapterProvider = Provider<ForegroundAdapter>((ref) {
+  throw UnimplementedError('override with real adapters in main.dart');
+});
+
+final boxAdapterProvider = Provider<BoxAdapter>((ref) {
+  throw UnimplementedError('override with real adapters in main.dart');
+});
+
+final firewallAdapterProvider = Provider<FirewallAdapter>((ref) {
+  throw UnimplementedError('override with real adapters in main.dart');
+});
+
+final torAdapterProvider = Provider<TorAdapter>((ref) {
+  throw UnimplementedError('override with real adapters in main.dart');
+});
+
+final configSourceProvider = Provider<ConfigSource>((ref) {
+  throw UnimplementedError('override with real adapters in main.dart');
+});
+
+/// Assembles the [Tunnel] from the overridden adapters.
+final tunnelAssemblyProvider = Provider<Tunnel>((ref) {
+  return Tunnel(
+    platform: ref.watch(platformAdapterProvider),
+    foreground: ref.watch(foregroundAdapterProvider),
+    box: ref.watch(boxAdapterProvider),
+    firewall: ref.watch(firewallAdapterProvider),
+    tor: ref.watch(torAdapterProvider),
+    configSource: ref.watch(configSourceProvider),
+  );
 });
 
 /// Single source of VPN truth for the UI.
@@ -76,5 +109,6 @@ class VpnNotifier extends Notifier<VpnState> {
   }
 }
 
-final vpnNotifierProvider =
-    NotifierProvider<VpnNotifier, VpnState>(VpnNotifier.new);
+final vpnNotifierProvider = NotifierProvider<VpnNotifier, VpnState>(
+  VpnNotifier.new,
+);

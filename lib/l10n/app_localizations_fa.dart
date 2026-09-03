@@ -62,4 +62,67 @@ class AppLocalizationsFa extends AppLocalizations {
   String wizardStepOf(int step) {
     return 'مرحله $step از 3';
   }
+
+  @override
+  String get updatesIdle =>
+      'هنوز بررسی نشده. برنامه روزانه در پس‌زمینه بررسی می‌کند.';
+
+  @override
+  String updatesUpToDate(String version) {
+    return 'به‌روز است (v$version)';
+  }
+
+  @override
+  String get updatesCheckNow => 'بررسی الان';
+
+  @override
+  String get updatesInstall => 'دانلود و نصب';
+
+  @override
+  String get groups => 'گروه‌ها';
+
+  @override
+  String get rules => 'قوانین';
+
+  @override
+  String get logs => 'گزارش‌ها';
+
+  @override
+  String get diagnostics => 'عیب‌یابی';
+
+  @override
+  String get stateConnected => 'متصل';
+
+  @override
+  String get stateConnecting => 'در حال اتصال…';
+
+  @override
+  String get stateDisconnecting => 'در حال قطع…';
+
+  @override
+  String get stateBlocked => 'مسدود';
+
+  @override
+  String get stateReconnecting => 'در حال اتصال مجدد…';
+
+  @override
+  String get stateTapToConnect => 'برای اتصال بزنید';
+
+  @override
+  String get blockVpnPermissionDenied => 'مجوز VPN رد شد';
+
+  @override
+  String get blockEstablishFailed => 'راه‌اندازی تونل ناموفق بود';
+
+  @override
+  String get blockAirplaneMode => 'حالت هواپیما روشن است';
+
+  @override
+  String get blockTorDown => 'زنجیره تور قطع است';
+
+  @override
+  String get blockBoxStartFailed => 'موتور شروع نشد';
+
+  @override
+  String get blockBoxCrashed => 'موتور متوقف شد';
 }

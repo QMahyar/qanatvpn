@@ -199,6 +199,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Step {step} of 3'**
   String wizardStepOf(int step);
+
+  /// No description provided for @updatesIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'No check yet. The app checks daily in the background.'**
+  String get updatesIdle;
+
+  /// No description provided for @updatesUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date (v{version})'**
+  String updatesUpToDate(String version);
+
+  /// No description provided for @updatesCheckNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get updatesCheckNow;
+
+  /// No description provided for @updatesInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Download & install'**
+  String get updatesInstall;
+
+  /// No description provided for @groups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get groups;
+
+  /// No description provided for @rules.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules'**
+  String get rules;
+
+  /// No description provided for @logs.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get logs;
+
+  /// No description provided for @diagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get diagnostics;
+
+  /// No description provided for @stateConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get stateConnected;
+
+  /// No description provided for @stateConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get stateConnecting;
+
+  /// No description provided for @stateDisconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnecting…'**
+  String get stateDisconnecting;
+
+  /// No description provided for @stateBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get stateBlocked;
+
+  /// No description provided for @stateReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting…'**
+  String get stateReconnecting;
+
+  /// No description provided for @stateTapToConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to connect'**
+  String get stateTapToConnect;
+
+  /// No description provided for @blockVpnPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'VPN permission denied'**
+  String get blockVpnPermissionDenied;
+
+  /// No description provided for @blockEstablishFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnel setup failed'**
+  String get blockEstablishFailed;
+
+  /// No description provided for @blockAirplaneMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Airplane mode is on'**
+  String get blockAirplaneMode;
+
+  /// No description provided for @blockTorDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Tor chain is down'**
+  String get blockTorDown;
+
+  /// No description provided for @blockBoxStartFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine failed to start'**
+  String get blockBoxStartFailed;
+
+  /// No description provided for @blockBoxCrashed.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine crashed'**
+  String get blockBoxCrashed;
 }
 
 class _AppLocalizationsDelegate

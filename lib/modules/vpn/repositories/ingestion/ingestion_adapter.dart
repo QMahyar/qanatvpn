@@ -25,8 +25,7 @@ class RawSubscription {
 /// share-link lines (vless/vmess/ss/trojan/hysteria2/tuic), optionally wrapped
 /// in a base64 bundle. Parsed results are cached per URL for 6 hours.
 class IngestionAdapter {
-  IngestionAdapter({DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  IngestionAdapter({DateTime Function()? now}) : _now = now ?? DateTime.now;
 
   final DateTime Function() _now;
   final Map<Uri, _CachedParse> _cache = <Uri, _CachedParse>{};
@@ -107,7 +106,10 @@ class IngestionAdapter {
       RegExp(r'^\s*\[Interface\]', multiLine: true).hasMatch(source);
 
   bool _looksLikeClashYaml(String source) =>
-      RegExp(r'^\s*(proxies|listeners)\s*:', multiLine: true).hasMatch(source) &&
+      RegExp(
+        r'^\s*(proxies|listeners)\s*:',
+        multiLine: true,
+      ).hasMatch(source) &&
       !source.trimLeft().startsWith('{');
 
   bool _looksLikeJson(String source) {
@@ -133,7 +135,9 @@ class IngestionAdapter {
     // One base64 level unwraps a bundled subscription.
     try {
       final decoded = utf8.decode(
-        base64Url.decode(base64Url.normalize(source.replaceAll(RegExp(r'\s'), ''))),
+        base64Url.decode(
+          base64Url.normalize(source.replaceAll(RegExp(r'\s'), '')),
+        ),
       );
       return decoded
           .split(RegExp(r'\r?\n'))

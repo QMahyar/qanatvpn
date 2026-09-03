@@ -68,34 +68,34 @@ class _StubTunnel implements Tunnel {
 }
 
 void main() {
-  test('VpnNotifier.connect passes the tag straight to Tunnel.connect', () async {
-    final tunnel = _StubTunnel();
-    final container = ProviderContainer(
-      overrides: [tunnelProvider.overrideWithValue(tunnel)],
-    );
-    addTearDown(container.dispose);
+  test(
+    'VpnNotifier.connect passes the tag straight to Tunnel.connect',
+    () async {
+      final tunnel = _StubTunnel();
+      final container = ProviderContainer(
+        overrides: [tunnelProvider.overrideWithValue(tunnel)],
+      );
+      addTearDown(container.dispose);
 
-    final seen = <VpnState>[];
-    final sub = container.listen(
-      vpnNotifierProvider,
-      (_, VpnState next) => seen.add(next),
-    );
-    addTearDown(sub.close);
+      final seen = <VpnState>[];
+      final sub = container.listen(
+        vpnNotifierProvider,
+        (_, VpnState next) => seen.add(next),
+      );
+      addTearDown(sub.close);
 
-    await container.read(vpnNotifierProvider.notifier).connect('HKG-02');
-    tunnel.finishConnect('HKG-02');
-    await Future<void>.delayed(Duration.zero);
+      await container.read(vpnNotifierProvider.notifier).connect('HKG-02');
+      tunnel.finishConnect('HKG-02');
+      await Future<void>.delayed(Duration.zero);
 
-    expect(tunnel.calls, <String>['connect:HKG-02']);
-    expect(
-      seen.any((s) => s.phase == TunnelState.connected && s.tag == 'HKG-02'),
-      isTrue,
-    );
-    expect(
-      seen.any((s) => s.phase == TunnelState.connecting),
-      isTrue,
-    );
-  });
+      expect(tunnel.calls, <String>['connect:HKG-02']);
+      expect(
+        seen.any((s) => s.phase == TunnelState.connected && s.tag == 'HKG-02'),
+        isTrue,
+      );
+      expect(seen.any((s) => s.phase == TunnelState.connecting), isTrue);
+    },
+  );
 
   test('VpnNotifier.disconnect reaches Tunnel.disconnect', () async {
     final tunnel = _StubTunnel();

@@ -57,8 +57,7 @@ String stringField(Object? value, String what) {
 }
 
 bool boolOf(String? source) =>
-    source != null &&
-    (source == '1' || source.toLowerCase() == 'true');
+    source != null && (source == '1' || source.toLowerCase() == 'true');
 
 /// Standard base64 first (real-world links use `+/`), URL-safe fallback.
 /// [base64Url.decode] rejects the standard alphabet, which breaks real
@@ -115,7 +114,11 @@ class ClashYamlParser {
     if (listeners is YamlList) {
       for (final node in listeners) {
         if (node is YamlMap && node['type'] == 'mixed') {
-          endpoints.add(_listener(node));
+          // Clash `listeners: [{type: mixed}]` is a LOCAL inbound (a socks/
+          // http port on the device), not a proxy. Mapping it to any
+          // endpoint variant would ship a useless dial to 127.0.0.1 into
+          // the engine config — skipped outright.
+          continue;
         }
       }
     }
@@ -144,7 +147,9 @@ class ClashYamlParser {
           port: intField(node['port'], 'clash port'),
           uuid: stringField(node['uuid'], 'clash uuid'),
           security: node['cipher'] as String? ?? 'auto',
-          alterId: node['alterId'] == null ? 0 : intField(node['alterId'], 'alterId'),
+          alterId: node['alterId'] == null
+              ? 0
+              : intField(node['alterId'], 'alterId'),
           network: node['network'] as String?,
           tls: (node['tls'] as bool? ?? false) ? 'tls' : null,
           sni: node['servername'] as String?,
@@ -241,21 +246,6 @@ class ClashYamlParser {
     );
   }
 
-  /// Clash `listeners: [{type: mixed, port: 7890}]` is a local inbound, not a
-  /// proxy — normalized as a VMess-shaped placeholder is wrong. The deep
-  /// adapter only maps `listeners` that ARE proxies (sing-box style), so a
-  /// mixed listener becomes a tag-only record the caller can ignore.
-  NormalizedEndpoint _listener(YamlMap node) {
-    final port = node['port'] as int? ?? 0;
-    return VmessEndpoint(
-      tag: node['name'] as String? ?? 'mixed-$port',
-      address: '127.0.0.1',
-      port: port,
-      uuid: 'local',
-      security: 'auto',
-    );
-  }
-
   int? _asInt(Object? value) {
     if (value is int) {
       return value;
@@ -316,11 +306,14 @@ class SingboxJsonParser {
           sni: tls?['server_name'] as String?,
           fingerprint: tls?['utls'] == null
               ? null
-              : (tls!['utls'] as Map<String, dynamic>)['fingerprint'] as String?,
+              : (tls!['utls'] as Map<String, dynamic>)['fingerprint']
+                    as String?,
           realityPublicKey: reality?['public_key'] as String?,
           realityShortId: reality?['short_id'] as String?,
           wsPath: transport?['path'] as String?,
-          wsHost: (transport?['headers'] as Map<String, dynamic>?)?['Host'] as String?,
+          wsHost:
+              (transport?['headers'] as Map<String, dynamic>?)?['Host']
+                  as String?,
         );
       case 'vmess':
         final tls = node['tls'] as Map<String, dynamic>?;
@@ -347,9 +340,7 @@ class SingboxJsonParser {
           method: stringField(node['method'], 'sing-box method'),
           password: stringField(node['password'], 'sing-box password'),
           plugin: plugin,
-          pluginOpts: pluginOpts == null
-              ? null
-              : _parsePluginOpts(pluginOpts),
+          pluginOpts: pluginOpts == null ? null : _parsePluginOpts(pluginOpts),
         );
       case 'trojan':
         final tls = node['tls'] as Map<String, dynamic>?;
@@ -359,7 +350,8 @@ class SingboxJsonParser {
           port: intField(node['server_port'], 'sing-box server_port'),
           password: stringField(node['password'], 'sing-box password'),
           sni: tls?['server_name'] as String?,
-          network: (node['transport'] as Map<String, dynamic>?)?['type'] as String?,
+          network:
+              (node['transport'] as Map<String, dynamic>?)?['type'] as String?,
           allowInsecure: tls?['insecure'] == true,
         );
       case 'hysteria2':
@@ -370,7 +362,8 @@ class SingboxJsonParser {
           port: intField(node['server_port'], 'sing-box server_port'),
           auth: node['password'] as String? ?? node['auth'] as String? ?? '',
           sni: tls?['server_name'] as String?,
-          obfsPassword: (node['obfs'] as Map<String, dynamic>?)?['password'] as String?,
+          obfsPassword:
+              (node['obfs'] as Map<String, dynamic>?)?['password'] as String?,
           upMbps: node['up_mbps'] as int?,
           downMbps: node['down_mbps'] as int?,
           ports: node['server_ports'] as String?,
@@ -388,7 +381,9 @@ class SingboxJsonParser {
           uuid: stringField(node['uuid'], 'sing-box uuid'),
           password: node['password'] as String? ?? '',
           congestionControl: node['congestion_control'] as String?,
-          alpn: List<String>.from(tls?['alpn'] as List<dynamic>? ?? <String>['h3']),
+          alpn: List<String>.from(
+            tls?['alpn'] as List<dynamic>? ?? <String>['h3'],
+          ),
           sni: tls?['server_name'] as String?,
           udpRelayMode: node['udp_relay_mode'] as String?,
         );
@@ -409,9 +404,13 @@ class SingboxJsonParser {
           WireGuardPeer(
             publicKey: p['public_key'] as String? ?? '',
             endpoint: '$address:$port',
-            allowedIps: List<String>.from(p['allowed_ips'] as List<dynamic>? ?? <String>[]),
+            allowedIps: List<String>.from(
+              p['allowed_ips'] as List<dynamic>? ?? <String>[],
+            ),
             presharedKey: p['preshared_key'] as String?,
-            persistentKeepalive: _keepaliveInt(p['persistent_keepalive_interval']),
+            persistentKeepalive: _keepaliveInt(
+              p['persistent_keepalive_interval'],
+            ),
           ),
         );
       }
@@ -419,7 +418,9 @@ class SingboxJsonParser {
     return WireGuardEndpoint(
       tag: node['tag'] as String? ?? 'awg',
       privateKey: node['private_key'] as String? ?? '',
-      addresses: List<String>.from(node['address'] as List<dynamic>? ?? <String>[]),
+      addresses: List<String>.from(
+        node['address'] as List<dynamic>? ?? <String>[],
+      ),
       mtu: node['mtu'] as int?,
       peers: peers,
       awg: AwgValues(
@@ -457,7 +458,9 @@ class SingboxJsonParser {
     return <String, String>{
       for (final part in source.split(';'))
         if (part.contains('=')) ...<String, String>{
-          part.substring(0, part.indexOf('=')): part.substring(part.indexOf('=') + 1),
+          part.substring(0, part.indexOf('=')): part.substring(
+            part.indexOf('=') + 1,
+          ),
         },
     };
   }
@@ -482,7 +485,9 @@ class VlessUriParser {
         tag: tag,
         address: host,
         port: port,
-        uuid: userInfo.isNotEmpty ? userInfo : requireQuery(query, 'id', 'vless'),
+        uuid: userInfo.isNotEmpty
+            ? userInfo
+            : requireQuery(query, 'id', 'vless'),
         flow: query['flow'],
         network: query['type'],
         security: query['security'],
@@ -515,8 +520,7 @@ class VmessUriParser {
     if (question >= 0) {
       body = body.substring(0, question);
     }
-    final decoded = decodeBase64Flex(body.trim(),
-    );
+    final decoded = decodeBase64Flex(body.trim());
     final doc = jsonDecode(decoded);
     if (doc is! Map<String, dynamic>) {
       throw const FormatException('vmess: payload not an object');
@@ -579,8 +583,7 @@ class ShadowsocksUriParser {
       ];
     }
     // whole-link base64: base64(method:password@host:port)
-    final decoded = decodeBase64Flex(body.trim(),
-    );
+    final decoded = decodeBase64Flex(body.trim());
     final at2 = decoded.lastIndexOf('@');
     if (at2 < 0) {
       throw const FormatException('ss: decoded payload missing @');
@@ -602,11 +605,15 @@ class ShadowsocksUriParser {
   }
 
   String _decodeUser(String source) {
-    return decodeBase64Flex(source.trim(),
-    );
+    return decodeBase64Flex(source.trim());
   }
 
-  ShadowsocksEndpoint _fromUserInfo(String userInfo, String host, int port, String tag) {
+  ShadowsocksEndpoint _fromUserInfo(
+    String userInfo,
+    String host,
+    int port,
+    String tag,
+  ) {
     final split = userInfo.indexOf(':');
     if (split < 0) {
       throw const FormatException('ss: userinfo not method:password');
@@ -703,7 +710,6 @@ class TuicUriParser {
     ];
   }
 }
-
 
 /// WireGuard/AWG INI: `[Interface]` + repeated `[Peer]` sections, Amnezia
 /// keys. Multi-peer configs produce one peer each; allowed_ips accumulate
@@ -819,6 +825,12 @@ class WgIniParser {
           awg['i4'] = value;
         case 'i5':
           awg['i5'] = value;
+        case 'id':
+          awg['id'] = value;
+        case 'ip':
+          awg['ip'] = value;
+        case 'ib':
+          awg['ib'] = value;
       }
     }
     flushPeer();
@@ -852,6 +864,9 @@ class WgIniParser {
                 i3: awg['i3'] as String?,
                 i4: awg['i4'] as String?,
                 i5: awg['i5'] as String?,
+                id: awg['id'] as String?,
+                ip: awg['ip'] as String?,
+                ib: awg['ib'] as String?,
               ),
       ),
     ];

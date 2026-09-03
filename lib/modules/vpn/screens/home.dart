@@ -3,7 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/tunnel.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../updates/updates_controller.dart' as updates;
+import '../logic/selected_endpoint.dart';
+import '../logic/tunnel_l10n.dart';
 import '../logic/vpn_notifier.dart';
+import '../repositories/endpoints_controller.dart';
 
 /// Bento home: power tile + state tile + endpoint tile + quick tiles.
 /// Adaptive 4→2 column at 40rem, 1 column under 20rem.
@@ -25,10 +30,7 @@ class HomeScreen extends ConsumerWidget {
           children: <Widget>[
             Padding(
               padding: const EdgeInsetsDirectional.all(8),
-              child: Text(
-                'YOURVPN',
-                style: theme.textTheme.headlineMedium,
-              ),
+              child: Text('YOURVPN', style: theme.textTheme.headlineMedium),
             ),
             Expanded(
               child: LayoutBuilder(
@@ -43,6 +45,7 @@ class HomeScreen extends ConsumerWidget {
                       const EndpointTile(),
                       const SplitTile(),
                       const StatsTile(),
+                      const UpdateTile(),
                       const WizardTile(),
                     ],
                   );
@@ -67,9 +70,13 @@ class PowerTile extends ConsumerWidget {
     final bool busy =
         phase == TunnelState.connecting || phase == TunnelState.disconnecting;
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    // Honor the OS "remove animations" setting: rotation snaps instead of
+    // spinning for vestibular safety.
+    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Semantics(
       button: true,
-      label: connected ? 'Disconnect' : 'Connect',
+      label: connected ? l10n.disconnect : l10n.connect,
       child: Card(
         color: connected
             ? theme.colorScheme.primaryContainer
@@ -78,12 +85,15 @@ class PowerTile extends ConsumerWidget {
           onTap: busy
               ? null
               : () async {
-                  final VpnNotifier notifier =
-                      ref.read(vpnNotifierProvider.notifier);
+                  final VpnNotifier notifier = ref.read(
+                    vpnNotifierProvider.notifier,
+                  );
                   if (connected) {
                     await notifier.disconnect();
                   } else {
-                    await notifier.connect('HKG-02');
+                    await notifier.connect(
+                      ref.read(selectedEndpointProvider).tag,
+                    );
                   }
                 },
           child: Center(
@@ -92,8 +102,10 @@ class PowerTile extends ConsumerWidget {
               children: <Widget>[
                 AnimatedRotation(
                   turns: connected ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOutBack,
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 350),
+                  curve: reduceMotion ? Curves.linear : Curves.easeOutBack,
                   child: Icon(
                     Icons.power_settings_new,
                     size: 56,
@@ -103,16 +115,7 @@ class PowerTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  switch (phase) {
-                    TunnelState.connected => 'Connected',
-                    TunnelState.connecting => 'Connecting…',
-                    TunnelState.disconnecting => 'Disconnecting…',
-                    TunnelState.blocked => 'Blocked',
-                    TunnelState.reconnecting => 'Reconnecting…',
-                    TunnelState.disconnected => 'Tap to connect',
-                  },
-                ),
+                Text(phase.label(l10n)),
               ],
             ),
           ),
@@ -130,6 +133,7 @@ class StateTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     return Card(
       child: Center(
         child: Column(
@@ -150,9 +154,11 @@ class StateTile extends StatelessWidget {
             Text(vpn.tag ?? 'no endpoint', style: theme.textTheme.titleMedium),
             if (vpn.blockReason != null)
               Text(
-                vpn.blockReason!.name,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error),
+                vpn.blockReason!.label(l10n),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
               ),
           ],
         ),
@@ -161,21 +167,45 @@ class StateTile extends StatelessWidget {
   }
 }
 
-class EndpointTile extends StatelessWidget {
+class EndpointTile extends ConsumerWidget {
   const EndpointTile({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const Card(
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(Icons.dns, size: 32),
-            SizedBox(height: 8),
-            Text('HKG-02'),
-            Text('AWG · 1408 MTU'),
-          ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final EndpointsState state = ref.watch(endpointsControllerProvider);
+    final SelectedEndpoint selected = ref.watch(selectedEndpointProvider);
+    final String label =
+        selected.source == 'fallback' && state.endpoints.isEmpty
+        ? 'No endpoints'
+        : selected.tag;
+    final String sub = state.endpoints.isEmpty
+        ? 'Tap to import'
+        : '${state.endpoints.length} stored · connect: ${selected.source}';
+    final ThemeData theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: 'Endpoints',
+      child: Card(
+        child: InkWell(
+          onTap: () => GoRouter.of(context).go('/endpoints'),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Icon(Icons.dns, size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  Text(sub, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -248,3 +278,43 @@ class WizardTile extends StatelessWidget {
   }
 }
 
+class UpdateTile extends ConsumerWidget {
+  const UpdateTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final updates.UpdateState state = ref.watch(
+      updates.updateControllerProvider,
+    );
+    final bool available = state is updates.UpdateAvailable;
+    final String label = switch (state) {
+      updates.UpdateAvailable(:final info) => 'Update ${info.version}',
+      _ => 'Updates',
+    };
+    final ThemeData theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: 'Updates',
+      child: Card(
+        color: available ? theme.colorScheme.tertiaryContainer : null,
+        child: InkWell(
+          onTap: () => GoRouter.of(context).go('/updates'),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  available ? Icons.system_update_alt : Icons.system_update,
+                  size: 32,
+                  color: available ? theme.colorScheme.primary : null,
+                ),
+                const SizedBox(height: 8),
+                Text(label, style: theme.textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -107,9 +107,9 @@ class FakeIpDnsProber implements DnsProber {
   @override
   Future<bool> isHijacked() async {
     try {
-      final List<InternetAddress> addresses =
-          await InternetAddress.lookup('probe.yourvpn.internal')
-              .timeout(const Duration(seconds: 3));
+      final List<InternetAddress> addresses = await InternetAddress.lookup(
+        'probe.yourvpn.internal',
+      ).timeout(const Duration(seconds: 3));
       return addresses.any(_inFakeIpPool);
     } on Object {
       return false;
@@ -134,8 +134,11 @@ class TcpPinger implements Pinger {
   Future<int?> ping(String host, int port) async {
     final Stopwatch watch = Stopwatch()..start();
     try {
-      final Socket socket =
-          await Socket.connect(host, port, timeout: const Duration(seconds: 5));
+      final Socket socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(seconds: 5),
+      );
       socket.destroy();
       return watch.elapsedMilliseconds;
     } on Object {

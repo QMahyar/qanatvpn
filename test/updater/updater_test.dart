@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -13,9 +14,7 @@ CachedResponse response(
   return CachedResponse(
     statusCode: statusCode,
     headers: headers,
-    body: Uint8List.fromList(
-      utf8.encode(body == null ? '' : jsonEncode(body)),
-    ),
+    body: Uint8List.fromList(utf8.encode(body == null ? '' : jsonEncode(body))),
   );
 }
 
@@ -23,7 +22,8 @@ Map<String, dynamic> releaseDoc({List<Map<String, dynamic>>? assets}) =>
     <String, dynamic>{
       'tag_name': 'v1.2.3',
       'body': 'Bug fixes',
-      'assets': assets ??
+      'assets':
+          assets ??
           <Map<String, dynamic>>[
             <String, dynamic>{
               'name': 'yourvpn_v1.2.3_arm64-v8a.apk',
@@ -69,16 +69,20 @@ void main() {
       }
     });
 
-    test('401 surfaces a distinct error (retry unauthenticated path)', () async {
-      final fetcher = UpdateFetcher(
-        fetchImpl: (Uri url, Map<String, String> headers) async => response(401),
-      );
+    test(
+      '401 surfaces a distinct error (retry unauthenticated path)',
+      () async {
+        final fetcher = UpdateFetcher(
+          fetchImpl: (Uri url, Map<String, String> headers) async =>
+              response(401),
+        );
 
-      await expectLater(
-        fetcher.latestFor('android-arm64'),
-        throwsA(isA<FormatException>()),
-      );
-    });
+        await expectLater(
+          fetcher.latestFor('android-arm64'),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test('happy path picks the platform asset', () async {
       final fetcher = UpdateFetcher(
@@ -115,13 +119,11 @@ void main() {
 
     test('unknown platform key → ArgumentError', () {
       final fetcher = UpdateFetcher(
-        fetchImpl: (Uri url, Map<String, String> headers) async => response(200),
+        fetchImpl: (Uri url, Map<String, String> headers) async =>
+            response(200),
       );
 
-      expect(
-        () => fetcher.latestFor('ios-arm64'),
-        throwsArgumentError,
-      );
+      expect(() => fetcher.latestFor('ios-arm64'), throwsArgumentError);
     });
   });
 
@@ -143,7 +145,8 @@ void main() {
   group('latestJson', () {
     test('platform map mirrors release assets', () {
       final fetcher = UpdateFetcher(
-        fetchImpl: (Uri url, Map<String, String> headers) async => response(200),
+        fetchImpl: (Uri url, Map<String, String> headers) async =>
+            response(200),
       );
       final json = fetcher.latestJsonFromRelease(releaseDoc());
 
@@ -159,5 +162,117 @@ void main() {
       expect(json['version'], 'v1.2.3');
     });
   });
-}
 
+  group('UpdateSource (api → mirror fallback)', () {
+    test('api success wins, mirror untouched', () async {
+      final urls = <Uri>[];
+      final source = UpdateSource(
+        fetchImpl: (Uri url, Map<String, String> headers) async {
+          urls.add(url);
+          return response(200, body: releaseDoc());
+        },
+        mirrorUrl: 'https://example.github.io/yourvpn/latest.json',
+      );
+
+      final info = await source.latestFor('android-arm64');
+
+      expect(info?.version, 'v1.2.3');
+      expect(urls, hasLength(1));
+      expect(urls.single.host, 'api.github.com');
+    });
+
+    test('api rate-limited → mirror serves platform entry', () async {
+      final source = UpdateSource(
+        fetchImpl: (Uri url, Map<String, String> headers) async {
+          if (url.host == 'api.github.com') {
+            return response(
+              403,
+              headers: <String, String>{'x-ratelimit-remaining': '0'},
+            );
+          }
+          return response(
+            200,
+            body: <String, dynamic>{
+              'version': 'v1.2.3',
+              'platforms': <String, dynamic>{
+                'android-arm64': <String, dynamic>{
+                  'url': 'https://github.com/x/arm64.apk',
+                  'version': 'v1.2.3',
+                },
+              },
+            },
+          );
+        },
+        mirrorUrl: 'https://example.github.io/yourvpn/latest.json',
+      );
+
+      final info = await source.latestFor('android-arm64');
+
+      expect(info?.assetUrl, 'https://github.com/x/arm64.apk');
+      expect(info?.changelog, isEmpty);
+    });
+
+    test('api failed + no mirror → original api error surfaces', () async {
+      final source = UpdateSource(
+        fetchImpl: (Uri url, Map<String, String> headers) async => response(
+          403,
+          headers: <String, String>{'x-ratelimit-remaining': '0'},
+        ),
+      );
+
+      await expectLater(
+        source.latestFor('android-arm64'),
+        throwsA(isA<GitHubRateLimitException>()),
+      );
+    });
+
+    test('mirror 404 → api error surfaces', () async {
+      final source = UpdateSource(
+        fetchImpl: (Uri url, Map<String, String> headers) async {
+          if (url.host == 'api.github.com') {
+            return response(500);
+          }
+          return response(404);
+        },
+        mirrorUrl: 'https://example.github.io/yourvpn/latest.json',
+      );
+
+      await expectLater(
+        source.latestFor('android-arm64'),
+        throwsA(isA<HttpException>()),
+      );
+    });
+  });
+
+  group('UpdateStore', () {
+    test('save + read round-trips the update info', () async {
+      final dir = await Directory.systemTemp.createTemp('yourvpn-store');
+      addTearDown(() => dir.delete(recursive: true));
+      final store = UpdateStore(baseDir: dir.path);
+      const info = UpdateInfo(
+        version: 'v1.2.3',
+        changelog: 'Bug fixes',
+        assetUrl: 'https://github.com/x/arm64.apk',
+        platformKey: 'android-arm64',
+      );
+
+      await store.save(info, '1.0.0');
+
+      final read = store.read();
+      expect(read?.version, 'v1.2.3');
+      expect(read?.assetUrl, 'https://github.com/x/arm64.apk');
+      expect(store.lastCheckedAt(), isNotNull);
+    });
+
+    test('read on empty store → null, never throws', () {
+      final store = UpdateStore(
+        baseDir: Directory.systemTemp
+            .createTempSync('yourvpn-store-empty')
+            .path,
+      );
+
+      expect(store.read(), isNull);
+      expect(store.lastCheckedAt(), isNull);
+    });
+  });
+}

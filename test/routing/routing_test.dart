@@ -9,7 +9,11 @@ import 'package:yourvpn/modules/routing/config_assembler.dart';
 import 'package:yourvpn/modules/routing/routing_compiler.dart';
 import 'package:yourvpn/modules/routing/routing_policy.dart';
 
-final String singBoxExe = p.join(Directory.current.path, 'windows', 'sing-box.exe');
+final String singBoxExe = p.join(
+  Directory.current.path,
+  'windows',
+  'sing-box.exe',
+);
 
 bool get singBoxAvailable => File(singBoxExe).existsSync();
 
@@ -47,18 +51,12 @@ RoutingPolicy testPolicy() => const RoutingPolicy(
       domainSuffixes: <String>['cn'],
       ruleSets: <String>['geosite-cn', 'geoip-cn'],
     ),
-    RouteRule(
-      outbound: 'BLOCK',
-      processNames: <String>['steam.exe'],
-    ),
+    RouteRule(outbound: 'BLOCK', processNames: <String>['steam.exe']),
     RouteRule(
       outbound: 'DIRECT',
       logicalMode: 'and',
       rules: <RouteRule>[
-        RouteRule(
-          processNames: <String>['chrome.exe'],
-          invert: true,
-        ),
+        RouteRule(processNames: <String>['chrome.exe'], invert: true),
         RouteRule(wifiSsids: <String>['Home WiFi']),
       ],
     ),
@@ -74,7 +72,9 @@ GeoAsset geoFor(Directory dir) {
   return GeoAsset(
     cacheDir: Directory('${dir.path}/cache'),
     initialDir: Directory('rule_sets/initial_assets'),
-    http: HttpCache(fetch: (url, headers) async => throw const SocketException('offline')),
+    http: HttpCache(
+      fetch: (url, headers) async => throw const SocketException('offline'),
+    ),
   );
 }
 
@@ -84,31 +84,38 @@ void main() {
   tearDown(() => dir.deleteSync(recursive: true));
 
   group('RoutingCompiler', () {
-    test('happy path: domain/process_name + rule_set + invert + logical and', () {
-      final result = const RoutingCompiler().compile(testPolicy());
+    test(
+      'happy path: domain/process_name + rule_set + invert + logical and',
+      () {
+        final result = const RoutingCompiler().compile(testPolicy());
 
-      expect(result.isValid, isTrue, reason: result.validationErrors.join('; '));
-      expect(result.rulesJson, hasLength(3));
+        expect(
+          result.isValid,
+          isTrue,
+          reason: result.validationErrors.join('; '),
+        );
+        expect(result.rulesJson, hasLength(3));
 
-      final first = result.rulesJson[0];
-      expect(first['domain_suffix'], <String>['cn']);
-      expect(first['rule_set'], <String>['geosite-cn', 'geoip-cn']);
-      expect(first['outbound'], 'DIRECT');
+        final first = result.rulesJson[0];
+        expect(first['domain_suffix'], <String>['cn']);
+        expect(first['rule_set'], <String>['geosite-cn', 'geoip-cn']);
+        expect(first['outbound'], 'DIRECT');
 
-      final second = result.rulesJson[1];
-      expect(second['process_name'], <String>['steam.exe']);
-      expect(second['action'], 'reject');
+        final second = result.rulesJson[1];
+        expect(second['process_name'], <String>['steam.exe']);
+        expect(second['action'], 'reject');
 
-      final third = result.rulesJson[2];
-      expect(third['type'], 'logical');
-      expect(third['mode'], 'and');
-      expect(third['rules'], hasLength(2));
-      expect(third['rules'][0]['invert'], isTrue);
-      expect(third['rules'][0].containsKey('outbound'), isFalse);
-      expect(third['outbound'], 'DIRECT');
+        final third = result.rulesJson[2];
+        expect(third['type'], 'logical');
+        expect(third['mode'], 'and');
+        expect(third['rules'], hasLength(2));
+        expect(third['rules'][0]['invert'], isTrue);
+        expect(third['rules'][0].containsKey('outbound'), isFalse);
+        expect(third['outbound'], 'DIRECT');
 
-      expect(result.ruleSetTags, <String>{'geosite-cn', 'geoip-cn'});
-    });
+        expect(result.ruleSetTags, <String>{'geosite-cn', 'geoip-cn'});
+      },
+    );
 
     test('rule-set tag dedup', () {
       final result = const RoutingCompiler().compile(
@@ -118,10 +125,7 @@ void main() {
               outbound: 'DIRECT',
               ruleSets: <String>['geosite-cn', 'geosite-cn'],
             ),
-            RouteRule(
-              outbound: 'BLOCK',
-              ruleSets: <String>['geosite-cn'],
-            ),
+            RouteRule(outbound: 'BLOCK', ruleSets: <String>['geosite-cn']),
           ],
         ),
       );
@@ -147,9 +151,7 @@ void main() {
 
     test('empty rule accumulates error', () {
       final result = const RoutingCompiler().compile(
-        const RoutingPolicy(
-          rules: <RouteRule>[RouteRule(outbound: 'DIRECT')],
-        ),
+        const RoutingPolicy(rules: <RouteRule>[RouteRule(outbound: 'DIRECT')]),
       );
 
       expect(result.isValid, isFalse);
@@ -161,14 +163,13 @@ void main() {
         const RoutingPolicy(
           rules: <RouteRule>[
             RouteRule(outbound: 'DIRECT'),
-            RouteRule(
-              outbound: 'DIRECT',
-              ruleSets: <String>['bogus-1'],
-            ),
+            RouteRule(outbound: 'DIRECT', ruleSets: <String>['bogus-1']),
             RouteRule(
               outbound: 'DIRECT',
               logicalMode: 'xor',
-              rules: <RouteRule>[RouteRule(domains: <String>['only-one'])],
+              rules: <RouteRule>[
+                RouteRule(domains: <String>['only-one']),
+              ],
             ),
           ],
         ),
@@ -182,47 +183,322 @@ void main() {
       expect(result.validationErrors[3], contains('at least 2 sub-rules'));
     });
 
-    test('logical rule without outbound accumulates sub-rule outbound error', () {
+    test(
+      'logical rule without outbound accumulates sub-rule outbound error',
+      () {
+        final result = const RoutingCompiler().compile(
+          const RoutingPolicy(
+            rules: <RouteRule>[
+              RouteRule(
+                logicalMode: 'or',
+                rules: <RouteRule>[
+                  RouteRule(domains: <String>['a.com'], outbound: 'PROXY'),
+                  RouteRule(domains: <String>['b.com']),
+                ],
+              ),
+            ],
+          ),
+        );
+
+        expect(result.isValid, isFalse);
+        expect(
+          result.validationErrors.any(
+            (e) => e.contains('sub-rule must not set outbound'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('the 6 previously-missing fields emit fork-native shapes', () {
       final result = const RoutingCompiler().compile(
         const RoutingPolicy(
           rules: <RouteRule>[
             RouteRule(
-              logicalMode: 'or',
-              rules: <RouteRule>[
-                RouteRule(domains: <String>['a.com'], outbound: 'PROXY'),
-                RouteRule(domains: <String>['b.com']),
-              ],
+              outbound: 'DIRECT',
+              ipVersion: 4,
+              ipIsPrivate: true,
+              portRanges: <String>['1000:2000'],
+              sourcePortRanges: <String>['5000:6000'],
+              processPaths: <String>[r'C:\Program Files\app.exe'],
+              userIds: <int>[1000, 1001],
+              sourceIpIsPrivate: false,
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        result.isValid,
+        isTrue,
+        reason: result.validationErrors.join('; '),
+      );
+      final json = result.rulesJson.single;
+      expect(json['ip_version'], 4);
+      expect(json['ip_is_private'], isTrue);
+      expect(json['source_ip_is_private'], isFalse);
+      expect(json['port_range'], <String>['1000:2000']);
+      expect(json['source_port_range'], <String>['5000:6000']);
+      expect(json['process_path'], <String>[r'C:\Program Files\app.exe']);
+      expect(json['user_id'], <int>[1000, 1001]);
+    });
+
+    test('bad ip_version and bad port ranges accumulate errors at once', () {
+      final result = const RoutingCompiler().compile(
+        const RoutingPolicy(
+          rules: <RouteRule>[
+            RouteRule(
+              outbound: 'DIRECT',
+              ipVersion: 5,
+              portRanges: <String>['2000:1000', 'x:y', '80'],
+            ),
+            RouteRule(
+              outbound: 'DIRECT',
+              userIds: <int>[1000],
+              processPathRegexes: <String>['.*steam.*'],
             ),
           ],
         ),
       );
 
       expect(result.isValid, isFalse);
-      expect(result.validationErrors.any((e) => e.contains('sub-rule must not set outbound')), isTrue);
+      // 3 bad port ranges + ip_version; the rule then has no valid condition
+      // field left, adding the 5th "no condition fields" error.
+      expect(result.validationErrors, hasLength(5));
+      expect(result.validationErrors[0], contains('port_range'));
+      expect(result.validationErrors[1], contains('port_range'));
+      expect(result.validationErrors[2], contains('port_range'));
+      expect(result.validationErrors[3], contains('ip_version'));
+      expect(result.validationErrors[4], contains('no condition fields'));
+      // Rule 1 dropped (no valid condition field); only rule 2 compiles.
+      expect(result.rulesJson, hasLength(1));
+      expect(result.rulesJson.single['user_id'], <int>[1000]);
+      expect(result.rulesJson.single['process_path_regex'], <String>[
+        '.*steam.*',
+      ]);
     });
   });
 
-  group('ConfigAssembler → sing-box check', () {
-    test('compiled policy produces a config the real sing-box accepts', () async {
+  group('Outbound groups (3-tier auto→selector→endpoint)', () {
+    test('urltest + selector emit fork shapes; member refs validated', () {
+      final result = const RoutingCompiler().compile(
+        const RoutingPolicy(
+          rules: <RouteRule>[],
+          leafOutbounds: <String>['awg-hkg-02'],
+          groups: <OutboundGroup>[
+            OutboundGroup.urlTest(
+              tag: 'auto',
+              members: <String>['awg-hkg-02'],
+              interval: Duration(minutes: 5),
+            ),
+            OutboundGroup.selector(
+              tag: 'manual',
+              members: <String>['auto', 'awg-hkg-02', 'DIRECT'],
+              defaultMember: 'auto',
+              interruptExistConnections: true,
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        result.isValid,
+        isTrue,
+        reason: result.validationErrors.join('; '),
+      );
+      final auto = result.outboundsJson[0];
+      expect(auto['type'], 'urltest');
+      expect(auto['interval'], '5m');
+      expect(auto['tolerance'], 50);
+      final manual = result.outboundsJson[1];
+      expect(manual['type'], 'selector');
+      expect(manual['default'], 'auto');
+      expect(manual['interrupt_exist_connections'], isTrue);
+    });
+
+    test(
+      'unknown member, duplicate tag, empty members, bad default — all at once',
+      () {
+        final result = const RoutingCompiler().compile(
+          const RoutingPolicy(
+            rules: <RouteRule>[],
+            groups: <OutboundGroup>[
+              OutboundGroup.selector(
+                tag: 'dup',
+                members: <String>['ghost-endpoint'],
+              ),
+              OutboundGroup.selector(tag: 'dup', members: <String>['DIRECT']),
+              OutboundGroup.urlTest(tag: 'empty', members: <String>[]),
+              OutboundGroup.selector(
+                tag: 'baddefault',
+                members: <String>['DIRECT'],
+                defaultMember: 'nope',
+              ),
+            ],
+          ),
+        );
+
+        expect(result.isValid, isFalse);
+        expect(result.validationErrors, hasLength(4));
+        expect(result.validationErrors[0], contains('ghost-endpoint'));
+        expect(result.validationErrors[1], contains('duplicate group tag'));
+        expect(result.validationErrors[2], contains('at least 1 member'));
+        expect(result.validationErrors[3], contains('default'));
+      },
+    );
+  });
+
+  group('TOR-CHAIN seam', () {
+    test('reference without torChain set is a validation error', () {
+      final result = const RoutingCompiler().compile(
+        const RoutingPolicy(
+          rules: <RouteRule>[
+            RouteRule(outbound: 'TOR-CHAIN', ports: <String>['9050']),
+          ],
+        ),
+      );
+
+      expect(result.isValid, isFalse);
+      expect(result.validationErrors.single, contains('torChain is unset'));
+    });
+
+    test('torChain set emits socks sidecar outbound', () {
+      final result = const RoutingCompiler().compile(
+        const RoutingPolicy(
+          rules: <RouteRule>[
+            RouteRule(outbound: 'TOR-CHAIN', ports: <String>['9050']),
+          ],
+          torChain: TorChainOptions(),
+        ),
+      );
+
+      expect(
+        result.isValid,
+        isTrue,
+        reason: result.validationErrors.join('; '),
+      );
+      final tor = result.outboundsJson.single;
+      expect(tor['type'], 'socks');
+      expect(tor['tag'], 'tor-entry');
+      expect(tor['server'], '127.0.0.1');
+      expect(tor['server_port'], 9050);
+      expect(tor['version'], '5');
+    });
+
+    test('assembler injects detour into TOR-CHAIN endpoint (real check)', () {
       final geo = geoFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
-        endpointJson: awgEndpointJson,
-        policy: testPolicy(),
+        endpointJson: awgEndpointJson.replaceFirst(
+          '"tag": "awg-hkg-02"',
+          '"tag": "TOR-CHAIN"',
+        ),
+        policy: const RoutingPolicy(
+          rules: <RouteRule>[],
+          torChain: TorChainOptions(),
+        ),
       );
-      final file = File('${dir.path}/config.json');
-      await file.writeAsString(jsonEncode(config));
+      final endpoint =
+          (config['endpoints'] as List<dynamic>).single as Map<String, dynamic>;
+      expect(endpoint['detour'], 'tor-entry');
+      final outbounds = config['outbounds'] as List<dynamic>;
+      expect(
+        outbounds.any((o) => (o as Map<String, dynamic>)['tag'] == 'tor-entry'),
+        isTrue,
+      );
 
-      final result = Process.runSync(
-        singBoxExe,
-        <String>['check', '-c', file.path],
-      );
+      final file = File('${dir.path}/tor-config.json');
+      file.writeAsStringSync(jsonEncode(config));
+      final result = Process.runSync(singBoxExe, <String>[
+        'check',
+        '-c',
+        file.path,
+      ]);
       expect(
         result.exitCode,
         0,
         reason: 'stdout: ${result.stdout}\nstderr: ${result.stderr}',
       );
     });
+  });
+
+  group('3-tier assembly → sing-box check', () {
+    test('auto urltest → selector → endpoint config passes real sing-box', () {
+      final geo = geoFor(dir);
+      final assembler = ConfigAssembler(geoAsset: geo);
+      final config = assembler.build(
+        endpointJson: awgEndpointJson,
+        policy: const RoutingPolicy(
+          rules: <RouteRule>[
+            RouteRule(outbound: 'manual', domainSuffixes: <String>['cn']),
+          ],
+          leafOutbounds: <String>['awg-hkg-02'],
+          groups: <OutboundGroup>[
+            OutboundGroup.urlTest(tag: 'auto', members: <String>['awg-hkg-02']),
+            OutboundGroup.selector(
+              tag: 'manual',
+              members: <String>['auto', 'DIRECT'],
+              defaultMember: 'auto',
+            ),
+          ],
+        ),
+      );
+
+      final outbounds = config['outbounds'] as List<dynamic>;
+      final tags = outbounds
+          .map((o) => (o as Map<String, dynamic>)['tag'] as String?)
+          .toList();
+      expect(tags, containsAll(<String>['auto', 'manual', 'PROXY', 'DIRECT']));
+      // PROXY selector must include the groups + endpoint, never itself.
+      final proxy = outbounds.whereType<Map<String, dynamic>>().firstWhere(
+        (o) => o['tag'] == 'PROXY',
+      );
+      expect(
+        proxy['outbounds'],
+        containsAll(<String>['DIRECT', 'auto', 'manual', 'awg-hkg-02']),
+      );
+      expect((proxy['outbounds'] as List<dynamic>), isNot(contains('PROXY')));
+
+      final file = File('${dir.path}/tiered-config.json');
+      file.writeAsStringSync(jsonEncode(config));
+      final result = Process.runSync(singBoxExe, <String>[
+        'check',
+        '-c',
+        file.path,
+      ]);
+      expect(
+        result.exitCode,
+        0,
+        reason: 'stdout: ${result.stdout}\nstderr: ${result.stderr}',
+      );
+    });
+  });
+
+  group('ConfigAssembler → sing-box check', () {
+    test(
+      'compiled policy produces a config the real sing-box accepts',
+      () async {
+        final geo = geoFor(dir);
+        final assembler = ConfigAssembler(geoAsset: geo);
+        final config = assembler.build(
+          endpointJson: awgEndpointJson,
+          policy: testPolicy(),
+        );
+        final file = File('${dir.path}/config.json');
+        await file.writeAsString(jsonEncode(config));
+
+        final result = Process.runSync(singBoxExe, <String>[
+          'check',
+          '-c',
+          file.path,
+        ]);
+        expect(
+          result.exitCode,
+          0,
+          reason: 'stdout: ${result.stdout}\nstderr: ${result.stderr}',
+        );
+      },
+    );
 
     test('rule_set entries reference compiled tags only', () {
       final geo = geoFor(dir);
@@ -235,7 +511,10 @@ void main() {
       final route = config['route'] as Map<String, dynamic>;
       final ruleSet = route['rule_set'] as List<Map<String, dynamic>>;
       expect(ruleSet, hasLength(2));
-      expect(ruleSet.map((e) => e['tag']), containsAll(<String>['geosite-cn', 'geoip-cn']));
+      expect(
+        ruleSet.map((e) => e['tag']),
+        containsAll(<String>['geosite-cn', 'geoip-cn']),
+      );
       for (final entry in ruleSet) {
         expect(entry['type'], 'remote');
         expect(entry['format'], 'binary');
@@ -247,23 +526,19 @@ void main() {
 
   group('SRS round-trip with real binary', () {
     test('geosite-cn.srs decompiles (initial asset is a valid rule-set)', () {
-      final result = Process.runSync(
-        singBoxExe,
-        <String>[
-          'rule-set',
-          'decompile',
-          '-o',
-          '${dir.path}/geosite-cn.json',
-          'rule_sets/initial_assets/geosite-cn.srs',
-        ],
-      );
+      final result = Process.runSync(singBoxExe, <String>[
+        'rule-set',
+        'decompile',
+        '-o',
+        '${dir.path}/geosite-cn.json',
+        'rule_sets/initial_assets/geosite-cn.srs',
+      ]);
       expect(result.exitCode, 0, reason: result.stderr.toString());
-      final json = jsonDecode(File('${dir.path}/geosite-cn.json').readAsStringSync())
-          as Map<String, dynamic>;
+      final json =
+          jsonDecode(File('${dir.path}/geosite-cn.json').readAsStringSync())
+              as Map<String, dynamic>;
       expect(json['version'], 1);
       expect(json['rules'], isNotEmpty);
     });
   });
 }
-
-

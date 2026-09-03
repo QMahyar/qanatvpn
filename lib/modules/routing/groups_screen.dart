@@ -1,0 +1,269 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'groups_controller.dart';
+import 'routing_policy.dart';
+
+/// Groups tab: outbound-group CRUD (selector/urltest) with live validation.
+/// Members are picked from the known tag universe (groups, endpoint leaves,
+/// DIRECT); the compiler surfaces every broken reference at once.
+class GroupsScreen extends ConsumerWidget {
+  const GroupsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final GroupsState state = ref.watch(groupsControllerProvider);
+    final ThemeData theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsetsDirectional.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text('Groups', style: theme.textTheme.headlineSmall),
+                ),
+                IconButton(
+                  tooltip: 'Add group',
+                  onPressed: () => _editGroup(context, ref, null, null),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            if (state.groups.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'No groups. Add a urltest for auto-select or a selector '
+                    'for manual switching.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: state.groups.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    final OutboundGroup group = state.groups[index];
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(
+                          group.isUrlTest ? Icons.speed : Icons.low_priority,
+                        ),
+                        title: Text(group.tag),
+                        subtitle: Text(
+                          group.isUrlTest
+                              ? 'urltest · ${group.members.length} members'
+                              : 'selector · ${group.members.length} members',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () =>
+                                  _editGroup(context, ref, index, group),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () => ref
+                                  .read(groupsControllerProvider.notifier)
+                                  .deleteGroup(index),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            if (state.validationErrors.isNotEmpty)
+              Card(
+                color: theme.colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Validation errors',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      for (final error in state.validationErrors)
+                        Text(error, style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editGroup(
+    BuildContext context,
+    WidgetRef ref,
+    int? index,
+    OutboundGroup? existing,
+  ) async {
+    final GroupsState state = ref.read(groupsControllerProvider);
+    final OutboundGroup? result = await showModalBottomSheet<OutboundGroup>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) => _GroupFormSheet(
+        existing: existing,
+        knownTags: state.knownTags(),
+        otherGroupTags: <String>{
+          for (final group in state.groups)
+            if (group.tag != existing?.tag) group.tag,
+        },
+      ),
+    );
+    if (result == null) {
+      return;
+    }
+    final GroupsController controller = ref.read(
+      groupsControllerProvider.notifier,
+    );
+    if (index == null) {
+      await controller.addGroup(result);
+    } else {
+      await controller.updateGroup(index, result);
+    }
+  }
+}
+
+class _GroupFormSheet extends StatefulWidget {
+  const _GroupFormSheet({
+    required this.existing,
+    required this.knownTags,
+    required this.otherGroupTags,
+  });
+
+  final OutboundGroup? existing;
+  final Set<String> knownTags;
+  final Set<String> otherGroupTags;
+
+  @override
+  State<_GroupFormSheet> createState() => _GroupFormSheetState();
+}
+
+class _GroupFormSheetState extends State<_GroupFormSheet> {
+  late bool _isUrlTest = widget.existing?.isUrlTest ?? false;
+  late final TextEditingController _tagController = TextEditingController(
+    text: widget.existing?.tag ?? '',
+  );
+  late final Set<String> _members = <String>{...?widget.existing?.members};
+  String? _defaultMember;
+
+  @override
+  void initState() {
+    super.initState();
+    _defaultMember = widget.existing?.defaultMember;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final bool editingExisting = widget.existing != null;
+    return Padding(
+      padding: EdgeInsetsDirectional.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsetsDirectional.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              editingExisting ? 'Edit group' : 'New group',
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const <ButtonSegment<bool>>[
+                ButtonSegment<bool>(value: false, label: Text('Selector')),
+                ButtonSegment<bool>(value: true, label: Text('Urltest')),
+              ],
+              selected: <bool>{_isUrlTest},
+              onSelectionChanged: (Set<bool> selection) =>
+                  setState(() => _isUrlTest = selection.first),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _tagController,
+              decoration: const InputDecoration(
+                labelText: 'Tag',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('Members', style: theme.textTheme.titleSmall),
+            for (final tag in widget.knownTags)
+              CheckboxListTile(
+                dense: true,
+                title: Text(tag),
+                value: _members.contains(tag),
+                onChanged: (bool? checked) => setState(() {
+                  checked! ? _members.add(tag) : _members.remove(tag);
+                }),
+              ),
+            if (!_isUrlTest) ...<Widget>[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _defaultMember,
+                decoration: const InputDecoration(
+                  labelText: 'Default member (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                items: <DropdownMenuItem<String>>[
+                  for (final tag in _members)
+                    DropdownMenuItem<String>(value: tag, child: Text(tag)),
+                ],
+                onChanged: (String? value) =>
+                    setState(() => _defaultMember = value),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _members.isEmpty || _tagController.text.isEmpty
+                      ? null
+                      : () {
+                          final String tag = _tagController.text.trim();
+                          Navigator.of(context).pop(
+                            _isUrlTest
+                                ? OutboundGroup.urlTest(
+                                    tag: tag,
+                                    members: _members.toList(),
+                                  )
+                                : OutboundGroup.selector(
+                                    tag: tag,
+                                    members: _members.toList(),
+                                    defaultMember: _defaultMember,
+                                  ),
+                          );
+                        },
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

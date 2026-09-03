@@ -31,6 +31,9 @@ class _FakePlatformAdapter implements PlatformAdapter {
   Future<bool> isAirplaneMode() async => false;
 
   @override
+  bool get engineManagedTun => false;
+
+  @override
   Future<int?> establish() async => null;
 
   @override
@@ -38,6 +41,10 @@ class _FakePlatformAdapter implements PlatformAdapter {
 
   @override
   void closeFd(int fd) {}
+
+  @override
+  Future<List<InstalledApp>> listInstalledApps() async =>
+      const <InstalledApp>[];
 }
 
 void main() {
@@ -92,7 +99,10 @@ void main() {
 
     notifier.toggleApp('org.telegram.messenger');
     notifier.toggleApp('com.whatsapp');
-    expect(state().selectedApps, <String>{'org.telegram.messenger', 'com.whatsapp'});
+    expect(state().selectedApps, <String>{
+      'org.telegram.messenger',
+      'com.whatsapp',
+    });
 
     notifier.toggleApp('org.telegram.messenger');
     expect(state().selectedApps, <String>{'com.whatsapp'});
@@ -100,7 +110,7 @@ void main() {
     notifier.setAllowMode(false);
     expect(state().isAllowlist, isFalse);
 
-    notifier.finish();
+    await notifier.finish();
     expect(state().step, WizardStep.done);
   });
 

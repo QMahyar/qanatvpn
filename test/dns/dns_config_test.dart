@@ -9,7 +9,11 @@ import 'package:yourvpn/modules/geo/geo_asset.dart';
 import 'package:yourvpn/modules/routing/config_assembler.dart';
 import 'package:yourvpn/modules/routing/routing_policy.dart';
 
-final String singBoxExe = p.join(Directory.current.path, 'windows', 'sing-box.exe');
+final String singBoxExe = p.join(
+  Directory.current.path,
+  'windows',
+  'sing-box.exe',
+);
 
 GeoAsset geoFor(Directory dir) {
   return GeoAsset(
@@ -31,7 +35,8 @@ void main() {
     final geo = geoFor(dir);
     final json = const DnsConfig().toDnsJson(proxyTag: 'PROXY', geoAsset: geo);
 
-    final servers = (json['servers'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final servers = (json['servers'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
     expect(servers, hasLength(3));
     expect(servers[0]['type'], 'https');
     expect(servers[0]['server'], '1.1.1.1');
@@ -48,7 +53,11 @@ void main() {
 
     expect(json['final'], 'dns-proxy');
     expect(json['strategy'], 'prefer_ipv4');
-    expect(json.containsKey('fakeip'), isFalse, reason: 'legacy dns.fakeip removed in 1.14');
+    expect(
+      json.containsKey('fakeip'),
+      isFalse,
+      reason: 'legacy dns.fakeip removed in 1.14',
+    );
   });
 
   test('hijack rules: protocol dns → hijack-dns, always first', () {
@@ -67,16 +76,18 @@ void main() {
     final geo = geoFor(dir);
     final assembler = ConfigAssembler(geoAsset: geo);
     final config = assembler.build(
-      endpointJson: '{"type":"awg","tag":"awg-t","private_key":"eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=","address":["10.7.0.2/32"],"jc":5,"jmin":30,"jmax":1000,"s1":56,"s2":152,"h1":"1","h2":"2","h3":"3","h4":"4","peers":[{"address":"203.0.113.10","port":51820,"public_key":"7f3f0a5df0c497ef3f4a05c99a3a2d8d3c4b5a6e7f8091a2b3c4d5e6f708192a","allowed_ips":["0.0.0.0/0"]}]}',
+      endpointJson:
+          '{"type":"awg","tag":"awg-t","private_key":"eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=","address":["10.7.0.2/32"],"jc":5,"jmin":30,"jmax":1000,"s1":56,"s2":152,"h1":"1","h2":"2","h3":"3","h4":"4","peers":[{"address":"203.0.113.10","port":51820,"public_key":"7f3f0a5df0c497ef3f4a05c99a3a2d8d3c4b5a6e7f8091a2b3c4d5e6f708192a","allowed_ips":["0.0.0.0/0"]}]}',
       policy: const RoutingPolicy(rules: <RouteRule>[]),
     );
     final file = File('${dir.path}/config.json');
     await file.writeAsString(jsonEncode(config));
 
-    final result = Process.runSync(
-      singBoxExe,
-      <String>['check', '-c', file.path],
-    );
+    final result = Process.runSync(singBoxExe, <String>[
+      'check',
+      '-c',
+      file.path,
+    ]);
     expect(
       result.exitCode,
       0,
@@ -102,11 +113,12 @@ void main() {
     final geo = geoFor(dir);
     final assembler = ConfigAssembler(geoAsset: geo);
     final config = assembler.build(
-      endpointJson: '{"type":"awg","tag":"awg-t","private_key":"eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=","address":["10.7.0.2/32"],"peers":[]}',
+      endpointJson:
+          '{"type":"awg","tag":"awg-t","private_key":"eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=","address":["10.7.0.2/32"],"peers":[]}',
       policy: const RoutingPolicy(rules: <RouteRule>[]),
     );
-    final inbound = (config['inbounds'] as List<dynamic>).first
-        as Map<String, dynamic>;
+    final inbound =
+        (config['inbounds'] as List<dynamic>).first as Map<String, dynamic>;
     final addresses = inbound['address'] as List<String>;
     expect(addresses, contains('198.18.0.0/15'));
   });

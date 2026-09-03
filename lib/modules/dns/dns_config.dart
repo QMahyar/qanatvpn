@@ -52,10 +52,7 @@ class DnsConfig {
           'path': dohPath,
           'detour': proxyTag,
         },
-        <String, dynamic>{
-          'tag': 'dns-local',
-          'type': 'local',
-        },
+        <String, dynamic>{'tag': 'dns-local', 'type': 'local'},
         <String, dynamic>{
           'tag': 'dns-fakeip',
           'type': 'fakeip',
@@ -68,14 +65,8 @@ class DnsConfig {
           'rule_set': <String>['geosite-cn'],
           'server': 'dns-local',
         },
-        <String, dynamic>{
-          'clash_mode': 'Direct',
-          'server': 'dns-local',
-        },
-        <String, dynamic>{
-          'clash_mode': 'Global',
-          'server': 'dns-proxy',
-        },
+        <String, dynamic>{'clash_mode': 'Direct', 'server': 'dns-local'},
+        <String, dynamic>{'clash_mode': 'Global', 'server': 'dns-proxy'},
         <String, dynamic>{
           // Queries answered from FakeIP pool (remote sites through the tun).
           'query_type': <String>['A', 'AAAA'],
@@ -92,10 +83,7 @@ class DnsConfig {
   /// common failure (6/16 researched VPNs leaked DNS).
   List<Map<String, dynamic>> hijackRules() {
     return <Map<String, dynamic>>[
-      const <String, dynamic>{
-        'protocol': 'dns',
-        'action': 'hijack-dns',
-      },
+      const <String, dynamic>{'protocol': 'dns', 'action': 'hijack-dns'},
     ];
   }
 }

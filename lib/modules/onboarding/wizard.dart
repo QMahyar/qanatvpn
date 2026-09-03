@@ -3,6 +3,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/tunnel.dart';
+import 'split_store.dart';
 
 /// App list entry for the per-app picker.
 class AppEntry {
@@ -78,10 +79,7 @@ class WizardController extends Notifier<WizardState> {
     if (!exempt) {
       await platform.requestIgnoreBatteryOptimizations();
     }
-    state = state.copyWith(
-      batteryExempt: true,
-      step: WizardStep.perAppSplit,
-    );
+    state = state.copyWith(batteryExempt: true, step: WizardStep.perAppSplit);
   }
 
   Future<void> skipBattery() async {
@@ -100,7 +98,17 @@ class WizardController extends Notifier<WizardState> {
     state = state.copyWith(allowMode: allow);
   }
 
-  void finish() {
+  /// Persists the split decision so every connect applies it via the config
+  /// source; empty selection = no split (whole-device tunnel).
+  Future<void> finish() async {
+    final store = ref.read(splitStoreProvider);
+    if (state.selectedApps.isNotEmpty) {
+      await store.save(
+        SplitChoice(allowMode: state.allowMode, packages: state.selectedApps),
+      );
+    } else {
+      await store.clear();
+    }
     state = state.copyWith(step: WizardStep.done);
   }
 
@@ -118,6 +126,10 @@ class WizardController extends Notifier<WizardState> {
 final platformAdapterProvider = Provider<PlatformAdapter>((ref) {
   throw UnimplementedError('override with the real adapter in main.dart');
 });
+
+/// Split choice persistence; overridden in main.dart with a real base dir on
+/// desktop and left default (HOME-based) on mobile.
+final splitStoreProvider = Provider<SplitStore>((ref) => const SplitStore());
 
 final wizardProvider = NotifierProvider<WizardController, WizardState>(
   WizardController.new,
@@ -151,14 +163,18 @@ class Wizard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                AppLocalizations.of(context)!.wizardStepOf(state.step.index + 1),
+                AppLocalizations.of(
+                  context,
+                )!.wizardStepOf(state.step.index + 1),
                 style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: 12),
               switch (state.step) {
                 WizardStep.vpnPermission => _VpnStep(ref: ref, state: state),
-                WizardStep.batteryExemption =>
-                  _BatteryStep(ref: ref, state: state),
+                WizardStep.batteryExemption => _BatteryStep(
+                  ref: ref,
+                  state: state,
+                ),
                 WizardStep.perAppSplit => _SplitStep(ref: ref, state: state),
                 WizardStep.done => const SizedBox.shrink(),
               },
@@ -238,22 +254,46 @@ class _BatteryStep extends StatelessWidget {
   }
 }
 
-class _SplitStep extends StatelessWidget {
+class _SplitStep extends ConsumerStatefulWidget {
   const _SplitStep({required this.ref, required this.state});
 
   final WidgetRef ref;
   final WizardState state;
 
-  static const List<AppEntry> sampleApps = <AppEntry>[
-    AppEntry(packageName: 'org.telegram.messenger', label: 'Telegram'),
-    AppEntry(packageName: 'com.android.chrome', label: 'Chrome'),
-    AppEntry(packageName: 'com.whatsapp', label: 'WhatsApp'),
-  ];
+  @override
+  ConsumerState<_SplitStep> createState() => _SplitStepState();
+}
+
+class _SplitStepState extends ConsumerState<_SplitStep> {
+  List<AppEntry> _apps = const <AppEntry>[];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApps();
+  }
+
+  Future<void> _loadApps() async {
+    final platform = widget.ref.read(platformAdapterProvider);
+    final installed = await platform.listInstalledApps();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _apps = <AppEntry>[
+        for (final app in installed)
+          AppEntry(packageName: app.packageName, label: app.label),
+      ];
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final apps = _apps;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -264,28 +304,46 @@ class _SplitStep extends StatelessWidget {
             ButtonSegment<bool>(value: true, label: Text(l10n.allowlist)),
             ButtonSegment<bool>(value: false, label: Text(l10n.bypass)),
           ],
-          selected: <bool>{state.allowMode},
-          onSelectionChanged: (Set<bool> selection) =>
-              ref.read(wizardProvider.notifier).setAllowMode(selection.first),
+          selected: <bool>{widget.state.allowMode},
+          onSelectionChanged: (Set<bool> selection) => widget.ref
+              .read(wizardProvider.notifier)
+              .setAllowMode(selection.first),
         ),
         const SizedBox(height: 12),
-        ...sampleApps.map(
-          (AppEntry app) => CheckboxListTile(
-            title: Text(app.label),
-            subtitle: Text(app.packageName),
-            value: state.selectedApps.contains(app.packageName),
-            onChanged: (_) =>
-                ref.read(wizardProvider.notifier).toggleApp(app.packageName),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsetsDirectional.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (apps.isEmpty)
+          Padding(
+            padding: const EdgeInsetsDirectional.all(8),
+            child: Text('No user apps found', style: theme.textTheme.bodySmall),
+          )
+        else
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: apps.length,
+              itemBuilder: (BuildContext context, int index) {
+                final AppEntry app = apps[index];
+                return CheckboxListTile(
+                  title: Text(app.label),
+                  subtitle: Text(app.packageName),
+                  value: widget.state.selectedApps.contains(app.packageName),
+                  onChanged: (_) => widget.ref
+                      .read(wizardProvider.notifier)
+                      .toggleApp(app.packageName),
+                );
+              },
+            ),
           ),
-        ),
         const SizedBox(height: 12),
         FilledButton(
-          onPressed: () => ref.read(wizardProvider.notifier).finish(),
+          onPressed: () => widget.ref.read(wizardProvider.notifier).finish(),
           child: Text(l10n.finish),
         ),
       ],
     );
   }
 }
-
-

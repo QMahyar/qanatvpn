@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import '../../core/network/http_cache.dart';
+import '../../core/network/plain_fetch.dart';
+
+export '../../core/network/plain_fetch.dart' show plainFetch;
 
 /// Parsed GitHub release + platform-aware asset selection.
 class UpdateInfo {
@@ -40,12 +45,13 @@ class UpdateFetcher {
   final String repository;
 
   /// Asset name fragments that identify this platform's installer.
-  static const Map<String, List<String>> platformFilters = <String, List<String>>{
-    'android-arm64': <String>['arm64-v8a', '.apk'],
-    'android-arm': <String>['armeabi-v7a', '.apk'],
-    'android-x64': <String>['x86_64', '.apk'],
-    'windows-x64': <String>['windows-x64', '.zip'],
-  };
+  static const Map<String, List<String>> platformFilters =
+      <String, List<String>>{
+        'android-arm64': <String>['arm64-v8a', '.apk'],
+        'android-arm': <String>['armeabi-v7a', '.apk'],
+        'android-x64': <String>['x86_64', '.apk'],
+        'windows-x64': <String>['windows-x64', '.zip'],
+      };
 
   Future<UpdateInfo> latestFor(String platformKey) async {
     final filters = platformFilters[platformKey];
@@ -125,6 +131,178 @@ class UpdateFetcher {
       return null;
     }
     return Duration(seconds: value);
+  }
+}
+
+/// Where the app's own update metadata comes from on this platform:
+/// the GitHub API when online, the `latest.json` mirror (gh-pages) as
+/// fallback, since the mirror is written by the release pipeline after all
+/// platform assets are attached (single producer — see workflows).
+class UpdateSource {
+  UpdateSource({required this.fetchImpl, this.mirrorUrl});
+
+  final Fetch fetchImpl;
+
+  /// `https://<org>.github.io/<repo>/latest.json` once the site is live.
+  final String? mirrorUrl;
+
+  Future<UpdateInfo?> latestFor(String platformKey) async {
+    try {
+      return await _fromApi(platformKey);
+    } on Object {
+      final mirrored = await _fromMirror(platformKey);
+      if (mirrored != null) {
+        return mirrored;
+      }
+      rethrow;
+    }
+  }
+
+  Future<UpdateInfo?> _fromApi(String platformKey) async {
+    final fetcher = UpdateFetcher(fetchImpl: fetchImpl);
+    return fetcher.latestFor(platformKey);
+  }
+
+  /// Mirror format: {version, platforms: {key: {url, version}}}. No changelog
+  /// in the mirror, so the changelog field stays empty and the API is retried
+  /// on the next daily pass for the body.
+  Future<UpdateInfo?> _fromMirror(String platformKey) async {
+    final url = mirrorUrl;
+    if (url == null) {
+      return null;
+    }
+    try {
+      final response = await fetchImpl(
+        Uri.parse(url),
+        const <String, String>{},
+      );
+      if (response.statusCode != 200) {
+        return null;
+      }
+      final doc =
+          jsonDecode(utf8.decode(response.body)) as Map<String, dynamic>;
+      final platforms = doc['platforms'] as Map<String, dynamic>? ?? const {};
+      final entry = platforms[platformKey] as Map<String, dynamic>?;
+      if (entry == null) {
+        return null;
+      }
+      return UpdateInfo(
+        version:
+            (entry['version'] as String?) ?? doc['version'] as String? ?? '',
+        changelog: '',
+        assetUrl: entry['url'] as String? ?? '',
+        platformKey: platformKey,
+      );
+    } on Object {
+      return null;
+    }
+  }
+}
+
+/// Resolves the platform key used for asset filtering. Android ABI detection
+/// is injectable so tests never touch the platform channel.
+String resolvePlatformKey({String? androidAbi}) {
+  if (Platform.isAndroid) {
+    return switch (androidAbi) {
+      'armeabi-v7a' => 'android-arm',
+      'x86_64' => 'android-x64',
+      _ => 'android-arm64',
+    };
+  }
+  if (Platform.isWindows) {
+    return 'windows-x64';
+  }
+  throw UnsupportedError('updates unsupported on ${Platform.operatingSystem}');
+}
+
+/// Where the last check result lives: a JSON file both the UI isolate and
+/// the workmanager background isolate can reach. No plugin dependency, no
+/// provider override ceremony — read renders, write updates.
+class UpdateStore {
+  const UpdateStore({this.baseDir});
+
+  final String? baseDir;
+
+  Future<void> save(UpdateInfo info, String localVersion) async {
+    final file = _file();
+    await file.parent.create(recursive: true);
+    await file.writeAsString(
+      jsonEncode(<String, dynamic>{
+        'version': info.version,
+        'changelog': info.changelog,
+        'assetUrl': info.assetUrl,
+        'platformKey': info.platformKey,
+        'localVersion': localVersion,
+        'checkedAt': DateTime.now().toIso8601String(),
+      }),
+    );
+  }
+
+  UpdateInfo? read() {
+    try {
+      final file = _file();
+      if (!file.existsSync()) {
+        return null;
+      }
+      return _decodeStoredUpdate(file.readAsStringSync());
+    } on Object {
+      return null;
+    }
+  }
+
+  DateTime? lastCheckedAt() {
+    try {
+      final file = _file();
+      if (!file.existsSync()) {
+        return null;
+      }
+      final doc = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      return DateTime.tryParse(doc['checkedAt'] as String? ?? '');
+    } on Object {
+      return null;
+    }
+  }
+
+  File _file() => File(
+    baseDir != null
+        ? '$baseDir/last_update_check.json'
+        : '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? Directory.systemTemp.path}'
+              '/.yourvpn/last_update_check.json',
+  );
+}
+
+UpdateInfo? _decodeStoredUpdate(String? raw) {
+  if (raw == null || raw.isEmpty) {
+    return null;
+  }
+  try {
+    final doc = jsonDecode(raw) as Map<String, dynamic>;
+    return UpdateInfo(
+      version: doc['version'] as String,
+      changelog: doc['changelog'] as String? ?? '',
+      assetUrl: doc['assetUrl'] as String? ?? '',
+      platformKey: doc['platformKey'] as String? ?? '',
+    );
+  } on Object {
+    return null;
+  }
+}
+
+/// Callback entry point for workmanager's background isolate. Top-level +
+/// entry-point annotated so the dispatcher survives tree shaking.
+@pragma('vm:entry-point')
+Future<bool> updateCheckBackgroundTask() async {
+  try {
+    final platformKey = resolvePlatformKey();
+    final source = UpdateSource(fetchImpl: plainFetch);
+    final info = await source.latestFor(platformKey);
+    if (info == null) {
+      return true;
+    }
+    await const UpdateStore().save(info, info.version);
+    return true;
+  } on Object {
+    return false;
   }
 }
 

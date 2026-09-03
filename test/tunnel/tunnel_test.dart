@@ -11,6 +11,7 @@ class FakePlatformAdapter implements PlatformAdapter {
     this.batteryExempt = true,
     this.airplane = false,
     this.establishResult = 42,
+    this.engineManagedTun = false,
   });
 
   /// Shared recorder across all fakes, preserves true interleaving.
@@ -20,6 +21,9 @@ class FakePlatformAdapter implements PlatformAdapter {
   bool batteryExempt;
   bool airplane;
   int? establishResult;
+
+  @override
+  bool engineManagedTun;
 
   final List<String> calls = <String>[];
 
@@ -65,6 +69,10 @@ class FakePlatformAdapter implements PlatformAdapter {
   }
 
   @override
+  Future<List<InstalledApp>> listInstalledApps() async =>
+      const <InstalledApp>[];
+
+  @override
   void protect(int fd) {
     _mark('protect:$fd');
   }
@@ -92,7 +100,11 @@ class FakeForegroundAdapter implements ForegroundAdapter {
 }
 
 class FakeBoxAdapter implements BoxAdapter {
-  FakeBoxAdapter({this.log, this.startThrows = false, this.startDelay = Duration.zero});
+  FakeBoxAdapter({
+    this.log,
+    this.startThrows = false,
+    this.startDelay = Duration.zero,
+  });
 
   final List<String>? log;
 
@@ -180,7 +192,7 @@ class FakeConfigSource implements ConfigSource {
   final List<String> tags = <String>[];
 
   @override
-  TypedConfig resolve(String tag) {
+  Future<TypedConfig> resolve(String tag) async {
     tags.add(tag);
     if (resolveThrows) {
       throw StateError('unknown tag');
@@ -215,93 +227,126 @@ List<String> sharedLog() => <String>[];
 
 void main() {
   group('Tunnel.connect guarded sequence', () {
-    test('happy path runs grant→battery→foreground→establish→protect→start→firewall', () async {
-      final log = sharedLog();
-      final platform = FakePlatformAdapter(log: log);
-      final box = FakeBoxAdapter(log: log);
-      final firewall = FakeFirewallAdapter(log: log);
-      final config = FakeConfigSource();
-      final foreground = FakeForegroundAdapter(log: log);
-      final tor = FakeTorAdapter(log: log);
-      final tunnel = buildTunnel(
-        platform: platform,
-        box: box,
-        firewall: firewall,
-        config: config,
-        foreground: foreground,
-        tor: tor,
-      );
+    test(
+      'happy path runs grant→battery→foreground→establish→protect→start→firewall',
+      () async {
+        final log = sharedLog();
+        final platform = FakePlatformAdapter(log: log);
+        final box = FakeBoxAdapter(log: log);
+        final firewall = FakeFirewallAdapter(log: log);
+        final config = FakeConfigSource();
+        final foreground = FakeForegroundAdapter(log: log);
+        final tor = FakeTorAdapter(log: log);
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: config,
+          foreground: foreground,
+          tor: tor,
+        );
 
-      await tunnel.connect('HKG-02');
+        await tunnel.connect('HKG-02');
 
-      expect(tunnel.state, TunnelState.connected);
-      expect(config.tags, <String>['HKG-02']);
-      expect(box.lastConfig?.tag, 'HKG-02');
-      expect(log, <String>[
-        'isVpnPermissionGranted',
-        'isIgnoringBatteryOptimizations',
-        'foreground:start',
-        'isAirplaneMode',
-        'establish',
-        'protect:42',
-        'box:start:HKG-02',
-        'firewall:enforce',
-      ]);
-      expect(tunnel.blockReason, isNull);
-      await tunnel.dispose();
-    });
+        expect(tunnel.state, TunnelState.connected);
+        expect(config.tags, <String>['HKG-02']);
+        expect(box.lastConfig?.tag, 'HKG-02');
+        expect(log, <String>[
+          'isVpnPermissionGranted',
+          'isIgnoringBatteryOptimizations',
+          'foreground:start',
+          'isAirplaneMode',
+          'establish',
+          'protect:42',
+          'box:start:HKG-02',
+          'firewall:enforce',
+        ]);
+        expect(tunnel.blockReason, isNull);
+        await tunnel.dispose();
+      },
+    );
 
-    test('permission denied → blocked with firewall enforced, no establish', () async {
-      final platform = FakePlatformAdapter(permissionGranted: false);
-      final box = FakeBoxAdapter();
-      final firewall = FakeFirewallAdapter();
-      final tunnel = buildTunnel(platform: platform, box: box, firewall: firewall, config: FakeConfigSource());
+    test(
+      'permission denied → blocked with firewall enforced, no establish',
+      () async {
+        final platform = FakePlatformAdapter(permissionGranted: false);
+        final box = FakeBoxAdapter();
+        final firewall = FakeFirewallAdapter();
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: FakeConfigSource(),
+        );
 
-      await tunnel.connect('HKG-02');
+        await tunnel.connect('HKG-02');
 
-      expect(tunnel.state, TunnelState.blocked);
-      expect(tunnel.blockReason, TunnelBlockReason.vpnPermissionDenied);
-      expect(platform.calls.contains('establish'), isFalse);
-      expect(box.calls, isEmpty);
-      expect(firewall.calls, <String>['firewall:enforce']);
-      await tunnel.dispose();
-    });
+        expect(tunnel.state, TunnelState.blocked);
+        expect(tunnel.blockReason, TunnelBlockReason.vpnPermissionDenied);
+        expect(platform.calls.contains('establish'), isFalse);
+        expect(box.calls, isEmpty);
+        expect(firewall.calls, <String>['firewall:enforce']);
+        await tunnel.dispose();
+      },
+    );
 
-    test('airplane mode → blocked before establish, fd never created', () async {
-      final platform = FakePlatformAdapter(airplane: true);
-      final box = FakeBoxAdapter();
-      final firewall = FakeFirewallAdapter();
-      final tunnel = buildTunnel(platform: platform, box: box, firewall: firewall, config: FakeConfigSource());
+    test(
+      'airplane mode → blocked before establish, fd never created',
+      () async {
+        final platform = FakePlatformAdapter(airplane: true);
+        final box = FakeBoxAdapter();
+        final firewall = FakeFirewallAdapter();
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: FakeConfigSource(),
+        );
 
-      await tunnel.connect('HKG-02');
+        await tunnel.connect('HKG-02');
 
-      expect(tunnel.state, TunnelState.blocked);
-      expect(tunnel.blockReason, TunnelBlockReason.airplaneMode);
-      expect(platform.calls.contains('establish'), isFalse);
-      await tunnel.dispose();
-    });
+        expect(tunnel.state, TunnelState.blocked);
+        expect(tunnel.blockReason, TunnelBlockReason.airplaneMode);
+        expect(platform.calls.contains('establish'), isFalse);
+        await tunnel.dispose();
+      },
+    );
 
-    test('tor down → blocked fallback, box never starts (upstream #4200)', () async {
-      final platform = FakePlatformAdapter();
-      final box = FakeBoxAdapter();
-      final firewall = FakeFirewallAdapter();
-      final tor = FakeTorAdapter(socksUp: false);
-      final config = FakeConfigSource(requiresTor: true);
-      final tunnel = buildTunnel(platform: platform, box: box, firewall: firewall, config: config, tor: tor);
+    test(
+      'tor down → blocked fallback, box never starts (upstream #4200)',
+      () async {
+        final platform = FakePlatformAdapter();
+        final box = FakeBoxAdapter();
+        final firewall = FakeFirewallAdapter();
+        final tor = FakeTorAdapter(socksUp: false);
+        final config = FakeConfigSource(requiresTor: true);
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: config,
+          tor: tor,
+        );
 
-      await tunnel.connect('TOR-CHAIN');
+        await tunnel.connect('TOR-CHAIN');
 
-      expect(tunnel.state, TunnelState.blocked);
-      expect(tunnel.blockReason, TunnelBlockReason.torDown);
-      expect(platform.calls.contains('establish'), isFalse);
-      expect(box.calls, isEmpty);
-      expect(firewall.calls, <String>['firewall:enforce']);
-      await tunnel.dispose();
-    });
+        expect(tunnel.state, TunnelState.blocked);
+        expect(tunnel.blockReason, TunnelBlockReason.torDown);
+        expect(platform.calls.contains('establish'), isFalse);
+        expect(box.calls, isEmpty);
+        expect(firewall.calls, <String>['firewall:enforce']);
+        await tunnel.dispose();
+      },
+    );
 
     test('establish failure → closeFd on null fd path, blocked', () async {
       final platform = FakePlatformAdapter(establishResult: null);
-      final tunnel = buildTunnel(platform: platform, box: FakeBoxAdapter(), firewall: FakeFirewallAdapter(), config: FakeConfigSource());
+      final tunnel = buildTunnel(
+        platform: platform,
+        box: FakeBoxAdapter(),
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
 
       await tunnel.connect('HKG-02');
 
@@ -311,20 +356,28 @@ void main() {
       await tunnel.dispose();
     });
 
-    test('box start failure → fd closed + blocked, no firewall leak window', () async {
-      final platform = FakePlatformAdapter();
-      final box = FakeBoxAdapter(startThrows: true);
-      final firewall = FakeFirewallAdapter();
-      final tunnel = buildTunnel(platform: platform, box: box, firewall: firewall, config: FakeConfigSource());
+    test(
+      'box start failure → fd closed + blocked, no firewall leak window',
+      () async {
+        final platform = FakePlatformAdapter();
+        final box = FakeBoxAdapter(startThrows: true);
+        final firewall = FakeFirewallAdapter();
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: FakeConfigSource(),
+        );
 
-      await tunnel.connect('HKG-02');
+        await tunnel.connect('HKG-02');
 
-      expect(tunnel.state, TunnelState.blocked);
-      expect(tunnel.blockReason, TunnelBlockReason.boxStartFailed);
-      expect(platform.calls, contains('closeFd:42'));
-      expect(firewall.calls, <String>['firewall:enforce']);
-      await tunnel.dispose();
-    });
+        expect(tunnel.state, TunnelState.blocked);
+        expect(tunnel.blockReason, TunnelBlockReason.boxStartFailed);
+        expect(platform.calls, contains('closeFd:42'));
+        expect(firewall.calls, <String>['firewall:enforce']);
+        await tunnel.dispose();
+      },
+    );
 
     test('unknown tag → blocked', () async {
       final tunnel = buildTunnel(
@@ -341,28 +394,127 @@ void main() {
     });
   });
 
-  group('Tunnel.disconnect', () {
-    test('reverses in order: box stop → fd close → foreground stop → firewall relax', () async {
+  group('Tunnel engine-managed TUN (libbox 1.14 openTun path)', () {
+    test(
+      'happy path runs grant→battery→foreground→start→firewall, no fd steps',
+      () async {
+        final log = sharedLog();
+        final platform = FakePlatformAdapter(log: log, engineManagedTun: true);
+        final box = FakeBoxAdapter(log: log);
+        final firewall = FakeFirewallAdapter(log: log);
+        final foreground = FakeForegroundAdapter(log: log);
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: FakeConfigSource(),
+          foreground: foreground,
+        );
+
+        await tunnel.connect('HKG-02');
+
+        expect(tunnel.state, TunnelState.connected);
+        expect(log, <String>[
+          'isVpnPermissionGranted',
+          'isIgnoringBatteryOptimizations',
+          'foreground:start',
+          'isAirplaneMode',
+          'box:start:HKG-02',
+          'firewall:enforce',
+        ]);
+        expect(platform.calls.any((c) => c.startsWith('establish')), isFalse);
+        expect(platform.calls.any((c) => c.startsWith('protect')), isFalse);
+        expect(platform.calls.any((c) => c.startsWith('closeFd')), isFalse);
+        await tunnel.dispose();
+      },
+    );
+
+    test(
+      'box start failure → blocked, engine owns the fd so no closeFd',
+      () async {
+        final platform = FakePlatformAdapter(engineManagedTun: true);
+        final box = FakeBoxAdapter(startThrows: true);
+        final firewall = FakeFirewallAdapter();
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: FakeConfigSource(),
+        );
+
+        await tunnel.connect('HKG-02');
+
+        expect(tunnel.state, TunnelState.blocked);
+        expect(tunnel.blockReason, TunnelBlockReason.boxStartFailed);
+        expect(platform.calls.any((c) => c.startsWith('closeFd')), isFalse);
+        expect(firewall.calls, <String>['firewall:enforce']);
+        await tunnel.dispose();
+      },
+    );
+
+    test('disconnect reverses without fd steps', () async {
       final log = sharedLog();
-      final platform = FakePlatformAdapter(log: log);
+      final platform = FakePlatformAdapter(log: log, engineManagedTun: true);
       final box = FakeBoxAdapter(log: log);
-      final firewall = FakeFirewallAdapter(log: log);
-      final foreground = FakeForegroundAdapter(log: log);
-      final tunnel = buildTunnel(platform: platform, box: box, firewall: firewall, config: FakeConfigSource(), foreground: foreground);
+      final tunnel = buildTunnel(
+        platform: platform,
+        box: box,
+        firewall: FakeFirewallAdapter(log: log),
+        config: FakeConfigSource(),
+        foreground: FakeForegroundAdapter(log: log),
+      );
 
       await tunnel.connect('HKG-02');
       log.clear();
-
       await tunnel.disconnect();
 
-      expect(tunnel.state, TunnelState.disconnected);
-      expect(log, <String>['box:stop', 'closeFd:42', 'foreground:stop', 'firewall:relax']);
+      expect(log, <String>['box:stop', 'foreground:stop', 'firewall:relax']);
+      expect(platform.calls.any((c) => c.startsWith('closeFd')), isFalse);
+      await tunnel.dispose();
     });
+  });
+
+  group('Tunnel.disconnect', () {
+    test(
+      'reverses in order: box stop → fd close → foreground stop → firewall relax',
+      () async {
+        final log = sharedLog();
+        final platform = FakePlatformAdapter(log: log);
+        final box = FakeBoxAdapter(log: log);
+        final firewall = FakeFirewallAdapter(log: log);
+        final foreground = FakeForegroundAdapter(log: log);
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: box,
+          firewall: firewall,
+          config: FakeConfigSource(),
+          foreground: foreground,
+        );
+
+        await tunnel.connect('HKG-02');
+        log.clear();
+
+        await tunnel.disconnect();
+
+        expect(tunnel.state, TunnelState.disconnected);
+        expect(log, <String>[
+          'box:stop',
+          'closeFd:42',
+          'foreground:stop',
+          'firewall:relax',
+        ]);
+      },
+    );
 
     test('disconnect when disconnected is a no-op', () async {
       final platform = FakePlatformAdapter();
       final box = FakeBoxAdapter();
-      final tunnel = buildTunnel(platform: platform, box: box, firewall: FakeFirewallAdapter(), config: FakeConfigSource());
+      final tunnel = buildTunnel(
+        platform: platform,
+        box: box,
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
 
       await tunnel.disconnect();
 
@@ -373,7 +525,12 @@ void main() {
 
     test('connect twice is idempotent while connecting/connected', () async {
       final box = FakeBoxAdapter(startDelay: const Duration(milliseconds: 50));
-      final tunnel = buildTunnel(platform: FakePlatformAdapter(), box: box, firewall: FakeFirewallAdapter(), config: FakeConfigSource());
+      final tunnel = buildTunnel(
+        platform: FakePlatformAdapter(),
+        box: box,
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
 
       final first = tunnel.connect('HKG-02');
       final second = tunnel.connect('TYO-01');
@@ -387,7 +544,12 @@ void main() {
 
   group('Tunnel.status stream + crash', () {
     test('status stream emits every transition', () async {
-      final tunnel = buildTunnel(platform: FakePlatformAdapter(), box: FakeBoxAdapter(), firewall: FakeFirewallAdapter(), config: FakeConfigSource());
+      final tunnel = buildTunnel(
+        platform: FakePlatformAdapter(),
+        box: FakeBoxAdapter(),
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
       final seen = <TunnelState>[];
       final sub = tunnel.status.listen(seen.add);
 
@@ -396,7 +558,15 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await sub.cancel();
 
-      expect(seen, containsAll(<TunnelState>[TunnelState.connecting, TunnelState.connected, TunnelState.disconnecting, TunnelState.disconnected]));
+      expect(
+        seen,
+        containsAll(<TunnelState>[
+          TunnelState.connecting,
+          TunnelState.connected,
+          TunnelState.disconnecting,
+          TunnelState.disconnected,
+        ]),
+      );
       await tunnel.dispose();
     });
 
@@ -404,7 +574,12 @@ void main() {
       final platform = FakePlatformAdapter();
       final box = FakeBoxAdapter();
       final firewall = FakeFirewallAdapter();
-      final tunnel = buildTunnel(platform: platform, box: box, firewall: firewall, config: FakeConfigSource());
+      final tunnel = buildTunnel(
+        platform: platform,
+        box: box,
+        firewall: firewall,
+        config: FakeConfigSource(),
+      );
 
       await tunnel.connect('HKG-02');
       expect(tunnel.state, TunnelState.connected);
@@ -414,19 +589,30 @@ void main() {
 
       expect(tunnel.state, TunnelState.blocked);
       expect(tunnel.blockReason, TunnelBlockReason.boxCrashed);
-      expect(firewall.calls.where((c) => c == 'firewall:enforce'), hasLength(2));
+      expect(
+        firewall.calls.where((c) => c == 'firewall:enforce'),
+        hasLength(2),
+      );
       await tunnel.dispose();
     });
 
-    test('battery not exempt → request fires, connect continues (wizard owns UX)', () async {
-      final platform = FakePlatformAdapter(batteryExempt: false);
-      final tunnel = buildTunnel(platform: platform, box: FakeBoxAdapter(), firewall: FakeFirewallAdapter(), config: FakeConfigSource());
+    test(
+      'battery not exempt → request fires, connect continues (wizard owns UX)',
+      () async {
+        final platform = FakePlatformAdapter(batteryExempt: false);
+        final tunnel = buildTunnel(
+          platform: platform,
+          box: FakeBoxAdapter(),
+          firewall: FakeFirewallAdapter(),
+          config: FakeConfigSource(),
+        );
 
-      await tunnel.connect('HKG-02');
+        await tunnel.connect('HKG-02');
 
-      expect(platform.calls, contains('requestIgnoreBatteryOptimizations'));
-      expect(tunnel.state, TunnelState.connected);
-      await tunnel.dispose();
-    });
+        expect(platform.calls, contains('requestIgnoreBatteryOptimizations'));
+        expect(tunnel.state, TunnelState.connected);
+        await tunnel.dispose();
+      },
+    );
   });
 }

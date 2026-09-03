@@ -1,9 +1,12 @@
-# Handoff — YOURVPN — post-review state (read this first, 60 sec)
+# Handoff — YOURVPN — engine-runtime-start wired (read this first, 60 sec)
 
 ## Repo state
 - **Git initialized, root commit `5592cf3`** ("feat: YOURVPN MVP core — 17/17 todos, 96 tests"). Binary artifacts (aar/exe) gitignored; fork pinned as gitlink at `go/amnezia-box` SHA `57276220`.
-- **96 tests green, `flutter analyze` clean, `sing-box check -c profiles/config.wg-awg.json` exit 0, debug APK builds.**
-- All 17 todos done + 8-way parallel review complete + critical/high findings fixed.
+- **176 tests green, `flutter analyze` clean, `sing-box check -c profiles/config.wg-awg.json` exit 0, debug APK builds, real sing-box.exe smoke green.**
+- **All 5 tabs are real screens** (home, groups editor, rules editor, live logs, diagnostics health) — tabs.dart deleted.
+- All 17 todos done + 8-way parallel review complete + critical/high findings fixed + **engine runtime start wired (session 8, 2026-09-02)**: libbox 1.14 `CommandServer.startOrReloadService` behind `boxStart`/`boxStop` channel methods, TUN opened by Go `openTun` callback into Kotlin `PlatformInterfaceWrapper`, `tunnelProvider` fully wired in main.dart. Legacy Dart-side establish/protect removed on Android (engine-managed TUN).
+- **Updates→UI wired + latest.json race fixed (session 8b):** UpdateStore/UpdateSource/controller/screen + workmanager 24h + UpdateTile; build-android `metadata` job is now the single latest.json producer (waits for windows asset, uploads --clobber); gh-pages pulls it from the release. **AWG gaps closed:** Id/Ip/Ib parsed but never emitted to engine (probe: fork FATALs on `id` — WireSock-only keys), IPv6 bracket-aware endpoint split validated against real sing-box.
+- **Routing 30/30 + groups 3-tier + TOR-CHAIN seam (session 8c):** 6 missing rule fields added (fork-native shapes verified in option/rule.go); OutboundGroup selector/urlTest with all-at-once member validation; TOR-CHAIN = socks sidecar + endpoint `detour` (1.14 has no chain outbound — probed). 3-tier + detour configs pass real sing-box check.
 
 ## Post-review fixes already applied (session 7)
 - Workflow parse blocker + signing-before-build + latest.json attached + permissions
@@ -12,12 +15,9 @@
 - Tunnel epoch race guard, leak_test.sh grep, wizard RTL
 
 ## Open findings — next session work, in value order
-1. **Engine runtime start (highest value):** Kotlin `YourVpnService` needs a `box.start(config)` path calling `com.yourvpn.libbox.Box` (aar classes already present). Until then connect() safely blocks at box.start → UI shows Blocked. Files: `YourVpnService.kt`, new `BoxAdapter` channel method pair (`boxStart`/`boxStop`), Dart `LibboxBoxAdapter` in `tunnel.dart`.
-2. **Kotlin bridge races:** establish callback queue (two rapid establish → first Result dropped), orphaned fd when callback-less onStartCommand, closeFd when INSTANCE null. `VpnServiceBridge.kt:102`, `YourVpnService.kt:24`.
-3. **Updates→UI wiring:** `UpdateFetcher` has no screen; workmanager daily registration not in main.dart; latest.json single-producer race (android+windows workflows both write; gh-pages copies repo-root file nothing commits).
-4. **AWG gaps:** Id/Ip/Ib fields parsed but never validated/generated; IPv6 peer endpoints break `split(':')` in `awg_config.dart:122`.
-5. **Routing depth:** 24/30 fields (missing ip_version, port_range, source_port_range, process_path, user_id, ip_is_private); groups/3-tier (auto→selector→proxy) + TOR-CHAIN seam unbuilt (`RoutingPolicy.groups` absent).
-6. **UI polish:** nav labels hardcoded EN (`app.dart:123`), `blockReason!.name` raw enum, no TextScaler clamp, no ReduceMotion guard, M3E widget pass + 200% goldens, fake `listeners`→vmess sentinel in ingestion, DNS fake-ip-filter-mode not serializable in fork schema (documented).
+1. **On-device engine start proof (needs a device/adb):** sessions 8a-j wired everything implementable headless — engine start, updates, routing 30/30 + groups + rules editors + TOR-CHAIN, UI polish + goldens, Windows subprocess engine, per-app split, endpoint import→engine, tag selection, log-stream crash events, live logs tab, diagnostics health tab. 176 tests + analyze + apk green. Remaining on device: install APK, tap connect, prove tun0 + lifecycle + crash-event firing (placeholder keys = handshake fails, expected).
+2. **CI first real run** (needs push + tag — no commits requested yet); website polish; advanced rules-editor fields (compiler supports all 30; UI additions possible).
+3. **DNS fake-ip-filter-mode** not serializable in fork schema (documented).
 
 ## Key files map
 - Spec gate: `SPEC.md` · frozen intent: `goal.md` · glossary: `CONTEXT.md` · plan: `tasks/plan.md` · todos: `tasks/todo.md` (17/17 + notes)
