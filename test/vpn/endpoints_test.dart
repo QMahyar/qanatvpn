@@ -124,7 +124,7 @@ void main() {
   group('stored shapes pass real sing-box check', () {
     test('all 6 protocols', () {
       if (!singBoxAvailable) {
-        return;
+        markTestSkipped('needs windows/sing-box.exe');
       }
       final outbounds = <Map<String, dynamic>>[
         endpointToOutboundJson(
@@ -219,6 +219,9 @@ void main() {
     });
 
     test('stored WG/AWG endpoint builds endpoints[] entry (real check)', () {
+      if (!singBoxAvailable) {
+        markTestSkipped('needs windows/sing-box.exe');
+      }
       const endpoint = WireGuardEndpoint(
         tag: 'awg-manual',
         privateKey: 'eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=',
@@ -254,7 +257,7 @@ void main() {
       );
 
       if (!singBoxAvailable) {
-        return;
+        markTestSkipped('needs windows/sing-box.exe');
       }
       final file = File('${dir.path}/awg-endpoint.json');
       file.writeAsStringSync(
@@ -292,7 +295,7 @@ void main() {
         expect(json.containsKey('jc'), isFalse);
 
         if (!singBoxAvailable) {
-          return;
+          markTestSkipped('needs windows/sing-box.exe');
         }
         final file = File('${dir.path}/wg-endpoint.json');
         file.writeAsStringSync(

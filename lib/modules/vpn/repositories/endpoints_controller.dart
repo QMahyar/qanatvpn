@@ -89,14 +89,27 @@ class EndpointsController extends Notifier<EndpointsState> {
         origin = maybeUrl.toString();
       }
 
-      final parsed = ref
-          .read(ingestionAdapterProvider)
-          .parseAndNormalize(
-            RawSubscription(
-              bytes: utf8.encode(payload),
-              url: Uri.parse(origin),
-            ),
-          );
+      // Large clash YAML bundles parse for seconds on the UI isolate;
+      // run payloads over 64KB in a worker isolate. The isolate returns
+      // JSON maps (isolate-safe); rehydrate and refresh the 6h in-memory
+      // cache with the same result so the next import hits memory.
+      final bytes = utf8.encode(payload);
+      final subscription = RawSubscription(
+        bytes: bytes,
+        url: Uri.parse(origin),
+      );
+      final List<NormalizedEndpoint> parsed;
+      if (bytes.length > 64 * 1024) {
+        final maps = await IngestionAdapter.parseInIsolate(subscription);
+        parsed = <NormalizedEndpoint>[
+          for (final map in maps) normalizedFromJson(map),
+        ];
+        ref.read(ingestionAdapterProvider).primeCache(subscription, parsed);
+      } else {
+        parsed = ref
+            .read(ingestionAdapterProvider)
+            .parseAndNormalize(subscription);
+      }
       if (parsed.isEmpty) {
         throw const FormatException('no endpoints found in input');
       }

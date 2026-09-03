@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'normalized_endpoint.dart';
 import 'parsers.dart';
@@ -37,8 +38,58 @@ class IngestionAdapter {
       return cached.endpoints;
     }
     final endpoints = _parse(subscription);
+    // Cap the 6h cache so hundreds of distinct sub URLs cannot grow it
+    // without bound over a long session.
+    if (_cache.length >= 32) {
+      _cache.remove(_cache.keys.first);
+    }
     _cache[subscription.url] = _CachedParse(endpoints, _now());
     return endpoints;
+  }
+
+  /// Test/dev seam: seed the 6h memory cache (used after an isolate parse
+  /// so the next same-URL import does not re-parse).
+  void primeCache(
+    RawSubscription subscription,
+    List<NormalizedEndpoint> endpoints,
+  ) {
+    if (_cache.length >= 32) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[subscription.url] = _CachedParse(endpoints, _now());
+  }
+
+  /// Off-main-isolate parse for large subscriptions (clash YAML bundles).
+  /// The payload crosses the isolate as bytes + plain fields — parsed
+  /// endpoints return as JSON maps and rehydrate via [normalizedFromJson].
+  static Future<List<Map<String, dynamic>>> parseInIsolate(
+    RawSubscription subscription,
+  ) {
+    return Isolate.run(
+      () => _parseInIsolate(
+        subscription.bytes,
+        subscription.url.toString(),
+        subscription.contentType,
+      ),
+    );
+  }
+
+  static List<Map<String, dynamic>> _parseInIsolate(
+    List<int> bytes,
+    String url,
+    String? contentType,
+  ) {
+    final adapter = IngestionAdapter();
+    final endpoints = adapter.parseAndNormalize(
+      RawSubscription(
+        bytes: bytes,
+        url: Uri.parse(url),
+        contentType: contentType,
+      ),
+    );
+    return <Map<String, dynamic>>[
+      for (final endpoint in endpoints) normalizedToJson(endpoint),
+    ];
   }
 
   List<NormalizedEndpoint> _parse(RawSubscription subscription) {

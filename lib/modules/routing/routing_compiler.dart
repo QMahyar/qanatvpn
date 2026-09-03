@@ -1,3 +1,4 @@
+import '../geo/geo_asset.dart';
 import 'routing_policy.dart';
 
 /// Deep compiler: typed [RoutingPolicy] → validated [CompiledRoute].
@@ -14,6 +15,10 @@ class RoutingCompiler {
     final errors = <String>[];
     final rulesJson = <Map<String, dynamic>>[];
     final ruleSetTags = <String>{};
+
+    if (policy.defaultOutbound.isEmpty) {
+      errors.add('policy: defaultOutbound is required');
+    }
 
     for (var i = 0; i < policy.rules.length; i++) {
       final json = _compileRule(
@@ -145,6 +150,11 @@ class RoutingCompiler {
     required bool requireOutbound,
     required RoutingPolicy policy,
   }) {
+    final shapeErrors = rule.logicalShapeErrors(where);
+    if (shapeErrors.isNotEmpty) {
+      errors.addAll(shapeErrors);
+      return null;
+    }
     if (rule.isLogical) {
       return _compileLogical(rule, where, errors, ruleSetTags, policy);
     }
@@ -160,40 +170,22 @@ class RoutingCompiler {
     addList('domain', rule.domains);
     addList('domain_suffix', rule.domainSuffixes);
     addList('domain_keyword', rule.domainKeywords);
-    addList('domain_regex', rule.domainRegex);
+    _addRegexList(json, 'domain_regex', rule.domainRegex, where, errors);
     // geosite/geoip rule fields were REMOVED in sing-box 1.12 — compile them
     // to rule_set tags (geosite-cn style) instead of emitting FATAL fields.
-    for (final g in rule.geosite ?? const <String>[]) {
-      final tag = g.startsWith('geosite-') ? g : 'geosite-$g';
-      (json['rule_set'] as List<String>? ?? <String>[]).isEmpty
-          ? json['rule_set'] = <String>[tag]
-          : (json['rule_set'] as List<String>).add(tag);
-      ruleSetTags.add(tag);
-    }
-    for (final g in rule.geoip ?? const <String>[]) {
-      final tag = g.startsWith('geoip-') ? g : 'geoip-$g';
-      json['rule_set'] == null
-          ? json['rule_set'] = <String>[tag]
-          : (json['rule_set'] as List<String>).add(tag);
-      ruleSetTags.add(tag);
-    }
-    addList('ip_cidr', rule.ipCidrs);
-    addList('source_ip_cidr', rule.sourceIpCidrs);
-    // Fork expects uint16 lists, not strings.
-    final ports = rule.ports?.map(int.tryParse).toList();
-    if (ports != null && ports.isNotEmpty && ports.every((p) => p != null)) {
-      json['port'] = ports.cast<int>();
-    } else if (rule.ports != null && rule.ports!.isNotEmpty) {
-      errors.add('$where: port values must be integers 0-65535');
-    }
-    final sourcePorts = rule.sourcePorts?.map(int.tryParse).toList();
-    if (sourcePorts != null &&
-        sourcePorts.isNotEmpty &&
-        sourcePorts.every((p) => p != null)) {
-      json['source_port'] = sourcePorts.cast<int>();
-    } else if (rule.sourcePorts != null && rule.sourcePorts!.isNotEmpty) {
-      errors.add('$where: source_port values must be integers 0-65535');
-    }
+    // Derived tags merge with explicit ruleSets below (never overwrite).
+    final derivedRuleSets = <String>{
+      for (final g in rule.geosite ?? const <String>[])
+        g.startsWith('geosite-') ? g : 'geosite-$g',
+      for (final g in rule.geoip ?? const <String>[])
+        g.startsWith('geoip-') ? g : 'geoip-$g',
+    };
+    _addCidrs(json, 'ip_cidr', rule.ipCidrs, where, errors);
+    _addCidrs(json, 'source_ip_cidr', rule.sourceIpCidrs, where, errors);
+    // Fork expects uint16 lists, not strings — and tryParse alone is not
+    // enough: 99999/-1 parse fine but FATAL the engine at start.
+    _addPorts(json, 'port', rule.ports, where, errors);
+    _addPorts(json, 'source_port', rule.sourcePorts, where, errors);
     _addPortRanges(json, 'port_range', rule.portRanges, where, errors);
     _addPortRanges(
       json,
@@ -215,12 +207,32 @@ class RoutingCompiler {
     if (rule.sourceIpIsPrivate != null) {
       json['source_ip_is_private'] = rule.sourceIpIsPrivate;
     }
-    addList('network', rule.networks);
-    addList('protocol', rule.protocols);
+    _addEnumList(
+      json,
+      'network',
+      rule.networks,
+      const <String>{'tcp', 'udp'},
+      where,
+      errors,
+    );
+    _addEnumList(
+      json,
+      'protocol',
+      rule.protocols,
+      const <String>{'http', 'tls', 'quic', 'dns', 'stun', 'bittorrent'},
+      where,
+      errors,
+    );
     addList('package_name', rule.packageNames);
     addList('process_name', rule.processNames);
     addList('process_path', rule.processPaths);
-    addList('process_path_regex', rule.processPathRegexes);
+    _addRegexList(
+      json,
+      'process_path_regex',
+      rule.processPathRegexes,
+      where,
+      errors,
+    );
     if (rule.userIds != null && rule.userIds!.isNotEmpty) {
       json['user_id'] = List<int>.from(rule.userIds!);
     }
@@ -229,24 +241,45 @@ class RoutingCompiler {
     addList('user', rule.users);
     addList('inbound', rule.inbounds);
     if (rule.clashMode != null) {
-      json['clash_mode'] = rule.clashMode;
+      const allowed = <String>{'direct', 'global'};
+      if (allowed.contains(rule.clashMode!.toLowerCase())) {
+        json['clash_mode'] = rule.clashMode;
+      } else {
+        errors.add(
+          '$where: clash_mode must be Direct or Global, got "${rule.clashMode}"',
+        );
+      }
     }
     if (rule.outbound == 'TOR-CHAIN' && policy.torChain == null) {
       errors.add(
         '$where: TOR-CHAIN referenced but RoutingPolicy.torChain is unset',
       );
     }
-    if (rule.ruleSets != null && rule.ruleSets!.isNotEmpty) {
+    // Merge derived (geosite/geoip) + explicit tags, deduped. Explicit wins
+    // nothing — both filters apply — so overwrite would silently drop geo.
+    final mergedRuleSets = <String>{
+      ...derivedRuleSets,
+      for (final tag in rule.ruleSets ?? const <String>[]) tag,
+    };
+    if (rule.ruleSets != null) {
       for (final tag in rule.ruleSets!) {
-        if (_validRuleSetTag(tag)) {
-          ruleSetTags.add(tag);
-        } else {
+        if (!_validRuleSetTag(tag)) {
           errors.add(
             '$where: unknown rule_set "$tag" (not in GeoAsset registry)',
           );
         }
       }
-      json['rule_set'] = List<String>.from(rule.ruleSets!);
+    }
+    for (final tag in derivedRuleSets) {
+      if (!_validRuleSetTag(tag)) {
+        errors.add(
+          '$where: unknown rule_set "$tag" (not in GeoAsset registry)',
+        );
+      }
+    }
+    if (mergedRuleSets.isNotEmpty) {
+      json['rule_set'] = mergedRuleSets.toList();
+      ruleSetTags.addAll(mergedRuleSets);
     }
 
     if (json.isEmpty) {
@@ -261,6 +294,9 @@ class RoutingCompiler {
     }
     if (!requireOutbound && outbound != null && outbound.isNotEmpty) {
       errors.add('$where: sub-rule must not set outbound');
+    }
+    if (outbound != null && outbound.isNotEmpty) {
+      _checkOutboundRef(outbound, policy, where, errors);
     }
 
     if (rule.invert) {
@@ -358,8 +394,171 @@ class RoutingCompiler {
     return json;
   }
 
-  /// Tags must match the GeoAsset registry (todo:4): `geosite-*` / `geoip-*`.
+  /// Tags must exist in the GeoAsset registry — prefix-only checks let
+  /// `geosite-foobar` compile to a dangling ref that FATALs sing-box with
+  /// unknown-rule_set at start.
   bool _validRuleSetTag(String tag) {
-    return tag.startsWith('geosite-') || tag.startsWith('geoip-');
+    return GeoAsset.registry.containsKey(tag);
+  }
+
+  /// Leaf outbound refs must resolve: group tag, declared leaf, DIRECT,
+  /// BLOCK (reject action), or TOR-CHAIN with a torChain. A typo like PROXI
+  /// otherwise ships and FATALs the engine at start with no editor warning.
+  void _checkOutboundRef(
+    String outbound,
+    RoutingPolicy policy,
+    String where,
+    List<String> errors,
+  ) {
+    if (outbound == 'BLOCK' ||
+        outbound == 'DIRECT' ||
+        outbound == policy.defaultOutbound) {
+      return;
+    }
+    if (outbound == 'TOR-CHAIN') {
+      return; // torChain presence checked separately with a better message.
+    }
+    final groupTags = <String>{for (final g in policy.groups) g.tag};
+    if (groupTags.contains(outbound)) {
+      return;
+    }
+    if (policy.leafOutbounds.contains(outbound)) {
+      return;
+    }
+    errors.add(
+      '$where: outbound "$outbound" is not a group, endpoint tag, '
+      'DIRECT, BLOCK${policy.torChain != null ? ', TOR-CHAIN' : ''} '
+      'or declared leaf',
+    );
+  }
+
+  void _addPorts(
+    Map<String, dynamic> json,
+    String key,
+    List<String>? values,
+    String where,
+    List<String> errors,
+  ) {
+    if (values == null || values.isEmpty) {
+      return;
+    }
+    final parsed = <int>[];
+    for (final raw in values) {
+      final port = int.tryParse(raw);
+      if (port == null || port < 0 || port > 65535) {
+        errors.add('$where: $key values must be integers 0-65535: $raw');
+        continue;
+      }
+      parsed.add(port);
+    }
+    if (parsed.isNotEmpty) {
+      json[key] = parsed;
+    }
+  }
+
+  void _addCidrs(
+    Map<String, dynamic> json,
+    String key,
+    List<String>? values,
+    String where,
+    List<String> errors,
+  ) {
+    if (values == null || values.isEmpty) {
+      return;
+    }
+    final valid = <String>[];
+    for (final raw in values) {
+      if (_looksLikeCidr(raw)) {
+        valid.add(raw);
+      } else {
+        errors.add('$where: $key must be CIDR (e.g. 10.0.0.0/8): $raw');
+      }
+    }
+    if (valid.isNotEmpty) {
+      json[key] = valid;
+    }
+  }
+
+  bool _looksLikeCidr(String raw) {
+    final slash = raw.lastIndexOf('/');
+    if (slash <= 0 || slash == raw.length - 1) {
+      return false;
+    }
+    final addr = raw.substring(0, slash);
+    final prefix = int.tryParse(raw.substring(slash + 1));
+    if (prefix == null) {
+      return false;
+    }
+    final isV6 = addr.contains(':');
+    if (isV6) {
+      if (prefix < 0 || prefix > 128) {
+        return false;
+      }
+      return RegExp(r'^[0-9a-fA-F:.]+$').hasMatch(addr);
+    }
+    if (prefix < 0 || prefix > 32) {
+      return false;
+    }
+    final parts = addr.split('.');
+    if (parts.length != 4) {
+      return false;
+    }
+    for (final part in parts) {
+      final octet = int.tryParse(part);
+      if (octet == null || octet < 0 || octet > 255) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _addRegexList(
+    Map<String, dynamic> json,
+    String key,
+    List<String>? values,
+    String where,
+    List<String> errors,
+  ) {
+    if (values == null || values.isEmpty) {
+      return;
+    }
+    final valid = <String>[];
+    for (final raw in values) {
+      try {
+        RegExp(raw);
+        valid.add(raw);
+      } on Object {
+        errors.add('$where: $key must be a valid regex: $raw');
+      }
+    }
+    if (valid.isNotEmpty) {
+      json[key] = valid;
+    }
+  }
+
+  void _addEnumList(
+    Map<String, dynamic> json,
+    String key,
+    List<String>? values,
+    Set<String> allowed,
+    String where,
+    List<String> errors,
+  ) {
+    if (values == null || values.isEmpty) {
+      return;
+    }
+    final valid = <String>[];
+    for (final raw in values) {
+      if (allowed.contains(raw.toLowerCase())) {
+        valid.add(raw);
+      } else {
+        errors.add(
+          '$where: $key must be one of ${allowed.join('/ ')}, got "$raw"',
+        );
+      }
+    }
+    if (valid.isNotEmpty) {
+      json[key] = valid;
+    }
   }
 }

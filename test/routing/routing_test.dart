@@ -386,6 +386,9 @@ void main() {
     });
 
     test('assembler injects detour into TOR-CHAIN endpoint (real check)', () {
+      if (!singBoxAvailable) {
+        markTestSkipped('needs windows/sing-box.exe');
+      }
       final geo = geoFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
@@ -424,6 +427,9 @@ void main() {
 
   group('3-tier assembly → sing-box check', () {
     test('auto urltest → selector → endpoint config passes real sing-box', () {
+      if (!singBoxAvailable) {
+        markTestSkipped('needs windows/sing-box.exe');
+      }
       final geo = geoFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
@@ -478,6 +484,9 @@ void main() {
     test(
       'compiled policy produces a config the real sing-box accepts',
       () async {
+        if (!singBoxAvailable) {
+          markTestSkipped('needs windows/sing-box.exe');
+        }
         final geo = geoFor(dir);
         final assembler = ConfigAssembler(geoAsset: geo);
         final config = assembler.build(
@@ -501,6 +510,9 @@ void main() {
     );
 
     test('rule_set entries reference compiled tags only', () {
+      if (!singBoxAvailable) {
+        markTestSkipped('needs windows/sing-box.exe');
+      }
       final geo = geoFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
@@ -526,6 +538,9 @@ void main() {
 
   group('SRS round-trip with real binary', () {
     test('geosite-cn.srs decompiles (initial asset is a valid rule-set)', () {
+      if (!singBoxAvailable) {
+        markTestSkipped('needs windows/sing-box.exe');
+      }
       final result = Process.runSync(singBoxExe, <String>[
         'rule-set',
         'decompile',
@@ -539,6 +554,109 @@ void main() {
               as Map<String, dynamic>;
       expect(json['version'], 1);
       expect(json['rules'], isNotEmpty);
+    });
+  });
+
+  group('RoutingCompiler P0 validation (production hardening)', () {
+    CompiledRoute compileOne(RouteRule rule, {RoutingPolicy? policy}) {
+      return const RoutingCompiler().compile(
+        policy ??
+            RoutingPolicy(
+              rules: <RouteRule>[rule],
+              leafOutbounds: const <String>['awg-hkg-02'],
+            ),
+      );
+    }
+
+    test('port 99999 rejected, valid ports pass', () {
+      final bad = compileOne(
+        const RouteRule(outbound: 'PROXY', ports: <String>['99999']),
+      );
+      expect(bad.isValid, isFalse);
+      expect(bad.validationErrors.join(), contains('0-65535'));
+
+      final good = compileOne(
+        const RouteRule(outbound: 'PROXY', ports: <String>['443']),
+      );
+      expect(good.isValid, isTrue);
+      expect(good.rulesJson.single['port'], <int>[443]);
+    });
+
+    test('bad CIDR rejected, good CIDR passes', () {
+      final bad = compileOne(
+        const RouteRule(outbound: 'PROXY', ipCidrs: <String>['999.1.1.1/33']),
+      );
+      expect(bad.isValid, isFalse);
+      expect(bad.validationErrors.join(), contains('CIDR'));
+    });
+
+    test('bad regex rejected', () {
+      final bad = compileOne(
+        const RouteRule(
+          outbound: 'PROXY',
+          domainRegex: <String>['([unclosed'],
+        ),
+      );
+      expect(bad.isValid, isFalse);
+      expect(bad.validationErrors.join(), contains('regex'));
+    });
+
+    test('geosite + explicit ruleSets merge instead of overwrite', () {
+      final result = compileOne(
+        const RouteRule(
+          outbound: 'PROXY',
+          geosite: <String>['cn'],
+          ruleSets: <String>['geoip-cn'],
+        ),
+      );
+      expect(result.isValid, isTrue);
+      final ruleSets = (result.rulesJson.single['rule_set'] as List<dynamic>)
+          .cast<String>();
+      expect(ruleSets, containsAll(<String>['geosite-cn', 'geoip-cn']));
+    });
+
+    test('unknown SRS tag rejected', () {
+      final bad = compileOne(
+        const RouteRule(
+          outbound: 'PROXY',
+          ruleSets: <String>['geosite-foobar'],
+        ),
+      );
+      expect(bad.isValid, isFalse);
+      expect(bad.validationErrors.join(), contains('geosite-foobar'));
+    });
+
+    test('outbound typo rejected', () {
+      final bad = compileOne(
+        const RouteRule(
+          outbound: 'PROXI',
+          domains: <String>['example.com'],
+        ),
+      );
+      expect(bad.isValid, isFalse);
+      expect(bad.validationErrors.join(), contains('PROXI'));
+    });
+
+    test('logical shape gaps are errors, not silent drops', () {
+      final noMode = compileOne(
+        const RouteRule(
+          outbound: 'PROXY',
+          rules: <RouteRule>[
+            RouteRule(domains: <String>['a.com']),
+            RouteRule(domains: <String>['b.com']),
+          ],
+        ),
+      );
+      expect(noMode.isValid, isFalse);
+      expect(
+        noMode.validationErrors.join(),
+        contains('logicalMode'),
+      );
+
+      final noSubs = compileOne(
+        const RouteRule(outbound: 'PROXY', logicalMode: 'and'),
+      );
+      expect(noSubs.isValid, isFalse);
     });
   });
 }

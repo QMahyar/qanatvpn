@@ -93,6 +93,13 @@ class VpnNotifier extends Notifier<VpnState> {
         ),
       };
     });
+    // A replaced provider (hot reload, test override swap) must not leak the
+    // old engine subscription: the leaked sub would keep mapping stale tunnel
+    // states into this notifier.
+    ref.onDispose(() {
+      _sub?.cancel();
+      _sub = null;
+    });
     return VpnState.disconnected();
   }
 

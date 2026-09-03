@@ -1,40 +1,32 @@
-# Handoff — YOURVPN — full app runtime committed (read this first, 60 sec)
+# Handoff — YOURVPN — production hardening done, uncommitted (60 sec)
 
 ## Repo state
-- **Git `master`, 4 commits:** `5592cf3` (MVP core) → `a1fab54` (docs) → `8277f07` (full app runtime, sessions 8a-j) → `5cb7150` (advanced editors) → `d47e9b7` (AWG profile editor). **No remote — user creates repo, then push + tag `v0.1.0` → 3-job release + gh-pages run for real.**
-- **180 tests green, `flutter analyze` clean, `sing-box check -c profiles/config.wg-awg.json` exit 0, debug APK builds, real sing-box.exe spawn/kill smoke green.**
-- **All 5 tabs are real screens** (home, groups editor, rules editor, live logs, diagnostics) — `tabs.dart` deleted. Binary artifacts (aar/exe) gitignored; fork pinned as gitlink at `go/amnezia-box` SHA `57276220` (tag `1.14.0-rc.1-awgm.15`).
+- **Git `master`, 5 commits** (`16a270e` latest). **Working tree DIRTY: 23 modified + `pubspec.lock` untracked** — the whole session below is uncommitted. Next: review `git diff`, `git add pubspec.lock` + files, commit, then push + tag `v0.1.0` (no remote yet — user creates repo).
+- **194 tests green** (+14 new), **`flutter analyze` clean**, **`sing-box check` exit 0**, real exe smoke green.
+- Session: `prod-audit` workflow (9 dims → 123 raw → adversarial vote → 39 confirmed; ~102 late verifiers 502'd, synthesis OK) → fixed all 14 P0 + exe-gated skips. Details: `tasks/progress-2026-09-03.md`, decisions: `docs/decisions.tsv` (+14 rows).
 
-## Engine truths probed on the real binary (do NOT re-derive)
-- aar (libbox 1.14) has **NO `Box` class** — daemon architecture: `Libbox.setup` → `newCommandServer` → `startOrReloadService(config)`; TUN fd comes from Go calling **back** into Kotlin `PlatformInterface.openTun` (fd never crosses to Dart; `PlatformAdapter.engineManagedTun=true` on Android AND Windows).
-- `endpoints[].id/ip/ib` **FATAL** (WireSock-only — parse from INI but never emit; `AwgValues.toEngineJson`).
-- tuic `alpn` must be under `tls.alpn`; **reality REQUIRES utls**; vmess tls/transport are siblings.
-- **No `chain` outbound** — chaining = `DialerOptions.detour` (TOR-CHAIN = socks 127.0.0.1:9050 + endpoint detour).
-- CommandClient has only **6 commands** (no service-status) — crash detection = FATAL scan in the log stream while engineRunning.
-- Route fields verified in `option/rule.go`: `ip_version` enum 4/6, `port_range` `min:max`, `user_id` int32, `ip_is_private` bools; urltest `interval` is a duration string (`5m`).
+## Engine truths (do NOT re-derive — prior handoff still holds)
+- aar (libbox 1.14) has **NO `Box` class** — daemon arch; TUN fd via Go→Kotlin `openTun`; `engineManagedTun=true` both platforms.
+- `endpoints[].id/ip/ib` **FATAL**; tuic `alpn` under `tls.alpn`; reality REQUIRES utls; no `chain` outbound (detour); CommandClient 6 commands only (FATAL-scan crash detection).
+- NEW: `outbound: BLOCK` passes `sing-box check` (probed); `reject`-action vs `BLOCK`-outbound both valid — compiler emits `reject`, firewall policy asserts `BLOCK` shape.
+- NEW: `windows/sing-box.exe` must be spawned via absolute path (`p.join(Directory.current.path, ...)`) — relative path breaks Win process lookup in tests.
 
-## Key files map
-- **Engine seam:** `android/.../BoxEngine.kt` (setup+CommandServer+PlatformInterfaceWrapper+log watcher), `YourVpnService.kt` (openTun target), `VpnServiceBridge.kt` (`vpn_service` + `box_events` channels), `lib/core/services/tunnel.dart` (guarded deep seam), `channel_adapters.dart` (channel impls), `windows_box_process.dart` (subprocess engine), `desktop_platform_adapter.dart`.
-- **Config pipeline:** `lib/modules/vpn/repositories/profile_config_source.dart` (merges split + endpoints + groups + rules into the vendored profile; broken pieces ship unmodified, never FATAL the engine) ← `endpoint_store.dart`, `../routing/policy_store.dart` + `rule_store.dart`, `../onboarding/split_store.dart`; builders in `ingestion/endpoint_outbound.dart` + `../amnezia/awg_config.dart` (`wireGuardEndpointToJson`).
-- **Editors/UI:** `routing/groups_*`, `routing/rules_*`, `vpn/amnezia/awg_profile_screen.dart`, `vpn/repositories/endpoints_screen.dart`, `updates/updates_screen.dart`, `logs/log_bus.dart` + `logs_screen.dart`, `health/diagnostics_*`.
-- **Selection:** `vpn/logic/selected_endpoint.dart` (group default → first endpoint → vendored tag).
-- Spec gate: `SPEC.md` · frozen intent: `goal.md` · glossary: `CONTEXT.md` · plan: `tasks/plan.md` · todos: `tasks/todo.md` (17/17) · progress: `tasks/progress-2026-09-02.md` · decisions: `docs/decisions.tsv` (40+ rows) · CI: `.github/workflows/` (latest.json single producer = build-android `metadata` job).
+## What changed this session (files)
+- Engine: `core/services/tunnel.dart` (Timeouts+epoch+connecting-crash), `channel_adapters.dart` (30/10s), `windows_box_process.dart` (LogBus pipes), `main.dart` (fail-closed firewall adapter), `vpn/logic/vpn_notifier.dart` (dispose), `sec/firewall.dart` (validateOrdering).
+- Routing: `routing_compiler.dart` (port/CIDR/regex/enum/SRS/outbound validation), `routing_policy.dart` (shape errors), `rule_store.dart` (v2 30-field), `profile_config_source.dart` (per-group fallback, deep-copy, WG selector).
+- Ingestion/build: `parsers.dart` (base64 no-recurse), `ingestion_adapter.dart` (isolate+cache), `endpoints_controller.dart` (>64KB isolate), `.gitignore` (track pubspec.lock), `build-android.yml` (SDK 37, size gate).
+- Tests: 5 tunnel + 8 compiler + v2 round-trip + base64 regression; all exe tests `markTestSkipped` when exe absent.
 
-## Next session (in value order)
-1. **On-device proof (needs device):** `flutter install` → wizard → connect → verify tun0 + proxied egress + crash events + logs (placeholder keys = handshake fails, expected). Then the 7 leak tests (`scripts/leak_test.sh`).
-2. **Push/CI (needs user):** `git remote add origin <url>` → push → tag `v0.1.0` → 3-job release + gh-pages run for real; verify latest.json lands complete.
-3. **Implementable leftovers:** logical AND/OR rule-groups UI (compiler+store already support it), advanced rules fields (process_path/user_id etc. — compiler done), website polish, DNS fake-ip-filter-mode (fork schema lacks it — documented).
+## Next (value order)
+1. **Commit:** review diff → `git add -A` (incl. `pubspec.lock`) → commit `feat: production hardening — ...`.
+2. **Push/CI:** `git remote add origin <url>` → push → tag `v0.1.0` → verify 3-job release + latest.json.
+3. **On-device proof:** `flutter install` → wizard → connect → tun0 + egress + logs; then 7 leak tests.
+4. **P1 (not started):** config rebuild cache, store coalescing, startup parallelize, connect-latency metrics, log filter/export, l10n strings, 2.0 goldens, sentry, per-ABI splits.
 
 ## Verify (30 sec)
 ```
-& C:\tools\flutter\bin\flutter.bat test --no-pub        # +180 all pass
+& C:\tools\flutter\bin\flutter.bat test --no-pub        # 194 pass
 & C:\tools\flutter\bin\flutter.bat analyze              # No issues
 windows\sing-box.exe check -c profiles/config.wg-awg.json  # exit 0
-git log --oneline -4                                    # d47e9b7 … 5592cf3
+git status --short | head -25                            # dirty, 23 mod + lock
 ```
-
-## Command cheatsheet
-- Build engine: `pwsh scripts/libbox.ps1 main` (aar) / `windows` (exe); CI: `make lib_android`
-- Regenerate profile: `& C:\tools\flutter\bin\dart.bat run tool\gen_profile.dart`
-- Golden regen: `flutter test --update-goldens test/golden`
-- Full verify: analyze + test + sing-box check (above)

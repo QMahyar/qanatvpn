@@ -89,9 +89,9 @@ class ProfileConfigSource implements ConfigSource {
 
   /// Inserts stored endpoint outbounds + group outbounds ahead of the
   /// envelope selector and prepends their tags to the selector's member
-  /// list. Group policies with errors other than unknown-endpoint-members
-  /// never reach the engine — the same validation errors show in the editor
-  /// and the unmodified profile ships instead.
+  /// list. Invalid groups are skipped per-group (valid ones still ship)
+  /// instead of dropping everything; per-group errors surface in the
+  /// groups editor through the same compiler.
   static Map<String, dynamic> _merged(
     Map<String, dynamic> profile,
     List<OutboundGroup> groups,
@@ -99,17 +99,24 @@ class ProfileConfigSource implements ConfigSource {
     List<StoredEndpoint> stored,
   ) {
     final endpointTags = <String>[for (final item in stored) item.tag];
-    final errors = const RoutingCompiler()
-        .compile(
-          RoutingPolicy(
-            rules: const <RouteRule>[],
-            groups: groups,
-            leafOutbounds: <String>[...declaredLeaves, ...endpointTags],
-          ),
-        )
-        .validationErrors;
-    if (errors.isNotEmpty) {
-      return profile;
+    final leafUniverse = <String>{...declaredLeaves, ...endpointTags};
+    // Per-group validation: keep the valid groups, skip the broken ones.
+    // The old all-or-nothing fallback dropped every endpoint + group on a
+    // single typo, silently disconnecting the user's whole setup.
+    final validGroups = <OutboundGroup>[];
+    for (final group in groups) {
+      final errors = const RoutingCompiler()
+          .compile(
+            RoutingPolicy(
+              rules: const <RouteRule>[],
+              groups: <OutboundGroup>[group],
+              leafOutbounds: leafUniverse.toList(),
+            ),
+          )
+          .validationErrors;
+      if (errors.isEmpty) {
+        validGroups.add(group);
+      }
     }
     final endpointOutbounds = <Map<String, dynamic>>[
       for (final item in stored)
@@ -121,11 +128,25 @@ class ProfileConfigSource implements ConfigSource {
         if (item.endpoint is WireGuardEndpoint)
           wireGuardEndpointToJson(item.endpoint as WireGuardEndpoint),
     ];
-    final patched = <String, dynamic>{...profile};
+    // Deep-copy the profile before mutating: the base is cached across
+    // connects, and mutating the selector's member list in place appended
+    // duplicates on every connect.
+    final patched = <String, dynamic>{
+      for (final entry in profile.entries)
+        entry.key: entry.value is List
+            ? List<dynamic>.from(entry.value as List<dynamic>)
+            : entry.value is Map
+            ? Map<String, dynamic>.from(entry.value as Map<dynamic, dynamic>)
+            : entry.value,
+    };
     final outbounds = <dynamic>[
       ...endpointOutbounds,
-      for (final group in groups) _groupJson(group),
+      for (final group in validGroups) _groupJson(group),
       ...(profile['outbounds'] as List<dynamic>? ?? const <dynamic>[]),
+    ];
+    final wgTags = <String>[
+      for (final item in stored)
+        if (item.endpoint is WireGuardEndpoint) item.tag,
     ];
     if (wgEndpoints.isNotEmpty) {
       patched['endpoints'] = <dynamic>[
@@ -137,13 +158,27 @@ class ProfileConfigSource implements ConfigSource {
       (o) => o is Map<String, dynamic> && o['type'] == 'selector',
     );
     if (selectorIndex >= 0) {
-      final selector = outbounds[selectorIndex] as Map<String, dynamic>;
-      selector['outbounds'] = <String>[
-        for (final group in groups) group.tag,
-        ...endpointOutbounds.map((o) => o['tag'] as String),
+      final selector = Map<String, dynamic>.from(
+        outbounds[selectorIndex] as Map<String, dynamic>,
+      );
+      final existing = <String>[
         ...((selector['outbounds'] as List<dynamic>? ?? const <dynamic>[])
             .cast<String>()),
       ];
+      final prepended = <String>[
+        for (final group in validGroups) group.tag,
+        ...endpointOutbounds.map((o) => o['tag'] as String),
+        // WG/AWG endpoints ship via `endpoints[]` but must still be
+        // selectable — the old code omitted them, leaving the star protocol
+        // unreachable from the PROXY selector.
+        ...wgTags,
+      ];
+      final seen = <String>{};
+      selector['outbounds'] = <String>[
+        for (final tag in <String>[...prepended, ...existing])
+          if (seen.add(tag)) tag,
+      ];
+      outbounds[selectorIndex] = selector;
     }
     patched['outbounds'] = outbounds;
     return patched;

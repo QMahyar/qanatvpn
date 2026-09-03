@@ -70,7 +70,7 @@ PlatformAdapter _platformAdapter() {
 
 BoxAdapter _boxAdapter(LogBus logBus) {
   if (Platform.isWindows) {
-    return WindowsBoxProcessAdapter();
+    return WindowsBoxProcessAdapter(logBus: logBus);
   }
   return MethodChannelBoxAdapter(logBus: logBus);
 }
@@ -92,12 +92,42 @@ Future<void> _registerDailyUpdateCheck() async {
   }
 }
 
-/// Enforces the [FirewallPolicy] as base route rules inside the engine
-/// profile before start, so kill-switch rules ship with every connect.
+/// Kill-switch adapter: packet filtering itself is engine-owned (sing-box
+/// `route.rules` + the platform TUN), so this adapter is the ordering +
+/// verification half. Enforce fails closed: the vendored profile and every
+/// assembled config are checked for the hijack-first ordering before the
+/// engine is allowed to carry traffic, and a missing guarantee blocks the
+/// connect instead of leaking.
+///
+/// Platform note: a true OS-level fail-closed filter (device-wide block-all
+/// except the tunnel, surviving engine death) needs native code that does not
+/// exist yet on either platform — Android `VpnService` `setBlocking(true)` +
+/// `addRoute(0.0.0.0/0)` lockdown in `YourVpnService`, Windows WFP rules in
+/// the runner. Until those land, the engine rule ordering below is the
+/// kill-switch; see `scripts/leak_test.sh` scenario coverage.
 class PolicyFirewallAdapter implements FirewallAdapter {
-  @override
-  Future<void> enforce() async {}
+  PolicyFirewallAdapter({this.policy = const FirewallPolicy()});
+
+  final FirewallPolicy policy;
+  FirewallPolicy get _policy => policy;
+
+  bool _enforced = false;
 
   @override
-  Future<void> relax() async {}
+  Future<void> enforce() async {
+    final errors = _policy.validateOrdering(_policy.baseRules());
+    if (errors.isNotEmpty) {
+      throw StateError('kill-switch policy invalid: ${errors.join('; ')}');
+    }
+    _enforced = true;
+  }
+
+  @override
+  Future<void> relax() async {
+    _enforced = false;
+  }
+
+  /// Fail-closed query for diagnostics: true while the tunnel must be
+  /// filtering (connected/blocked), false after a clean disconnect.
+  bool get enforced => _enforced;
 }

@@ -38,7 +38,7 @@ jobs:
 
       - name: Install Android SDK + NDK 28
         run: |
-          sdkmanager --install "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0" >/dev/null
+          sdkmanager --install "ndk;28.2.13676358" "platforms;android-37" "build-tools;37.0.0" >/dev/null
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
 
@@ -77,7 +77,19 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Build APKs (split per ABI)
-        run: flutter build apk --release --split-per-abi --no-tree-shake-icons
+        run: flutter build apk --release --split-per-abi --no-tree-shake-icons --dart-define=UPDATE_CHANNEL=androidApk
+
+      - name: APK size gate (libbox.aar dominates — fail before release)
+        run: |
+          cd build/app/outputs/flutter-apk
+          for f in app-*-release.apk; do
+            size=$(stat -c%s "$f")
+            echo "$f: $size bytes"
+            if [ "$size" -gt 125829120 ]; then
+              echo "APK $f over 120MB budget — investigate libbox bloat" >&2
+              exit 1
+            fi
+          done
 
       - name: Rename artifacts + sha256
         run: |

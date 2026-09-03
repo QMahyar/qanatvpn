@@ -2,8 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:yourvpn/modules/vpn/amnezia/awg_config.dart';
 import 'package:yourvpn/utils/amnezia_values.dart';
+
+final String singBoxExe = p.join(
+  Directory.current.path,
+  'windows',
+  'sing-box.exe',
+);
 
 const goodPrivateKey = 'eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=';
 const goodPeerKey = 'fz8KXfDEl+8/SgXJmjotjTxLWm5/gJGis8TV5vcIGSo=';
@@ -173,9 +180,9 @@ void main() {
         containsPair('port', 51820),
       );
 
-      final singBox = File('windows/sing-box.exe');
+      final singBox = File(singBoxExe);
       if (!singBox.existsSync()) {
-        return;
+        markTestSkipped('needs windows/sing-box.exe');
       }
       final configJson = <String, dynamic>{
         'log': <String, dynamic>{'level': 'info'},
@@ -283,9 +290,9 @@ void main() {
         addresses: <String>['10.7.0.2/32'],
         mtu: 1408,
       );
-      final singBox = File('windows/sing-box.exe');
+      final singBox = File(singBoxExe);
       if (!singBox.existsSync()) {
-        return;
+        markTestSkipped('needs windows/sing-box.exe');
       }
       final file = File(
         '${Directory.systemTemp.path}/awg_v6_test_${DateTime.now().millisecondsSinceEpoch}.json',

@@ -61,14 +61,25 @@ bool boolOf(String? source) =>
 
 /// Standard base64 first (real-world links use `+/`), URL-safe fallback.
 /// [base64Url.decode] rejects the standard alphabet, which breaks real
-/// v2rayN payloads.
+/// v2rayN payloads. Never recurses: both alphabets are tried iteratively and
+/// a doubly-malformed payload throws FormatException instead of overflowing
+/// the stack and crashing the ingestion isolate.
 String decodeBase64Flex(String source) {
   final normalized = source.trim().replaceAll('\n', '');
   try {
     return utf8.decode(base64.decode(base64.normalize(normalized)));
   } on FormatException {
-    return decodeBase64Flex(normalized);
+    // Fall through to the URL-safe alphabet with padding restored.
   }
+  var padded = normalized.replaceAll('-', '+').replaceAll('_', '/');
+  final remainder = padded.length % 4;
+  if (remainder == 1) {
+    throw FormatException('invalid base64 payload: $source');
+  }
+  if (remainder != 0) {
+    padded = padded + ('=' * (4 - remainder));
+  }
+  return utf8.decode(base64.decode(base64.normalize(padded)));
 }
 
 /// YAML fields accept either a scalar or a list.

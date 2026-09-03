@@ -171,7 +171,28 @@ class RouteRule {
   final List<RouteRule> rules;
   final bool invert;
 
+  /// True only for a well-formed logical node. The two half-built shapes —
+  /// sub-rules with no mode, or a mode with no sub-rules — are NOT logical;
+  /// the compiler reports both as validation errors instead of silently
+  /// compiling (or dropping) one side.
   bool get isLogical => rules.isNotEmpty && logicalMode != null;
+
+  /// Shape errors for the half-built logical forms. Checked by the compiler
+  /// before branching so nested rules are never silently dropped.
+  List<String> logicalShapeErrors(String where) {
+    final errors = <String>[];
+    if (rules.isNotEmpty && logicalMode == null) {
+      errors.add(
+        '$where: ${rules.length} sub-rule(s) need logicalMode "and"/"or"',
+      );
+    }
+    if (rules.isEmpty && logicalMode != null) {
+      errors.add(
+        '$where: logicalMode "$logicalMode" needs at least 2 sub-rules',
+      );
+    }
+    return errors;
+  }
 }
 
 /// Result of [RoutingCompiler.compile]: valid JSON + all validation errors at

@@ -40,6 +40,9 @@ class _StubTunnel implements Tunnel {
   @override
   ConfigSource get configSource => throw UnimplementedError();
 
+  @override
+  TunnelTimeouts get timeouts => const TunnelTimeouts();
+
   void finishConnect(String tag) {
     _state = TunnelState.connected;
     _status.add(TunnelState.connected);

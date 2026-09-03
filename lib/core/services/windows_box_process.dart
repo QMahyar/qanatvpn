@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../modules/logs/log_bus.dart';
 import 'tunnel.dart';
 
 /// Windows engine: `sing-box.exe run -c <file>` subprocess.
@@ -16,11 +17,17 @@ class WindowsBoxProcessAdapter implements BoxAdapter {
     this.executablePath = 'windows/sing-box.exe',
     this.workingDir,
     this.processFactory = Process.start,
-  });
+    LogBus? logBus,
+  }) : _logBus = logBus ?? LogBus();
 
   final String executablePath;
   final String? workingDir;
   final ProcessFactory processFactory;
+
+  /// Both pipes feed the shared log bus (same caps as Android) so the Logs
+  /// screen is not blind on Windows; previously stdout was discarded and
+  /// only the last stderr line survived in memory.
+  final LogBus _logBus;
 
   final StreamController<BoxEvent> _events =
       StreamController<BoxEvent>.broadcast();
@@ -84,18 +91,24 @@ class WindowsBoxProcessAdapter implements BoxAdapter {
       return code;
     });
 
+    void feed(String line) {
+      if (line.length > 4096) {
+        line = line.substring(0, 4096);
+      }
+      _logBus.add(EngineLogLine.parse(line));
+      if (line.contains('FATAL') || line.contains('ERROR')) {
+        _lastErrorLine = line;
+      }
+    }
+
     _stderrSub = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen((line) {
-          if (line.contains('FATAL') || line.contains('ERROR')) {
-            _lastErrorLine = line;
-          }
-        });
+        .listen(feed);
     _stdoutSub = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen((_) {});
+        .listen(feed);
 
     // Give the process a beat to fail on bad config; a still-running
     // process at this point is considered started.

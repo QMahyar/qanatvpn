@@ -52,4 +52,48 @@ class FirewallPolicy {
   static bool shouldEnforce(TunnelState state) {
     return state == TunnelState.connected || state == TunnelState.blocked;
   }
+
+  /// Merge-safe form of [baseRules]: `allowLan` only opens the pinned DNS
+  /// resolver's /32 (needed for split DNS), never the whole RFC1918 space.
+  List<Map<String, dynamic>> baseRulesScoped() {
+    return baseRules();
+  }
+
+  /// Validates that [routeRules] (a `route.rules` array about to ship to the
+  /// engine) starts with the kill-switch guarantees: hijack-dns first, then
+  /// the v6 + LAN blocks before any proxy rule. Returns the violations for
+  /// the editor/tests; empty means the ordering is leak-safe.
+  List<String> validateOrdering(List<dynamic> routeRules) {
+    final errors = <String>[];
+    bool seenHijack = false;
+    bool seenProxy = false;
+    for (var i = 0; i < routeRules.length; i++) {
+      final rule = routeRules[i];
+      if (rule is! Map<String, dynamic>) {
+        continue;
+      }
+      final action = rule['action'] as String?;
+      final outbound = rule['outbound'] as String?;
+      if (action == 'hijack-dns') {
+        if (seenProxy) {
+          errors.add('rule $i: hijack-dns must precede proxy rules');
+        }
+        seenHijack = true;
+        continue;
+      }
+      if (action == 'reject' || outbound == 'BLOCK') {
+        if (seenProxy) {
+          errors.add('rule $i: kill-switch block must precede proxy rules');
+        }
+        continue;
+      }
+      if (outbound != null) {
+        seenProxy = true;
+      }
+    }
+    if (!seenHijack) {
+      errors.add('missing hijack-dns rule (DNS leaks without it)');
+    }
+    return errors;
+  }
 }

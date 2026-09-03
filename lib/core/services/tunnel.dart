@@ -112,6 +112,27 @@ abstract interface class TorAdapter {
   Future<bool> isSocksUp();
 }
 
+/// Per-step ceilings for the connect/disconnect control path.
+///
+/// A hung platform call, store read, or engine start must surface as
+/// `blocked` (fail closed), never strand the UI in `connecting` forever.
+/// Tests inject tiny values to assert the timeout paths without waiting.
+class TunnelTimeouts {
+  const TunnelTimeouts({
+    this.foregroundStart = const Duration(seconds: 8),
+    this.resolve = const Duration(seconds: 15),
+    this.boxStart = const Duration(seconds: 30),
+    this.firewallEnforce = const Duration(seconds: 8),
+    this.boxStop = const Duration(seconds: 10),
+  });
+
+  final Duration foregroundStart;
+  final Duration resolve;
+  final Duration boxStart;
+  final Duration firewallEnforce;
+  final Duration boxStop;
+}
+
 /// Deep module owning the Dart↔Kotlin↔Go VPN seam.
 ///
 /// One call runs the whole guarded sequence
@@ -126,6 +147,7 @@ class Tunnel {
     required this.firewall,
     required this.tor,
     required this.configSource,
+    this.timeouts = const TunnelTimeouts(),
   }) {
     _boxSub = box.events.listen(_onBoxEvent);
   }
@@ -136,6 +158,7 @@ class Tunnel {
   final FirewallAdapter firewall;
   final TorAdapter tor;
   final ConfigSource configSource;
+  final TunnelTimeouts timeouts;
 
   late final StreamSubscription<BoxEvent> _boxSub;
   int? _fd;
@@ -157,6 +180,10 @@ class Tunnel {
 
   Stream<TunnelState> get status => _status.stream;
 
+  /// Abort the sequence when a newer connect/disconnect invalidated [epoch].
+  /// Returns true when the caller must stop immediately.
+  bool _stale(int epoch) => epoch != _epoch;
+
   Future<void> connect(String tag) async {
     if (_state == TunnelState.connecting || _state == TunnelState.connected) {
       return;
@@ -170,40 +197,81 @@ class Tunnel {
       await _block(TunnelBlockReason.vpnPermissionDenied);
       return;
     }
-    if (epoch != _epoch) {
+    if (_stale(epoch)) {
       return;
     }
 
     // battery (non-fatal: wizard owns the request UX, Doze risk recorded)
-    if (!await platform.isIgnoringBatteryOptimizations()) {
-      await platform.requestIgnoreBatteryOptimizations();
+    try {
+      if (!await platform.isIgnoringBatteryOptimizations()) {
+        await platform.requestIgnoreBatteryOptimizations();
+      }
+    } on Object {
+      // A failing battery API must not strand connect; the wizard owns UX.
+    }
+    if (_stale(epoch)) {
+      return;
     }
 
     // foreground
     try {
-      await foreground.start();
+      await foreground.start().timeout(timeouts.foregroundStart);
     } on Object {
+      if (_stale(epoch)) {
+        return;
+      }
       await _block(TunnelBlockReason.establishFailed);
+      return;
+    }
+    if (_stale(epoch)) {
       return;
     }
 
     // airplane
-    if (await platform.isAirplaneMode()) {
-      await _block(TunnelBlockReason.airplaneMode);
+    try {
+      if (await platform.isAirplaneMode()) {
+        await _block(TunnelBlockReason.airplaneMode);
+        return;
+      }
+    } on Object {
+      if (_stale(epoch)) {
+        return;
+      }
+      await _block(TunnelBlockReason.establishFailed);
+      return;
+    }
+    if (_stale(epoch)) {
       return;
     }
 
     TypedConfig config;
     try {
-      config = await configSource.resolve(tag);
+      config = await configSource.resolve(tag).timeout(timeouts.resolve);
     } on Object {
+      if (_stale(epoch)) {
+        return;
+      }
       await _block(TunnelBlockReason.establishFailed);
+      return;
+    }
+    if (_stale(epoch)) {
       return;
     }
 
     // tor down → block fallback, sing-box never starts on a dead chain
-    if (config.requiresTor && !await tor.isSocksUp()) {
+    try {
+      if (config.requiresTor && !await tor.isSocksUp()) {
+        await _block(TunnelBlockReason.torDown);
+        return;
+      }
+    } on Object {
+      if (_stale(epoch)) {
+        return;
+      }
       await _block(TunnelBlockReason.torDown);
+      return;
+    }
+    if (_stale(epoch)) {
       return;
     }
 
@@ -213,54 +281,114 @@ class Tunnel {
     if (platform.engineManagedTun) {
       fd = null;
     } else {
-      fd = await platform.establish();
+      try {
+        fd = await platform.establish();
+      } on Object {
+        if (_stale(epoch)) {
+          return;
+        }
+        await _block(TunnelBlockReason.establishFailed);
+        return;
+      }
       if (fd == null) {
         await _block(TunnelBlockReason.establishFailed);
         return;
       }
-      if (epoch != _epoch) {
+      if (_stale(epoch)) {
         platform.closeFd(fd);
         return;
       }
       _fd = fd;
 
       // protect
-      platform.protect(fd);
+      try {
+        platform.protect(fd);
+      } on Object {
+        platform.closeFd(fd);
+        _fd = null;
+        if (_stale(epoch)) {
+          return;
+        }
+        await _block(TunnelBlockReason.establishFailed);
+        return;
+      }
     }
 
     // start
     try {
-      await box.start(config);
+      await box.start(config).timeout(timeouts.boxStart);
     } on Object {
       if (fd != null) {
         platform.closeFd(fd);
         _fd = null;
       }
+      if (_stale(epoch)) {
+        return;
+      }
       await _block(TunnelBlockReason.boxStartFailed);
+      return;
+    }
+    if (_state == TunnelState.blocked) {
+      // A crash event owned the outcome while box.start was in flight.
+      // Stop the half-started engine but keep blocked so the UI shows why
+      // instead of flipping to disconnected.
+      if (fd != null) {
+        platform.closeFd(fd);
+        _fd = null;
+      }
+      try {
+        await box.stop().timeout(timeouts.boxStop);
+      } on Object {
+        // engine already gone
+      }
+      return;
+    }
+    if (_stale(epoch)) {
+      // A newer disconnect won the race while box.start was in flight.
+      // Stop what we just started instead of announcing connected on a
+      // tunnel the UI no longer wants.
+      if (fd != null) {
+        platform.closeFd(fd);
+        _fd = null;
+      }
+      try {
+        await box.stop().timeout(timeouts.boxStop);
+      } on Object {
+        // engine already gone
+      }
+      await disconnect();
       return;
     }
 
     // firewall — enforced last, only once traffic is already flowing
     try {
-      await firewall.enforce();
+      await firewall.enforce().timeout(timeouts.firewallEnforce);
     } on Object {
       if (fd != null) {
         platform.closeFd(fd);
         _fd = null;
       }
       try {
-        await box.stop();
+        await box.stop().timeout(timeouts.boxStop);
       } on Object {
         // engine already gone
+      }
+      if (_stale(epoch)) {
+        return;
       }
       await _block(TunnelBlockReason.boxStartFailed);
       return;
     }
-    if (epoch != _epoch) {
+    if (_stale(epoch)) {
       await disconnect();
       return;
     }
     _firewallEnforced = true;
+    // A crash event that arrived while box.start/firewall were in flight
+    // already moved us to blocked via _onBoxEvent; do not resurrect.
+    if (_state == TunnelState.blocked) {
+      return;
+    }
     _setState(TunnelState.connected);
   }
 
@@ -271,7 +399,7 @@ class Tunnel {
     _epoch++;
     _setState(TunnelState.disconnecting);
     try {
-      await box.stop();
+      await box.stop().timeout(timeouts.boxStop);
     } on Object {
       await _block(TunnelBlockReason.boxCrashed);
       return;
@@ -281,9 +409,18 @@ class Tunnel {
       platform.closeFd(fd);
       _fd = null;
     }
-    await foreground.stop();
+    try {
+      await foreground.stop();
+    } on Object {
+      // Foreground teardown is best-effort; the tunnel is already down.
+    }
     if (_firewallEnforced) {
-      await firewall.relax();
+      try {
+        await firewall.relax();
+      } on Object {
+        // A failing relax must not resurrect the tunnel; stay disconnected
+        // and let the next connect re-enforce.
+      }
       _firewallEnforced = false;
     }
     _setState(TunnelState.disconnected);
@@ -291,7 +428,13 @@ class Tunnel {
 
   Future<void> _block(TunnelBlockReason reason) async {
     blockReason = reason;
-    await firewall.enforce();
+    try {
+      await firewall.enforce().timeout(timeouts.firewallEnforce);
+    } on Object {
+      // The block state itself must never hang: a wedged firewall still
+      // leaves the tunnel blocked (fail closed), just without the flag that
+      // would relax it later.
+    }
     _firewallEnforced = true;
     final fd = _fd;
     if (fd != null) {
@@ -302,7 +445,20 @@ class Tunnel {
   }
 
   void _onBoxEvent(BoxEvent event) {
-    if (event.kind == BoxEventKind.crashed && _state == TunnelState.connected) {
+    if (event.kind != BoxEventKind.crashed) {
+      return;
+    }
+    if (_state == TunnelState.connected) {
+      _block(TunnelBlockReason.boxCrashed);
+      return;
+    }
+    // A FATAL between box.start and connected (log-watcher `crashed`
+    // arriving while still connecting) must not leave the UI on a dead
+    // engine. Bump the generation synchronously so the in-flight connect's
+    // post-await stale checks abort instead of announcing connected; the
+    // async _block below owns the final state.
+    if (_state == TunnelState.connecting) {
+      _epoch++;
       _block(TunnelBlockReason.boxCrashed);
     }
   }

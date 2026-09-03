@@ -615,4 +615,130 @@ void main() {
       },
     );
   });
+
+  group('Tunnel timeouts + connecting crash (P0 hardening)', () {
+    test('crash during connecting → blocked, not ignored', () async {
+      final box = FakeBoxAdapter(
+        startDelay: const Duration(milliseconds: 50),
+      );
+      final tunnel = buildTunnel(
+        platform: FakePlatformAdapter(engineManagedTun: true),
+        box: box,
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
+
+      final connecting = tunnel.connect('HKG-02');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      box.crash();
+      await connecting;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(tunnel.state, TunnelState.blocked);
+      expect(tunnel.blockReason, TunnelBlockReason.boxCrashed);
+      await tunnel.dispose();
+    });
+
+    test('epoch checked after every await: stale connect cannot set connected',
+        () async {
+      final box = FakeBoxAdapter(
+        startDelay: const Duration(milliseconds: 80),
+      );
+      final tunnel = buildTunnel(
+        platform: FakePlatformAdapter(engineManagedTun: true),
+        box: box,
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
+
+      final first = tunnel.connect('HKG-02');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      // Second connect is a no-op while connecting; disconnect wins instead.
+      await tunnel.disconnect();
+      await first;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(tunnel.state, isNot(TunnelState.connected));
+      await tunnel.dispose();
+    });
+
+    test('box.start timeout → blocked with boxStartFailed', () async {
+      final box = FakeBoxAdapter(
+        startDelay: const Duration(milliseconds: 200),
+      );
+      final tunnel = Tunnel(
+        platform: FakePlatformAdapter(engineManagedTun: true),
+        foreground: FakeForegroundAdapter(),
+        box: box,
+        firewall: FakeFirewallAdapter(),
+        tor: FakeTorAdapter(),
+        configSource: FakeConfigSource(),
+        timeouts: const TunnelTimeouts(
+          boxStart: Duration(milliseconds: 20),
+        ),
+      );
+
+      await tunnel.connect('HKG-02');
+
+      expect(tunnel.state, TunnelState.blocked);
+      expect(tunnel.blockReason, TunnelBlockReason.boxStartFailed);
+      await tunnel.dispose();
+    });
+
+    test('resolve timeout → blocked with establishFailed', () async {
+      final tunnel = Tunnel(
+        platform: FakePlatformAdapter(engineManagedTun: true),
+        foreground: FakeForegroundAdapter(),
+        box: FakeBoxAdapter(),
+        firewall: FakeFirewallAdapter(),
+        tor: FakeTorAdapter(),
+        configSource: _HangingConfigSource(),
+        timeouts: const TunnelTimeouts(
+          resolve: Duration(milliseconds: 20),
+        ),
+      );
+
+      await tunnel.connect('HKG-02');
+
+      expect(tunnel.state, TunnelState.blocked);
+      expect(tunnel.blockReason, TunnelBlockReason.establishFailed);
+      await tunnel.dispose();
+    });
+
+    test('firewall enforce timeout → blocked, box stopped', () async {
+      final box = FakeBoxAdapter();
+      final tunnel = Tunnel(
+        platform: FakePlatformAdapter(engineManagedTun: true),
+        foreground: FakeForegroundAdapter(),
+        box: box,
+        firewall: _HangingFirewallAdapter(),
+        tor: FakeTorAdapter(),
+        configSource: FakeConfigSource(),
+        timeouts: const TunnelTimeouts(
+          firewallEnforce: Duration(milliseconds: 20),
+        ),
+      );
+
+      await tunnel.connect('HKG-02');
+
+      expect(tunnel.state, TunnelState.blocked);
+      expect(tunnel.blockReason, TunnelBlockReason.boxStartFailed);
+      expect(box.calls, contains('box:stop'));
+      await tunnel.dispose();
+    });
+  });
+}
+
+class _HangingConfigSource implements ConfigSource {
+  @override
+  Future<TypedConfig> resolve(String tag) =>
+      Completer<TypedConfig>().future;
+}
+
+class _HangingFirewallAdapter implements FirewallAdapter {
+  @override
+  Future<void> enforce() => Completer<void>().future;
+
+  @override
+  Future<void> relax() async {}
 }

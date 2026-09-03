@@ -73,6 +73,9 @@ void main() {
   });
 
   test('full config with DNS + FakeIP passes real sing-box check', () async {
+    if (!File(singBoxExe).existsSync()) {
+      markTestSkipped('needs windows/sing-box.exe');
+    }
     final geo = geoFor(dir);
     final assembler = ConfigAssembler(geoAsset: geo);
     final config = assembler.build(

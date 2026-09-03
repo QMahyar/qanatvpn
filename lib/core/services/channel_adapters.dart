@@ -54,17 +54,35 @@ class MethodChannelBoxAdapter implements BoxAdapter {
     return null;
   }
 
+  /// Channel round-trip ceiling: the Kotlin side blocks in
+  /// `startOrReloadService`, and an engine wedged there must surface as a
+  /// timeout (fail closed) instead of hanging `Tunnel.connect` forever.
+  static const Duration startTimeout = Duration(seconds: 30);
+  static const Duration stopTimeout = Duration(seconds: 10);
+
   @override
   Future<void> start(TypedConfig config) async {
+    final String payload;
     try {
-      await channel.invokeMethod<void>('boxStart', {
-        'config': json.encode(config.json),
-        if (config.includePackages.isNotEmpty)
-          'includePackages': config.includePackages,
-        if (config.excludePackages.isNotEmpty)
-          'excludePackages': config.excludePackages,
-      });
+      payload = json.encode(config.json);
+    } on Object catch (e) {
+      _events.add(BoxEvent(BoxEventKind.crashed, e));
+      throw StateError('config is not JSON-encodable: $e');
+    }
+    try {
+      await channel
+          .invokeMethod<void>('boxStart', {
+            'config': payload,
+            if (config.includePackages.isNotEmpty)
+              'includePackages': config.includePackages,
+            if (config.excludePackages.isNotEmpty)
+              'excludePackages': config.excludePackages,
+          })
+          .timeout(startTimeout);
       _events.add(const BoxEvent(BoxEventKind.started));
+    } on TimeoutException catch (e) {
+      _events.add(BoxEvent(BoxEventKind.crashed, e));
+      throw StateError('box start timed out: $e');
     } on PlatformException catch (e) {
       _events.add(BoxEvent(BoxEventKind.crashed, e));
       throw StateError(e.message ?? e.code);
@@ -73,8 +91,15 @@ class MethodChannelBoxAdapter implements BoxAdapter {
 
   @override
   Future<void> stop() async {
-    await channel.invokeMethod<void>('boxStop');
-    _events.add(const BoxEvent(BoxEventKind.stopped));
+    try {
+      await channel.invokeMethod<void>('boxStop').timeout(stopTimeout);
+    } on TimeoutException {
+      // Engine wedged: the tunnel layer already treats stop failure as a
+      // crash event; rethrow so Tunnel.disconnect can fail closed.
+      rethrow;
+    } finally {
+      _events.add(const BoxEvent(BoxEventKind.stopped));
+    }
   }
 }
 

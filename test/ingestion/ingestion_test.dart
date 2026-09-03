@@ -552,6 +552,19 @@ Endpoint = 2.2.2.2:51820
       );
     });
 
+    test('malformed base64 throws FormatException, never StackOverflow', () {
+      // Regression: decodeBase64Flex used to recurse on itself in the catch
+      // branch, overflowing the stack on any payload standard base64
+      // rejects. Both alphabets must fail fast instead.
+      expect(() => decodeBase64Flex('!!!not-base64!!!'), throwsFormatException);
+      expect(() => decodeBase64Flex('a'), throwsFormatException);
+      // URL-safe payload without padding still decodes (fallback path).
+      final payload = base64Url
+          .encode(utf8.encode('{"add":"a"}'))
+          .replaceAll('=', '');
+      expect(decodeBase64Flex(payload), contains('"add"'));
+    });
+
     test('vmess aid float / port float → FormatException', () {
       final doc1 = <String, dynamic>{
         'add': 'a',
