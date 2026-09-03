@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../vpn/amnezia/awg_profile_screen.dart';
 import 'endpoints_controller.dart';
 import 'ingestion/ingestion_adapter.dart'
     show
@@ -102,6 +103,14 @@ class _ImportBox extends ConsumerStatefulWidget {
 class _ImportBoxState extends ConsumerState<_ImportBox> {
   final TextEditingController _controller = TextEditingController();
 
+  void _openAwgEditor(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) => const AwgProfileSheet(),
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -143,6 +152,12 @@ class _ImportBoxState extends ConsumerState<_ImportBox> {
                     )
                   : const Icon(Icons.download),
               label: const Text('Import'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () => _openAwgEditor(context),
+              icon: const Icon(Icons.vpn_key),
+              label: const Text('AWG profile'),
             ),
           ],
         ),

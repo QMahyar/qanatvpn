@@ -9,6 +9,7 @@ import '../../routing/routing_compiler.dart';
 import '../../routing/routing_policy.dart';
 import 'endpoint_store.dart';
 import '../../routing/rule_store.dart';
+import '../../vpn/amnezia/awg_config.dart' show wireGuardEndpointToJson;
 import 'ingestion/endpoint_outbound.dart';
 import 'ingestion/normalized_endpoint.dart' show WireGuardEndpoint;
 
@@ -115,12 +116,23 @@ class ProfileConfigSource implements ConfigSource {
         if (item.endpoint is! WireGuardEndpoint)
           endpointToOutboundJson(item.endpoint),
     ];
+    final wgEndpoints = <Map<String, dynamic>>[
+      for (final item in stored)
+        if (item.endpoint is WireGuardEndpoint)
+          wireGuardEndpointToJson(item.endpoint as WireGuardEndpoint),
+    ];
     final patched = <String, dynamic>{...profile};
     final outbounds = <dynamic>[
       ...endpointOutbounds,
       for (final group in groups) _groupJson(group),
       ...(profile['outbounds'] as List<dynamic>? ?? const <dynamic>[]),
     ];
+    if (wgEndpoints.isNotEmpty) {
+      patched['endpoints'] = <dynamic>[
+        ...wgEndpoints,
+        ...(profile['endpoints'] as List<dynamic>? ?? const <dynamic>[]),
+      ];
+    }
     final selectorIndex = outbounds.indexWhere(
       (o) => o is Map<String, dynamic> && o['type'] == 'selector',
     );

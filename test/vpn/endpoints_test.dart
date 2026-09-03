@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:yourvpn/modules/vpn/amnezia/awg_config.dart';
 import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:yourvpn/modules/vpn/repositories/endpoints_controller.dart';
 import 'package:yourvpn/modules/vpn/repositories/ingestion/endpoint_outbound.dart';
 import 'package:yourvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
 
@@ -213,6 +216,135 @@ void main() {
         0,
         reason: 'stdout: ${result.stdout}\nstderr: ${result.stderr}',
       );
+    });
+
+    test('stored WG/AWG endpoint builds endpoints[] entry (real check)', () {
+      const endpoint = WireGuardEndpoint(
+        tag: 'awg-manual',
+        privateKey: 'eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=',
+        addresses: <String>['10.7.0.2/32'],
+        mtu: 1408,
+        awg: AwgValues(
+          jc: 5,
+          jmin: 30,
+          jmax: 1000,
+          s1: 56,
+          s2: 152,
+          h1: '1234567',
+          h2: '2345678',
+          h3: '3456789',
+          h4: '4567890',
+          id: '12345678', // must NOT leak into engine JSON
+        ),
+        peers: <WireGuardPeer>[
+          WireGuardPeer(
+            publicKey: 'fz8KXfDEl+8/SgXJmjotjTxLWm5/gJGis8TV5vcIGSo=',
+            endpoint: '203.0.113.10:51820',
+            allowedIps: <String>['0.0.0.0/0', '::/0'],
+          ),
+        ],
+      );
+      final json = wireGuardEndpointToJson(endpoint);
+
+      expect(json['type'], 'awg');
+      expect(json.containsKey('id'), isFalse);
+      expect(
+        (json['peers'] as List<dynamic>).first,
+        containsPair('port', 51820),
+      );
+
+      if (!singBoxAvailable) {
+        return;
+      }
+      final file = File('${dir.path}/awg-endpoint.json');
+      file.writeAsStringSync(
+        jsonEncode(<String, dynamic>{
+          'log': <String, dynamic>{'level': 'info'},
+          'endpoints': <dynamic>[json],
+        }),
+      );
+      final result = Process.runSync(singBoxExe, <String>[
+        'check',
+        '-c',
+        file.path,
+      ]);
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+    });
+
+    test(
+      'plain WG (no awg values) compiles as wireguard type (real check)',
+      () {
+        const endpoint = WireGuardEndpoint(
+          tag: 'wg-plain',
+          privateKey: 'eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=',
+          addresses: <String>['10.7.0.2/32'],
+          peers: <WireGuardPeer>[
+            WireGuardPeer(
+              publicKey: 'fz8KXfDEl+8/SgXJmjotjTxLWm5/gJGis8TV5vcIGSo=',
+              endpoint: '203.0.113.10:51820',
+              allowedIps: <String>['0.0.0.0/0', '::/0'],
+            ),
+          ],
+        );
+        final json = wireGuardEndpointToJson(endpoint);
+
+        expect(json['type'], 'wireguard');
+        expect(json.containsKey('jc'), isFalse);
+
+        if (!singBoxAvailable) {
+          return;
+        }
+        final file = File('${dir.path}/wg-endpoint.json');
+        file.writeAsStringSync(
+          jsonEncode(<String, dynamic>{
+            'log': <String, dynamic>{'level': 'info'},
+            'endpoints': <dynamic>[json],
+          }),
+        );
+        final result = Process.runSync(singBoxExe, <String>[
+          'check',
+          '-c',
+          file.path,
+        ]);
+        expect(result.exitCode, 0, reason: result.stderr.toString());
+      },
+    );
+  });
+
+  group('EndpointsController.saveManual', () {
+    test('saves a manual AWG endpoint, replaces same-tag entries', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final container = ProviderContainer(
+        overrides: [
+          endpointStoreProvider.overrideWithValue(
+            EndpointStore(baseDir: dir.path),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(endpointsControllerProvider.notifier);
+
+      const endpoint = WireGuardEndpoint(
+        tag: 'awg-manual',
+        privateKey: 'eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=',
+        addresses: <String>['10.7.0.2/32'],
+        awg: AwgValues(jc: 5, h1: '1', h2: '2', h3: '3', h4: '4'),
+        peers: <WireGuardPeer>[
+          WireGuardPeer(
+            publicKey: 'k',
+            endpoint: '203.0.113.10:51820',
+            allowedIps: <String>['0.0.0.0/0', '::/0'],
+          ),
+        ],
+      );
+
+      await controller.saveManual(endpoint);
+      await controller.saveManual(endpoint); // same tag → replaced
+
+      final state = container.read(endpointsControllerProvider);
+      expect(state.endpoints, hasLength(1));
+      expect(state.endpoints.single.tag, 'awg-manual');
+      expect(state.endpoints.single.sourceUrl, 'manual');
     });
   });
 

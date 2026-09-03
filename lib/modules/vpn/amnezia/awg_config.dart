@@ -3,6 +3,8 @@ import 'dart:convert';
 import '../../../utils/amnezia_values.dart'
     show AwgValues, AwgPreset, AwgPresetValues;
 import '../../../utils/amnezia_values.dart' as awg_lib;
+import '../repositories/ingestion/normalized_endpoint.dart'
+    show WireGuardEndpoint;
 
 /// Public for tests and the advanced editor: build any [AwgValues] shape and
 /// let [AwgConfig.validate] report every violation at once.
@@ -170,6 +172,36 @@ class AwgConfig {
         : endpoint.substring(endpoint.lastIndexOf(':') + 1);
     return int.tryParse(suffix.replaceFirst(':', '')) ?? 0;
   }
+}
+
+/// Stored [WireGuardEndpoint] → sing-box `endpoints[]` entry. With Amnezia
+/// values the type is `awg`; without, plain `wireguard`. Multi-peer: every
+/// [WireGuardPeer] becomes a `peers[]` entry. Engine-JSON exclusions apply
+/// (Id/Ip/Ib never leave the model — see [AwgValues.toEngineJson]).
+Map<String, dynamic> wireGuardEndpointToJson(WireGuardEndpoint endpoint) {
+  final isAwg = endpoint.awg != null;
+  return <String, dynamic>{
+    'type': isAwg ? 'awg' : 'wireguard',
+    'tag': endpoint.tag,
+    'private_key': endpoint.privateKey,
+    'address': List<String>.from(endpoint.addresses),
+    if (endpoint.mtu != null) 'mtu': endpoint.mtu,
+    if (isAwg) ...endpoint.awg!.toEngineJson(),
+    'peers': <dynamic>[
+      for (final peer in endpoint.peers)
+        <String, dynamic>{
+          'address': AwgConfig.peerHost(peer.endpoint),
+          'port': AwgConfig.peerPort(peer.endpoint),
+          'public_key': peer.publicKey,
+          if (peer.presharedKey != null) 'preshared_key': peer.presharedKey,
+          'allowed_ips': peer.allowedIps.isEmpty
+              ? <String>['0.0.0.0/0', '::/0']
+              : List<String>.from(peer.allowedIps),
+          if (peer.persistentKeepalive != null)
+            'persistent_keepalive_interval': peer.persistentKeepalive,
+        },
+    ],
+  };
 }
 
 /// Preset entry points over [AwgValues].

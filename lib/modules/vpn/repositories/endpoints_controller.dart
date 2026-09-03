@@ -136,6 +136,23 @@ class EndpointsController extends Notifier<EndpointsState> {
     }
   }
 
+  /// Persists a manually-built endpoint (e.g. the AWG profile editor),
+  /// replacing any previous entry with the same tag.
+  Future<void> saveManual(NormalizedEndpoint endpoint) async {
+    final store = ref.read(endpointStoreProvider);
+    final existing = store.read();
+    final next = <String, StoredEndpoint>{for (final e in existing) e.tag: e}
+      ..remove(endpoint.tag);
+    next[endpoint.tag] = StoredEndpoint(
+      endpoint: endpoint,
+      label: endpoint.tag,
+      sourceUrl: 'manual',
+    );
+    final list = next.values.toList();
+    await store.save(list);
+    state = state.copyWith(endpoints: list, clearError: true);
+  }
+
   Future<void> delete(int index) async {
     final store = ref.read(endpointStoreProvider);
     final next = <StoredEndpoint>[...store.read()];
