@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'app/app.dart';
+import 'core/startup/app_startup.dart';
 import 'core/services/channel_adapters.dart';
 import 'core/services/desktop_platform_adapter.dart';
 import 'core/services/tunnel.dart';
@@ -29,12 +32,35 @@ void callbackDispatcher() {
   });
 }
 
-void main() {
+Future<void> main() async {
+  final Stopwatch total = Stopwatch()..start();
+  final PhaseTimer timer = PhaseTimer();
   WidgetsFlutterBinding.ensureInitialized();
-  _registerDailyUpdateCheck();
-  final PlatformAdapter platform = _platformAdapter();
-  final sharedLogBus = LogBus();
-  final BoxAdapter box = _boxAdapter(sharedLogBus);
+  final PlatformAdapter platform = await timer.timed(
+    'platformAdapter',
+    () async => _platformAdapter(),
+  );
+  final LogBus sharedLogBus = await timer.timed(
+    'logBus',
+    () async => LogBus(),
+  );
+  final BoxAdapter box = await timer.timed(
+    'boxAdapter',
+    () async => _boxAdapter(sharedLogBus),
+  );
+  total.stop();
+  latestStartupReport = timer.report(total.elapsed);
+  if (kDebugMode) {
+    final String phases = timer.phases.entries
+        .map((e) => '${e.key}=${e.value.inMilliseconds}ms')
+        .join(' ');
+    debugPrint('startup total=${total.elapsed.inMilliseconds}ms $phases');
+  }
+  // Deferred past first frame: Workmanager().initialize can block plugin
+  // init on the critical path. Manual check-now covers any missed window.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_registerDailyUpdateCheck());
+  });
   runApp(
     ProviderScope(
       overrides: [

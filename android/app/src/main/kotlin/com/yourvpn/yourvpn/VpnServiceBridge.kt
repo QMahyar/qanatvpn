@@ -7,10 +7,15 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.VpnService
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.Settings
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /// Handlers for the Dart `vpn_service` MethodChannel (safe defaults live on
 /// the Dart side in [MethodChannelPlatformAdapter]; this side implements the
@@ -73,7 +78,25 @@ object VpnServiceBridge {
                 }
                 "boxStop" -> BoxEngine.boxStop(activity.applicationContext, result)
                 "listInstalledApps" -> {
-                    result.success(listInstalledApps(activity))
+                    val cached = appsCache
+                    if (cached != null &&
+                        SystemClock.elapsedRealtime() - appsCacheAt < APPS_CACHE_TTL_MS
+                    ) {
+                        result.success(cached)
+                    } else {
+                        appsExecutor.execute {
+                            try {
+                                val apps = queryInstalledApps(activity)
+                                appsCache = apps
+                                appsCacheAt = SystemClock.elapsedRealtime()
+                                mainHandler.post { result.success(apps) }
+                            } catch (e: Exception) {
+                                mainHandler.post {
+                                    result.error("apps_failed", e.message, null)
+                                }
+                            }
+                        }
+                    }
                 }
                 "installUpdate" -> {
                     val url = call.argument<String>("url")
@@ -115,6 +138,17 @@ object VpnServiceBridge {
 
     private var pendingVpnResult: MethodChannel.Result? = null
 
+    private val appsExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    @Volatile
+    private var appsCache: List<Map<String, String>>? = null
+
+    @Volatile
+    private var appsCacheAt: Long = 0L
+
+    private const val APPS_CACHE_TTL_MS = 60_000L
+
     private fun isVpnPrepared(context: Context): Boolean =
         VpnService.prepare(context) == null
 
@@ -129,9 +163,9 @@ object VpnServiceBridge {
     /// User-installed launchable apps for the wizard's per-app picker.
     /// System packages and this app are excluded — splitting yourself
     /// through the tunnel is always a footgun.
-    private fun listInstalledApps(activity: Activity): List<Map<String, String>> {
+    private fun queryInstalledApps(activity: Activity): List<Map<String, String>> {
         val packages = activity.packageManager
-            .getInstalledPackages(PackageManager.GET_META_DATA)
+            .getInstalledPackages(PackageManager.GET_ACTIVITIES)
         return packages.mapNotNull { info ->
             val name = info.packageName ?: return@mapNotNull null
             if (info.applicationInfo == null) return@mapNotNull null

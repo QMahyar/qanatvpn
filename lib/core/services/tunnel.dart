@@ -482,6 +482,13 @@ class Tunnel {
 class MethodChannelPlatformAdapter implements PlatformAdapter {
   static const _channel = MethodChannel('vpn_service');
 
+  List<InstalledApp>? _appsCache;
+
+  /// Clears the memoized [listInstalledApps] result (wizard refresh, tests).
+  void invalidateAppsCache() {
+    _appsCache = null;
+  }
+
   @override
   Future<bool> isVpnPermissionGranted() => _channel
       .invokeMethod<bool>('isVpnPermissionGranted')
@@ -534,6 +541,10 @@ class MethodChannelPlatformAdapter implements PlatformAdapter {
 
   @override
   Future<List<InstalledApp>> listInstalledApps() async {
+    final cached = _appsCache;
+    if (cached != null) {
+      return cached;
+    }
     try {
       final raw = await _channel.invokeListMethod<Map<Object?, Object?>>(
         'listInstalledApps',
@@ -541,13 +552,15 @@ class MethodChannelPlatformAdapter implements PlatformAdapter {
       if (raw == null) {
         return const <InstalledApp>[];
       }
-      return <InstalledApp>[
+      final apps = <InstalledApp>[
         for (final item in raw)
           InstalledApp(
             packageName: item['packageName'] as String? ?? '',
             label: item['label'] as String? ?? '',
           ),
       ].where((app) => app.packageName.isNotEmpty).toList();
+      _appsCache = apps;
+      return apps;
     } on Object {
       return const <InstalledApp>[];
     }

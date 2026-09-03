@@ -276,7 +276,15 @@ class _SplitStepState extends ConsumerState<_SplitStep> {
 
   Future<void> _loadApps() async {
     final platform = widget.ref.read(platformAdapterProvider);
-    final installed = await platform.listInstalledApps();
+    // A hung PackageManager must never strand the wizard on the spinner:
+    // fall through to the existing empty-state path ("No user apps found"
+    // + Finish stays enabled).
+    final installed = await platform
+        .listInstalledApps()
+        .timeout(
+          const Duration(milliseconds: 1500),
+          onTimeout: () => const <InstalledApp>[],
+        );
     if (!mounted) {
       return;
     }
