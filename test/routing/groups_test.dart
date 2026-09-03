@@ -5,6 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yourvpn/modules/routing/groups_controller.dart';
 import 'package:yourvpn/modules/routing/policy_store.dart';
 import 'package:yourvpn/modules/routing/routing_policy.dart';
+import 'package:yourvpn/modules/vpn/repositories/endpoints_controller.dart'
+    show endpointStoreProvider;
+import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:yourvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
 import 'package:yourvpn/modules/vpn/repositories/profile_config_source.dart';
 
 void main() {
@@ -137,16 +141,51 @@ void main() {
 
   group('GroupsController', () {
     late ProviderContainer container;
+    late EndpointStore endpointStore;
 
     setUp(() {
+      endpointStore = EndpointStore(baseDir: dir.path);
       container = ProviderContainer(
         overrides: [
           policyStoreProvider.overrideWithValue(PolicyStore(baseDir: dir.path)),
+          endpointStoreProvider.overrideWithValue(endpointStore),
         ],
       );
     });
 
     tearDown(() => container.dispose());
+
+    test('endpoint tags are selectable leaves; DIRECT always valid', () async {
+      await endpointStore.save(<StoredEndpoint>[
+        const StoredEndpoint(
+          endpoint: TrojanEndpoint(
+            tag: 'trojan-1',
+            address: 'a',
+            port: 443,
+            password: 'p',
+          ),
+          label: 'trojan-1',
+        ),
+      ]);
+      final controller = container.read(groupsControllerProvider.notifier);
+
+      await controller.addGroup(
+        const OutboundGroup.urlTest(tag: 'auto', members: <String>['trojan-1']),
+      );
+
+      expect(
+        container.read(groupsControllerProvider).isValid,
+        isTrue,
+        reason: container
+            .read(groupsControllerProvider)
+            .validationErrors
+            .join(),
+      );
+      expect(
+        container.read(groupsControllerProvider).leafOutbounds,
+        contains('trojan-1'),
+      );
+    });
 
     test('addGroup persists and validates; bad member surfaces', () async {
       final controller = container.read(groupsControllerProvider.notifier);

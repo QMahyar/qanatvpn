@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../vpn/repositories/endpoints_controller.dart'
+    show endpointStoreProvider;
 import 'policy_store.dart';
 import 'routing_policy.dart';
 import 'routing_compiler.dart';
@@ -31,16 +33,38 @@ class GroupsState {
 
 /// CRUD over the stored groups; every mutation validates through the real
 /// compiler so the screen shows the same errors the engine would FATAL on.
+/// Leaf tags come from the endpoint store — imported endpoints are instantly
+/// selectable as group members.
 class GroupsController extends Notifier<GroupsState> {
   @override
   GroupsState build() {
     final doc = ref.watch(policyStoreProvider).read();
-    return _validated(doc.groups, doc.leafOutbounds);
+    final leaves = _leafTags();
+    final groups = doc.groups;
+    return _validated(groups, leaves);
+  }
+
+  /// Endpoint tags are the live leaf universe; stored doc leaves kept for
+  /// backward compatibility but endpoints always win.
+  List<String> _leafTags() {
+    final endpointTags = ref
+        .watch(endpointStoreProvider)
+        .read()
+        .map((e) => e.tag)
+        .toList();
+    if (endpointTags.isNotEmpty) {
+      return endpointTags;
+    }
+    return ref.read(policyStoreProvider).read().leafOutbounds;
   }
 
   GroupsState _validated(List<OutboundGroup> groups, List<String> leaves) {
     final compiled = const RoutingCompiler().compile(
-      RoutingPolicy(rules: const <RouteRule>[], groups: groups),
+      RoutingPolicy(
+        rules: const <RouteRule>[],
+        groups: groups,
+        leafOutbounds: leaves,
+      ),
     );
     return GroupsState(
       groups: groups,
@@ -51,7 +75,7 @@ class GroupsController extends Notifier<GroupsState> {
 
   Future<void> _persist(List<OutboundGroup> groups) async {
     final store = ref.read(policyStoreProvider);
-    final leaves = state.leafOutbounds;
+    final leaves = _leafTags();
     await store.save(PolicyDocument(groups: groups, leafOutbounds: leaves));
     state = _validated(groups, leaves);
   }

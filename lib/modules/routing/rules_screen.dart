@@ -109,6 +109,8 @@ class RulesScreen extends ConsumerWidget {
       if (rule.domains?.isNotEmpty ?? false) 'domain(${rule.domains!.length})',
       if (rule.domainSuffixes?.isNotEmpty ?? false)
         'suffix(${rule.domainSuffixes!.join(', ')})',
+      if (rule.domainKeywords?.isNotEmpty ?? false)
+        'kw(${rule.domainKeywords!.length})',
       if (rule.ipCidrs?.isNotEmpty ?? false) 'ip(${rule.ipCidrs!.length})',
       if (rule.ports?.isNotEmpty ?? false) 'port(${rule.ports!.join(',')})',
       if (rule.portRanges?.isNotEmpty ?? false)
@@ -159,29 +161,43 @@ class _RuleFormSheet extends StatefulWidget {
 
 class _RuleFormSheetState extends State<_RuleFormSheet> {
   String? _outbound;
+  String? _clashMode;
   bool _invert = false;
   final TextEditingController _suffixes = TextEditingController();
+  final TextEditingController _domains = TextEditingController();
+  final TextEditingController _keywords = TextEditingController();
   final TextEditingController _ips = TextEditingController();
   final TextEditingController _ports = TextEditingController();
+  final TextEditingController _portRanges = TextEditingController();
   final TextEditingController _processes = TextEditingController();
+  final TextEditingController _ruleSets = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _outbound = widget.existing?.outbound ?? 'PROXY';
     _invert = widget.existing?.invert ?? false;
+    _clashMode = widget.existing?.clashMode;
     _suffixes.text = widget.existing?.domainSuffixes?.join(', ') ?? '';
+    _domains.text = widget.existing?.domains?.join(', ') ?? '';
+    _keywords.text = widget.existing?.domainKeywords?.join(', ') ?? '';
     _ips.text = widget.existing?.ipCidrs?.join(', ') ?? '';
     _ports.text = widget.existing?.ports?.join(', ') ?? '';
+    _portRanges.text = widget.existing?.portRanges?.join(', ') ?? '';
     _processes.text = widget.existing?.processNames?.join(', ') ?? '';
+    _ruleSets.text = widget.existing?.ruleSets?.join(', ') ?? '';
   }
 
   @override
   void dispose() {
     _suffixes.dispose();
+    _domains.dispose();
+    _keywords.dispose();
     _ips.dispose();
     _ports.dispose();
+    _portRanges.dispose();
     _processes.dispose();
+    _ruleSets.dispose();
     super.dispose();
   }
 
@@ -230,6 +246,16 @@ class _RuleFormSheetState extends State<_RuleFormSheet> {
               hint: 'cn, ru, local',
             ),
             _field(
+              controller: _domains,
+              label: 'Full domains (comma separated)',
+              hint: 'example.com, api.vendor.io',
+            ),
+            _field(
+              controller: _keywords,
+              label: 'Domain keywords (comma separated)',
+              hint: 'google, github',
+            ),
+            _field(
               controller: _ips,
               label: 'IP CIDRs (comma separated)',
               hint: '10.0.0.0/8, 192.168.0.0/16',
@@ -240,9 +266,38 @@ class _RuleFormSheetState extends State<_RuleFormSheet> {
               hint: '443, 80',
             ),
             _field(
+              controller: _portRanges,
+              label: 'Port ranges (min:max, comma separated)',
+              hint: '1000:2000, 50000:60000',
+            ),
+            _field(
               controller: _processes,
               label: 'Process names (comma separated)',
               hint: 'steam.exe, torrent.exe',
+            ),
+            _field(
+              controller: _ruleSets,
+              label: 'Rule sets (comma separated)',
+              hint: 'geosite-cn, geoip-cn',
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: _clashMode,
+              decoration: const InputDecoration(
+                labelText: 'Clash mode (optional)',
+                border: OutlineInputBorder(),
+              ),
+              items: const <DropdownMenuItem<String>>[
+                DropdownMenuItem<String>(value: null, child: Text('Any')),
+                DropdownMenuItem<String>(
+                  value: 'Direct',
+                  child: Text('Direct'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'Global',
+                  child: Text('Global'),
+                ),
+              ],
+              onChanged: (String? value) => setState(() => _clashMode = value),
             ),
             SwitchListTile(
               title: const Text('Invert match'),
@@ -265,21 +320,39 @@ class _RuleFormSheetState extends State<_RuleFormSheet> {
                         .map((s) => s.trim())
                         .where((s) => s.isNotEmpty)
                         .toList();
+                    final domains = split(_domains);
+                    final suffixes = split(_suffixes);
+                    final keywords = split(_keywords);
+                    final ips = split(_ips);
+                    final ports = split(_ports);
+                    final portRanges = split(_portRanges);
+                    final processes = split(_processes);
+                    final ruleSets = split(_ruleSets);
                     final hasConditions =
-                        split(_suffixes).isNotEmpty ||
-                        split(_ips).isNotEmpty ||
-                        split(_ports).isNotEmpty ||
-                        split(_processes).isNotEmpty;
+                        domains.isNotEmpty ||
+                        suffixes.isNotEmpty ||
+                        keywords.isNotEmpty ||
+                        ips.isNotEmpty ||
+                        ports.isNotEmpty ||
+                        portRanges.isNotEmpty ||
+                        processes.isNotEmpty ||
+                        ruleSets.isNotEmpty ||
+                        _clashMode != null;
                     if (!hasConditions) {
                       return;
                     }
                     Navigator.of(context).pop(
                       RouteRule(
                         outbound: _outbound,
-                        domainSuffixes: split(_suffixes),
-                        ipCidrs: split(_ips),
-                        ports: split(_ports),
-                        processNames: split(_processes),
+                        domains: domains,
+                        domainSuffixes: suffixes,
+                        domainKeywords: keywords,
+                        ipCidrs: ips,
+                        ports: ports,
+                        portRanges: portRanges,
+                        processNames: processes,
+                        ruleSets: ruleSets,
+                        clashMode: _clashMode,
                         invert: _invert,
                       ),
                     );
