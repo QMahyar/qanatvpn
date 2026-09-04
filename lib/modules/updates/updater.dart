@@ -39,7 +39,7 @@ int _semverKey(String version) {
 /// Fetches the latest GitHub release, filters assets per platform, and maps
 /// the `latest.json` platform schema (flutter_server_box / RecomBox style).
 class UpdateFetcher {
-  UpdateFetcher({required Fetch fetchImpl, this.repository = 'yourvpn/yourvpn'})
+  UpdateFetcher({required Fetch fetchImpl, this.repository = 'QMahyar/yourvpn'})
     : _fetch = fetchImpl;
 
   final Fetch _fetch;
@@ -147,7 +147,7 @@ class UpdateSource {
   /// Production default for [mirrorUrl]: the gh-pages mirror written by the
   /// release pipeline (single producer). Tests pass their own or none.
   static const String defaultMirrorUrl =
-      'https://yourvpn.github.io/yourvpn/latest.json';
+      'https://qmahyar.github.io/yourvpn/latest.json';
 
   final Fetch fetchImpl;
 

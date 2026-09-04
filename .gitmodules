@@ -1,0 +1,4 @@
+[submodule "go/amnezia-box"]
+	path = go/amnezia-box
+	url = https://github.com/hoaxisr/amnezia-box
+	branch = 1.14.0-rc.1-awgm.15

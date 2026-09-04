@@ -158,7 +158,7 @@ void main() {
     test('defaultMirrorUrl is the gh-pages mirror constant', () {
       expect(
         UpdateSource.defaultMirrorUrl,
-        'https://yourvpn.github.io/yourvpn/latest.json',
+        'https://qmahyar.github.io/yourvpn/latest.json',
       );
     });
 
