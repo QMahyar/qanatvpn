@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/backup/backup_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../vpn/amnezia/awg_profile_screen.dart';
 import 'endpoints_controller.dart';
@@ -32,7 +36,26 @@ class EndpointsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(l10n.endpointsTitle, style: theme.textTheme.headlineSmall),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    l10n.endpointsTitle,
+                    style: theme.textTheme.headlineSmall,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Export encrypted backup',
+                  onPressed: () => _exportBackup(context),
+                  icon: const Icon(Icons.backup_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Import encrypted backup',
+                  onPressed: () => _importBackup(context, ref),
+                  icon: const Icon(Icons.restore_outlined),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             const _ImportBox(),
             if (state.error != null)
@@ -124,6 +147,103 @@ class EndpointsScreen extends ConsumerWidget {
     Hysteria2Endpoint() || TuicEndpoint() => Icons.bolt,
     SshEndpoint() => Icons.terminal,
   };
+
+  Future<void> _exportBackup(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final password = await _promptPassword(context, 'Export backup');
+    if (password == null || password.isEmpty || !context.mounted) {
+      return;
+    }
+    try {
+      // Encrypt before the dialog: the picker writes the bytes itself.
+      final bytes = await BackupService().exportBytes(password);
+      final target = await FilePicker.saveFile(
+        dialogTitle: 'Export encrypted backup',
+        fileName: 'yourvpn-backup.qnv',
+        bytes: Uint8List.fromList(bytes),
+        type: FileType.custom,
+        allowedExtensions: const <String>['qnv'],
+      );
+      if (target != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Backup written (${bytes.length} bytes)')),
+        );
+      }
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $error')));
+    }
+  }
+
+  Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final picked = await FilePicker.pickFiles(
+      dialogTitle: 'Import encrypted backup',
+      type: FileType.custom,
+      allowedExtensions: const <String>['qnv'],
+    );
+    if (picked.isEmpty) {
+      return;
+    }
+    final path = picked.single.path;
+    if (path == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Picked file has no readable path')),
+      );
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    final password = await _promptPassword(context, 'Import backup');
+    if (password == null || password.isEmpty) {
+      return;
+    }
+    try {
+      final summary = await BackupService().import(path, password);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Restored ${summary.endpoints} endpoints, '
+            '${summary.groups} groups, ${summary.rules} rules',
+          ),
+        ),
+      );
+      // Import wrote the store directly; invalidate so controllers rebuild
+      // from disk on next watch.
+      ref.invalidate(endpointsControllerProvider);
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Import failed: $error')));
+    }
+  }
+
+  Future<String?> _promptPassword(BuildContext context, String title) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ImportBox extends ConsumerStatefulWidget {
