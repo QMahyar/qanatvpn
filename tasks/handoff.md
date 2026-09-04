@@ -28,11 +28,11 @@
 
 ## Next (value order)
 
-1. **Push/CI** (still first): `git remote add origin <url>` → push → tag `v0.1.0` → verify 3-job release + latest.json.
-2. **On-device proof**: install → wizard → connect → leak tests (`scripts/leak_test.sh`).
-3. **v1.0 gate leftovers (Dim 11)**: `scripts/compare_capabilities.py` matrix (highest ROI, ~1h), Sentry, AND/OR group editor UI.
-4. **Quick engine-parity follow-up**: urltest `idle_timeout`/`interrupt_exist_connections` in model + both emitters.
-5. **Docs debt**: none — `decisions.tsv` (81 rows), `todo.md` staleness note, progress + handoff all current.
+1. ~~Push/CI~~ **DONE 2026-09-04**: repo live at `github.com/QMahyar/yourvpn` (public, AGPL). Tag `v0.1.0` pushed; CI fixes landed (`555c223` secrets-in-if parse error, `.gitmodules` was missing while CI runs `submodules: recursive`, Pages enabled via API). Verify latest.json + APKs attached to the release, then site mirror at `https://qmahyar.github.io/yourvpn/`.
+2. **Signing**: release currently debug-signs — set the 4 GitHub secrets (`KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) before any Play/manual distribution; Gradle already reads `key.properties` when present.
+3. **On-device proof**: install → wizard → connect → leak tests (`scripts/leak_test.sh`).
+4. **v1.0 gate leftovers (Dim 11)**: `scripts/compare_capabilities.py` matrix (highest ROI, ~1h), Sentry, AND/OR group editor UI.
+5. **Quick engine-parity follow-up**: urltest `idle_timeout`/`interrupt_exist_connections` in model + both emitters.
 
 ## Verify (30 sec)
 
@@ -40,5 +40,6 @@
 & C:\tools\flutter\bin\flutter.bat test --no-pub        # 302 pass
 & C:\tools\flutter\bin\flutter.bat analyze              # No issues
 windows\sing-box.exe check -c profiles/config.wg-awg.json  # exit 0
-git log --oneline -6                                    # cf4201b .. 790301d
+git remote -v                                           # origin -> QMahyar/yourvpn
+gh release view v0.1.0 --repo QMahyar/yourvpn           # APKs + windows zip + latest.json
 ```
