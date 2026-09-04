@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../core/network/http_cache.dart';
+import '../../core/persistence/atomic_write.dart';
 
 /// Deep module owning the SRS rule-set pipeline.
 ///
@@ -60,7 +61,7 @@ class GeoAsset {
       Uri.parse(spec.url),
       () => const <String, String>{},
     );
-    await cached.writeAsBytes(bytes);
+    await atomicWriteBytes(cached, bytes);
     return cached.path;
   }
 
@@ -119,8 +120,10 @@ class GeoAsset {
           Uri.parse(spec.url),
           () => const <String, String>{},
         );
-        await cacheDir.create(recursive: true);
-        await File('${cacheDir.path}/${spec.initialFile}').writeAsBytes(bytes);
+        await atomicWriteBytes(
+          File('${cacheDir.path}/${spec.initialFile}'),
+          bytes,
+        );
       } on RateLimitException {
         rethrow;
       } on Object {

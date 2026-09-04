@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../persistence/atomic_write.dart';
+
 /// Rate-limit / ETag aware HTTP cache for asset downloads.
 ///
 /// Wraps a fetch function with: `If-None-Match` revalidation, GitHub `403` +
@@ -122,15 +124,15 @@ class HttpCache {
     if (dir == null) {
       return;
     }
-    await dir.create(recursive: true);
     final key = _key(url);
-    await File('${dir.path}/$key.meta.json').writeAsString(
+    await atomicWriteString(
+      File('${dir.path}/$key.meta.json'),
       jsonEncode(<String, dynamic>{
         'etag': entry.etag,
         'fetchedAt': entry.fetchedAt.toIso8601String(),
       }),
     );
-    await File('${dir.path}/$key.body').writeAsBytes(entry.body);
+    await atomicWriteBytes(File('${dir.path}/$key.body'), entry.body);
   }
 
   String _key(Uri url) =>

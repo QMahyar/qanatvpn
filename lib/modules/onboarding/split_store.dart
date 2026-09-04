@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../core/persistence/atomic_write.dart';
+
 /// The user's per-app split decision from the wizard step 3.
 class SplitChoice {
   const SplitChoice({required this.allowMode, required this.packages});
@@ -42,9 +44,7 @@ class SplitStore {
   final String? baseDir;
 
   Future<void> save(SplitChoice choice) async {
-    final file = _file();
-    await file.parent.create(recursive: true);
-    await file.writeAsString(jsonEncode(choice.toJson()));
+    await atomicWriteString(_file(), jsonEncode(choice.toJson()));
   }
 
   SplitChoice? read() => SplitChoice.fromJson(_readRaw());

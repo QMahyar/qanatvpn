@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/persistence/debounced_saver.dart';
 import '../vpn/repositories/endpoints_controller.dart'
     show endpointStoreProvider;
 import 'policy_store.dart';
@@ -36,13 +38,20 @@ class GroupsState {
 /// Leaf tags come from the endpoint store — imported endpoints are instantly
 /// selectable as group members.
 class GroupsController extends Notifier<GroupsState> {
+  final DebouncedSaver _saver = DebouncedSaver();
+
   @override
   GroupsState build() {
+    ref.onDispose(_saver.dispose);
     final doc = ref.watch(policyStoreProvider).read();
     final leaves = _leafTags();
     final groups = doc.groups;
     return _validated(groups, leaves);
   }
+
+  /// Tests: run the debounced disk write now instead of after the delay.
+  @visibleForTesting
+  Future<void> flushPending() => _saver.flush();
 
   /// Endpoint tags are the live leaf universe; stored doc leaves kept for
   /// backward compatibility but endpoints always win.
@@ -76,8 +85,9 @@ class GroupsController extends Notifier<GroupsState> {
   Future<void> _persist(List<OutboundGroup> groups) async {
     final store = ref.read(policyStoreProvider);
     final leaves = _leafTags();
-    await store.save(PolicyDocument(groups: groups, leafOutbounds: leaves));
     state = _validated(groups, leaves);
+    final doc = PolicyDocument(groups: groups, leafOutbounds: leaves);
+    _saver.schedule(() => store.save(doc));
   }
 
   Future<void> addGroup(OutboundGroup group) async {

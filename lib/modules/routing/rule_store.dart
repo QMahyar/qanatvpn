@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../core/persistence/atomic_write.dart';
 import 'routing_compiler.dart';
 import 'routing_policy.dart';
 
@@ -13,9 +14,7 @@ class RuleStore {
   final String? baseDir;
 
   Future<void> save(RuleDocument doc) async {
-    final file = _file();
-    await file.parent.create(recursive: true);
-    await file.writeAsString(jsonEncode(doc.toJson()));
+    await atomicWriteString(_file(), jsonEncode(doc.toJson()));
   }
 
   RuleDocument read() {

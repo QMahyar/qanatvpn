@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/persistence/debounced_saver.dart';
 import 'routing_compiler.dart';
 import 'rule_store.dart';
 import 'routing_policy.dart';
@@ -21,11 +23,18 @@ class RulesState {
 /// CRUD over the stored rules; every mutation validates through the real
 /// compiler so the screen shows exactly what the engine would reject.
 class RulesController extends Notifier<RulesState> {
+  final DebouncedSaver _saver = DebouncedSaver();
+
   @override
   RulesState build() {
+    ref.onDispose(_saver.dispose);
     final doc = ref.watch(ruleStoreProvider).read();
     return _validated(doc.rules);
   }
+
+  /// Tests: run the debounced disk write now instead of after the delay.
+  @visibleForTesting
+  Future<void> flushPending() => _saver.flush();
 
   RulesState _validated(List<RouteRule> rules) {
     final compiled = const RoutingCompiler().compile(
@@ -38,9 +47,12 @@ class RulesController extends Notifier<RulesState> {
   }
 
   Future<void> _persist(List<RouteRule> rules) async {
-    final store = ref.read(ruleStoreProvider);
-    await store.save(RuleDocument(rules: rules));
+    // UI updates now; only the disk write debounces. The closure captures
+    // the full next list (not a delta) so coalesced writes never lose edits.
     state = _validated(rules);
+    final store = ref.read(ruleStoreProvider);
+    final doc = RuleDocument(rules: rules);
+    _saver.schedule(() => store.save(doc));
   }
 
   Future<void> addRule(RouteRule rule) async {

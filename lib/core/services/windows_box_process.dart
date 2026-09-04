@@ -92,9 +92,8 @@ class WindowsBoxProcessAdapter implements BoxAdapter {
     });
 
     void feed(String line) {
-      if (line.length > 4096) {
-        line = line.substring(0, 4096);
-      }
+      // Length caps + repeat collapsing live in LogBus now (shared with
+      // the Android box_events path); keep only last-error tracking here.
       _logBus.add(EngineLogLine.parse(line));
       if (line.contains('FATAL') || line.contains('ERROR')) {
         _lastErrorLine = line;

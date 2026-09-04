@@ -1,8 +1,10 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/plain_fetch.dart';
+import '../../../core/persistence/debounced_saver.dart';
 import 'endpoint_store.dart';
 import 'ingestion/ingestion_adapter.dart';
 
@@ -57,10 +59,17 @@ class EndpointsState {
 /// normalize → persist. Deletions persist immediately. Tags from here feed
 /// the groups editor's member universe via PolicyDocument.
 class EndpointsController extends Notifier<EndpointsState> {
+  final DebouncedSaver _saver = DebouncedSaver();
+
   @override
   EndpointsState build() {
+    ref.onDispose(_saver.dispose);
     return EndpointsState(endpoints: ref.watch(endpointStoreProvider).read());
   }
+
+  /// Tests: run the debounced disk write now instead of after the delay.
+  @visibleForTesting
+  Future<void> flushPending() => _saver.flush();
 
   /// Ingests raw text pasted by the user. URL-looking text is fetched
   /// (plain fetch, no cache dependency); anything else parses directly.
@@ -142,8 +151,8 @@ class EndpointsController extends Notifier<EndpointsState> {
               .values
               .toList();
 
-      await store.save(next);
       state = state.copyWith(endpoints: next, importing: false);
+      _saver.schedule(() => store.save(next));
     } on Object catch (error) {
       state = state.copyWith(error: error.toString(), importing: false);
     }
@@ -162,8 +171,8 @@ class EndpointsController extends Notifier<EndpointsState> {
       sourceUrl: 'manual',
     );
     final list = next.values.toList();
-    await store.save(list);
     state = state.copyWith(endpoints: list, clearError: true);
+    _saver.schedule(() => store.save(list));
   }
 
   Future<void> delete(int index) async {
@@ -173,8 +182,8 @@ class EndpointsController extends Notifier<EndpointsState> {
       return;
     }
     next.removeAt(index);
-    await store.save(next);
     state = state.copyWith(endpoints: next);
+    _saver.schedule(() => store.save(next));
   }
 }
 

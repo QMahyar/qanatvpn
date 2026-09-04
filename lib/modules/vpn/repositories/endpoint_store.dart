@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../core/persistence/atomic_write.dart';
 import 'ingestion/endpoint_outbound.dart';
 import 'ingestion/normalized_endpoint.dart';
 
@@ -15,9 +16,8 @@ class EndpointStore {
   final String? baseDir;
 
   Future<void> save(List<StoredEndpoint> endpoints) async {
-    final file = _file();
-    await file.parent.create(recursive: true);
-    await file.writeAsString(
+    await atomicWriteString(
+      _file(),
       jsonEncode(<String, dynamic>{
         'endpoints': <Map<String, dynamic>>[
           for (final e in endpoints) e.toJson(),

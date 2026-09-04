@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../core/persistence/atomic_write.dart';
 import 'routing_policy.dart';
 
 /// File-backed outbound-group policy persistence.
@@ -10,9 +11,7 @@ class PolicyStore {
   final String? baseDir;
 
   Future<void> save(PolicyDocument doc) async {
-    final file = _file();
-    await file.parent.create(recursive: true);
-    await file.writeAsString(doc.toJsonString());
+    await atomicWriteString(_file(), doc.toJsonString());
   }
 
   PolicyDocument read() {

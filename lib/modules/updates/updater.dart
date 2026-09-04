@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../core/network/http_cache.dart';
 import '../../core/network/plain_fetch.dart';
+import '../../core/persistence/atomic_write.dart';
 
 export '../../core/network/plain_fetch.dart' show plainFetch;
 
@@ -224,9 +225,8 @@ class UpdateStore {
   final String? baseDir;
 
   Future<void> save(UpdateInfo info, String localVersion) async {
-    final file = _file();
-    await file.parent.create(recursive: true);
-    await file.writeAsString(
+    await atomicWriteString(
+      _file(),
       jsonEncode(<String, dynamic>{
         'version': info.version,
         'changelog': info.changelog,

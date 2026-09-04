@@ -193,6 +193,7 @@ void main() {
       await controller.addGroup(
         const OutboundGroup.urlTest(tag: 'auto', members: <String>['DIRECT']),
       );
+      await controller.flushPending();
       expect(container.read(groupsControllerProvider).groups, hasLength(1));
       expect(
         container.read(groupsControllerProvider).isValid,
@@ -206,6 +207,7 @@ void main() {
       await controller.addGroup(
         const OutboundGroup.selector(tag: 'broken', members: <String>['ghost']),
       );
+      await controller.flushPending();
       final state = container.read(groupsControllerProvider);
       expect(state.groups, hasLength(2));
       expect(state.isValid, isFalse);
@@ -223,8 +225,10 @@ void main() {
       await controller.addGroup(
         const OutboundGroup.selector(tag: 'b', members: <String>['DIRECT']),
       );
+      await controller.flushPending();
 
       await controller.deleteGroup(0);
+      await controller.flushPending();
 
       final state = container.read(groupsControllerProvider);
       expect(state.groups.single.tag, 'b');

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../../../core/services/tunnel.dart';
@@ -49,14 +50,65 @@ class ProfileConfigSource implements ConfigSource {
 
   Map<String, dynamic>? _cache;
 
+  /// Single in-flight base-profile load: rapid concurrent connects share one
+  /// `rootBundle.loadString` instead of each paying asset IO.
+  Future<Map<String, dynamic>>? _loading;
+
+  /// Test seam: when set, `_load` returns this instead of the asset bundle.
+  @visibleForTesting
+  Future<Map<String, dynamic>> Function()? loadForTest;
+
+  /// Fingerprinted merge cache: tag → last inputs + assembled config.
+  /// Reconnects with unchanged stores skip 2 compiler passes + list copies.
+  final Map<String, _CachedResolve> _resolved = <String, _CachedResolve>{};
+
+  int _cacheHits = 0;
+  int _cacheMisses = 0;
+
+  /// `hits/misses` since construction (or last [resetCacheStats]).
+  String cacheStats() => 'hits=$_cacheHits misses=$_cacheMisses';
+
+  @visibleForTesting
+  void resetCacheStats() {
+    _cacheHits = 0;
+    _cacheMisses = 0;
+    _resolved.clear();
+  }
+
   @override
   Future<TypedConfig> resolve(String tag) async {
-    Map<String, dynamic> json = _cache ??= await _load();
-
     final stored = endpointStore?.read() ?? const <StoredEndpoint>[];
     final doc = policyStore?.read();
     final groups = doc?.groups ?? const <OutboundGroup>[];
-    final userRules = ruleStore?.read().rules ?? const <RouteRule>[];
+    final ruleDoc = ruleStore?.read();
+    final userRules = ruleDoc?.rules ?? const <RouteRule>[];
+    final split = splitStore?.read();
+
+    final fingerprint = _fingerprint(
+      stored,
+      doc,
+      ruleDoc,
+      split?.allowMode,
+      split?.packages,
+    );
+    final hit = _resolved[tag];
+    if (hit != null && hit.fingerprint == fingerprint) {
+      _cacheHits++;
+      return TypedConfig(
+        tag: tag,
+        json: _deepCopy(hit.json),
+        requiresTor: tag.startsWith('TOR-'),
+        includePackages: split != null && split.allowMode
+            ? split.packages.toList()
+            : const <String>[],
+        excludePackages: split != null && !split.allowMode
+            ? split.packages.toList()
+            : const <String>[],
+      );
+    }
+    _cacheMisses++;
+
+    Map<String, dynamic> json = await _sharedLoad();
 
     if (groups.isNotEmpty || stored.isNotEmpty) {
       // Merges change the config shape — never mutate the cached base.
@@ -71,7 +123,7 @@ class ProfileConfigSource implements ConfigSource {
       json = _withRules(json, userRules);
     }
 
-    final split = splitStore?.read();
+    _resolved[tag] = _CachedResolve(fingerprint, _deepCopy(json));
     final include = split != null && split.allowMode
         ? split.packages.toList()
         : const <String>[];
@@ -86,6 +138,40 @@ class ProfileConfigSource implements ConfigSource {
       excludePackages: exclude,
     );
   }
+
+  Future<Map<String, dynamic>> _sharedLoad() {
+    final base = _cache;
+    if (base != null) {
+      return Future.value(base);
+    }
+    _loading ??= _load().then((loaded) {
+      _cache = loaded;
+      return loaded;
+    }).whenComplete(() => _loading = null);
+    return _loading!;
+  }
+
+  /// Cheap structural fingerprint: JSON shapes + lengths. No crypto dep;
+  /// collisions only risk a stale config, and every source string is
+  /// included verbatim so a collision needs identical content anyway.
+  String _fingerprint(
+    List<StoredEndpoint> stored,
+    PolicyDocument? policy,
+    RuleDocument? rules,
+    bool? allowMode,
+    Set<String>? packages,
+  ) {
+    final endpoints = json.encode(<dynamic>[
+      for (final item in stored) item.toJson(),
+    ]);
+    final groups = policy?.toJsonString() ?? '';
+    final ruleJson = rules == null ? '' : json.encode(rules.toJson());
+    final split = '${allowMode ?? '-'}=${(packages ?? const <String>{}).join(',')}';
+    return '${endpoints.length}:$endpoints|$groups|$ruleJson|$split';
+  }
+
+  static Map<String, dynamic> _deepCopy(Map<String, dynamic> src) =>
+      json.decode(json.encode(src)) as Map<String, dynamic>;
 
   /// Inserts stored endpoint outbounds + group outbounds ahead of the
   /// envelope selector and prepends their tags to the selector's member
@@ -237,6 +323,10 @@ class ProfileConfigSource implements ConfigSource {
   }
 
   Future<Map<String, dynamic>> _load() async {
+    final hook = loadForTest;
+    if (hook != null) {
+      return hook();
+    }
     final String raw = await rootBundle.loadString(assetPath);
     final dynamic decoded = json.decode(raw);
     if (decoded is! Map<String, dynamic>) {
@@ -244,4 +334,12 @@ class ProfileConfigSource implements ConfigSource {
     }
     return decoded;
   }
+}
+
+/// One fingerprinted merge result: inputs hash + assembled config JSON.
+class _CachedResolve {
+  const _CachedResolve(this.fingerprint, this.json);
+
+  final String fingerprint;
+  final Map<String, dynamic> json;
 }
