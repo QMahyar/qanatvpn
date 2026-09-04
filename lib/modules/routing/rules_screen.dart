@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'routing_policy.dart';
 import 'rules_controller.dart';
 
@@ -14,6 +15,7 @@ class RulesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final RulesState state = ref.watch(rulesControllerProvider);
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
       child: Padding(
@@ -24,10 +26,13 @@ class RulesScreen extends ConsumerWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: Text('Rules', style: theme.textTheme.headlineSmall),
+                  child: Text(
+                    l10n.rulesTitle,
+                    style: theme.textTheme.headlineSmall,
+                  ),
                 ),
                 IconButton(
-                  tooltip: 'Add rule',
+                  tooltip: l10n.rulesAdd,
                   onPressed: () => _editRule(context, ref, null, null),
                   icon: const Icon(Icons.add),
                 ),
@@ -35,10 +40,10 @@ class RulesScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             if (state.rules.isEmpty)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'No rules. Traffic follows the engine default outbound.',
+                    l10n.rulesEmpty,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -49,6 +54,7 @@ class RulesScreen extends ConsumerWidget {
                   itemCount: state.rules.length,
                   itemBuilder: (BuildContext context, int index) {
                     final RouteRule rule = state.rules[index];
+                    final summary = _summary(rule, l10n);
                     return Card(
                       child: ListTile(
                         leading: Icon(
@@ -57,21 +63,31 @@ class RulesScreen extends ConsumerWidget {
                               ? theme.colorScheme.error
                               : null,
                         ),
-                        title: Text(_summary(rule)),
+                        title: Text(summary),
                         subtitle: Text('→ ${rule.outbound ?? '(sub-rule)'}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () =>
-                                  _editRule(context, ref, index, rule),
+                            Semantics(
+                              button: true,
+                              label: '${l10n.rulesEdit} $summary',
+                              child: IconButton(
+                                tooltip: '${l10n.rulesEdit} $summary',
+                                icon: const Icon(Icons.edit),
+                                onPressed: () =>
+                                    _editRule(context, ref, index, rule),
+                              ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => ref
-                                  .read(rulesControllerProvider.notifier)
-                                  .deleteRule(index),
+                            Semantics(
+                              button: true,
+                              label: '${l10n.rulesDelete} $summary',
+                              child: IconButton(
+                                tooltip: '${l10n.rulesDelete} $summary',
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => ref
+                                    .read(rulesControllerProvider.notifier)
+                                    .deleteRule(index),
+                              ),
                             ),
                           ],
                         ),
@@ -81,20 +97,23 @@ class RulesScreen extends ConsumerWidget {
                 ),
               ),
             if (state.validationErrors.isNotEmpty)
-              Card(
-                color: theme.colorScheme.errorContainer,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Validation errors',
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      for (final error in state.validationErrors)
-                        Text(error, style: theme.textTheme.bodySmall),
-                    ],
+              Semantics(
+                liveRegion: true,
+                child: Card(
+                  color: theme.colorScheme.errorContainer,
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.rulesValidationErrors,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        for (final error in state.validationErrors)
+                          Text(error, style: theme.textTheme.bodySmall),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -104,7 +123,7 @@ class RulesScreen extends ConsumerWidget {
     );
   }
 
-  String _summary(RouteRule rule) {
+  String _summary(RouteRule rule, AppLocalizations l10n) {
     final parts = <String>[
       if (rule.domains?.isNotEmpty ?? false) 'domain(${rule.domains!.length})',
       if (rule.domainSuffixes?.isNotEmpty ?? false)
@@ -122,7 +141,7 @@ class RulesScreen extends ConsumerWidget {
       if (rule.clashMode != null) 'mode:${rule.clashMode}',
       if (rule.invert) 'invert',
     ];
-    return parts.isEmpty ? 'empty rule' : parts.join(' · ');
+    return parts.isEmpty ? l10n.rulesEmptyRule : parts.join(' · ');
   }
 
   Future<void> _editRule(
@@ -186,24 +205,51 @@ class _RuleFormSheetState extends State<_RuleFormSheet> {
     _portRanges.text = widget.existing?.portRanges?.join(', ') ?? '';
     _processes.text = widget.existing?.processNames?.join(', ') ?? '';
     _ruleSets.text = widget.existing?.ruleSets?.join(', ') ?? '';
+    // Save enablement + the inline hint track typing; without this the
+    // button state freezes at its first-build value.
+    for (final c in <TextEditingController>[
+      _suffixes,
+      _domains,
+      _keywords,
+      _ips,
+      _ports,
+      _portRanges,
+      _processes,
+      _ruleSets,
+    ]) {
+      c.addListener(_onFieldChanged);
+    }
+  }
+
+  void _onFieldChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _suffixes.dispose();
-    _domains.dispose();
-    _keywords.dispose();
-    _ips.dispose();
-    _ports.dispose();
-    _portRanges.dispose();
-    _processes.dispose();
-    _ruleSets.dispose();
+    for (final c in <TextEditingController>[
+      _suffixes,
+      _domains,
+      _keywords,
+      _ips,
+      _ports,
+      _portRanges,
+      _processes,
+      _ruleSets,
+    ]) {
+      c.removeListener(_onFieldChanged);
+      c.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final bool hasConditions = _hasConditions();
     return Padding(
       padding: EdgeInsetsDirectional.only(
         bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -215,15 +261,15 @@ class _RuleFormSheetState extends State<_RuleFormSheet> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              widget.existing == null ? 'New rule' : 'Edit rule',
+              widget.existing == null ? l10n.rulesNew : l10n.rulesEdit,
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _outbound,
-              decoration: const InputDecoration(
-                labelText: 'Outbound',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.rulesOutbound,
+                border: const OutlineInputBorder(),
               ),
               items: const <DropdownMenuItem<String>>[
                 DropdownMenuItem<String>(value: 'PROXY', child: Text('PROXY')),
@@ -304,60 +350,49 @@ class _RuleFormSheetState extends State<_RuleFormSheet> {
               value: _invert,
               onChanged: (bool value) => setState(() => _invert = value),
             ),
+            if (!hasConditions)
+              Semantics(
+                liveRegion: true,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(bottom: 8),
+                  child: Text(
+                    l10n.rulesNeedCondition,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(l10n.rulesCancel),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
-                  onPressed: () {
-                    List<String> split(TextEditingController c) => c.text
-                        .split(',')
-                        .map((s) => s.trim())
-                        .where((s) => s.isNotEmpty)
-                        .toList();
-                    final domains = split(_domains);
-                    final suffixes = split(_suffixes);
-                    final keywords = split(_keywords);
-                    final ips = split(_ips);
-                    final ports = split(_ports);
-                    final portRanges = split(_portRanges);
-                    final processes = split(_processes);
-                    final ruleSets = split(_ruleSets);
-                    final hasConditions =
-                        domains.isNotEmpty ||
-                        suffixes.isNotEmpty ||
-                        keywords.isNotEmpty ||
-                        ips.isNotEmpty ||
-                        ports.isNotEmpty ||
-                        portRanges.isNotEmpty ||
-                        processes.isNotEmpty ||
-                        ruleSets.isNotEmpty ||
-                        _clashMode != null;
-                    if (!hasConditions) {
-                      return;
-                    }
-                    Navigator.of(context).pop(
-                      RouteRule(
-                        outbound: _outbound,
-                        domains: domains,
-                        domainSuffixes: suffixes,
-                        domainKeywords: keywords,
-                        ipCidrs: ips,
-                        ports: ports,
-                        portRanges: portRanges,
-                        processNames: processes,
-                        ruleSets: ruleSets,
-                        clashMode: _clashMode,
-                        invert: _invert,
-                      ),
-                    );
-                  },
-                  child: const Text('Save'),
+                  onPressed: hasConditions
+                      ? () {
+                          Navigator.of(context).pop(
+                            RouteRule(
+                              outbound: _outbound,
+                              domains: _split(_domains),
+                              domainSuffixes: _split(_suffixes),
+                              domainKeywords: _split(_keywords),
+                              ipCidrs: _split(_ips),
+                              ports: _split(_ports),
+                              portRanges: _split(_portRanges),
+                              processNames: _split(_processes),
+                              ruleSets: _split(_ruleSets),
+                              clashMode: _clashMode,
+                              invert: _invert,
+                            ),
+                          );
+                        }
+                      : null,
+                  child: Text(l10n.rulesSave),
                 ),
               ],
             ),
@@ -366,6 +401,28 @@ class _RuleFormSheetState extends State<_RuleFormSheet> {
       ),
     );
   }
+
+  /// True when at least one match condition is set. Save stays disabled
+  /// otherwise — the old code left Save enabled and silently discarded the
+  /// tap, with zero feedback for keyboard/screen-reader users.
+  bool _hasConditions() {
+    bool any(TextEditingController c) => c.text.trim().isNotEmpty;
+    return any(_domains) ||
+        any(_suffixes) ||
+        any(_keywords) ||
+        any(_ips) ||
+        any(_ports) ||
+        any(_portRanges) ||
+        any(_processes) ||
+        any(_ruleSets) ||
+        _clashMode != null;
+  }
+
+  static List<String> _split(TextEditingController c) => c.text
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
 
   Widget _field({
     required TextEditingController controller,

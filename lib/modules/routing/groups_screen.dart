@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'groups_controller.dart';
 import 'routing_policy.dart';
 
@@ -14,6 +15,7 @@ class GroupsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final GroupsState state = ref.watch(groupsControllerProvider);
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
       child: Padding(
@@ -24,21 +26,23 @@ class GroupsScreen extends ConsumerWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: Text('Groups', style: theme.textTheme.headlineSmall),
+                  child: Text(
+                    l10n.groupsTitle,
+                    style: theme.textTheme.headlineSmall,
+                  ),
                 ),
                 IconButton(
-                  tooltip: 'Add group',
+                  tooltip: l10n.groupsAdd,
                   onPressed: () => _editGroup(context, ref, null, null),
                   icon: const Icon(Icons.add),
                 ),
               ],
             ),
             if (state.groups.isEmpty)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'No groups. Add a urltest for auto-select or a selector '
-                    'for manual switching.',
+                    l10n.groupsEmpty,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -63,16 +67,27 @@ class GroupsScreen extends ConsumerWidget {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () =>
-                                  _editGroup(context, ref, index, group),
+                            Semantics(
+                              button: true,
+                              label: '${l10n.groupsEdit} ${group.tag}',
+                              child: IconButton(
+                                tooltip: '${l10n.groupsEdit} ${group.tag}',
+                                icon: const Icon(Icons.edit),
+                                onPressed: () =>
+                                    _editGroup(context, ref, index, group),
+                              ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => ref
-                                  .read(groupsControllerProvider.notifier)
-                                  .deleteGroup(index),
+                            Semantics(
+                              button: true,
+                              label: '${l10n.groupsDelete} ${group.tag}',
+                              child: IconButton(
+                                tooltip:
+                                    '${l10n.groupsDelete} ${group.tag}',
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => ref
+                                    .read(groupsControllerProvider.notifier)
+                                    .deleteGroup(index),
+                              ),
                             ),
                           ],
                         ),
@@ -82,20 +97,23 @@ class GroupsScreen extends ConsumerWidget {
                 ),
               ),
             if (state.validationErrors.isNotEmpty)
-              Card(
-                color: theme.colorScheme.errorContainer,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Validation errors',
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      for (final error in state.validationErrors)
-                        Text(error, style: theme.textTheme.bodySmall),
-                    ],
+              Semantics(
+                liveRegion: true,
+                child: Card(
+                  color: theme.colorScheme.errorContainer,
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.groupsValidationErrors,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        for (final error in state.validationErrors)
+                          Text(error, style: theme.textTheme.bodySmall),
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -319,6 +319,288 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Engine crashed'**
   String get blockBoxCrashed;
+
+  /// No description provided for @homeEndpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoints'**
+  String get homeEndpoints;
+
+  /// No description provided for @homeNoEndpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'No endpoints'**
+  String get homeNoEndpoints;
+
+  /// No description provided for @homeTapToImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to import'**
+  String get homeTapToImport;
+
+  /// No description provided for @homeSplitRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Split rules'**
+  String get homeSplitRules;
+
+  /// No description provided for @homeSetupGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup guide'**
+  String get homeSetupGuide;
+
+  /// No description provided for @homeNoEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'no endpoint'**
+  String get homeNoEndpoint;
+
+  /// No description provided for @homeDeadTag.
+  ///
+  /// In en, this message translates to:
+  /// **'“{dead}” gone — using {tag}'**
+  String homeDeadTag(String dead, String tag);
+
+  /// No description provided for @homeStoredSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stored · connect: {source}'**
+  String homeStoredSuffix(int count, String source);
+
+  /// No description provided for @endpointsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoints'**
+  String get endpointsTitle;
+
+  /// No description provided for @endpointsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No endpoints. Paste a share link or subscription URL above.'**
+  String get endpointsEmpty;
+
+  /// No description provided for @endpointsImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'vless://… vmess://… https://sub.example.com …'**
+  String get endpointsImportHint;
+
+  /// No description provided for @endpointsImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get endpointsImport;
+
+  /// No description provided for @endpointsAwgProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'AWG profile'**
+  String get endpointsAwgProfile;
+
+  /// No description provided for @endpointsDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete endpoint'**
+  String get endpointsDelete;
+
+  /// No description provided for @rulesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules'**
+  String get rulesTitle;
+
+  /// No description provided for @rulesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No rules. Traffic follows the engine default outbound.'**
+  String get rulesEmpty;
+
+  /// No description provided for @rulesAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add rule'**
+  String get rulesAdd;
+
+  /// No description provided for @rulesEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit rule'**
+  String get rulesEdit;
+
+  /// No description provided for @rulesDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete rule'**
+  String get rulesDelete;
+
+  /// No description provided for @rulesNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New rule'**
+  String get rulesNew;
+
+  /// No description provided for @rulesValidationErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Validation errors'**
+  String get rulesValidationErrors;
+
+  /// No description provided for @rulesOutbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Outbound'**
+  String get rulesOutbound;
+
+  /// No description provided for @rulesSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get rulesSave;
+
+  /// No description provided for @rulesCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get rulesCancel;
+
+  /// No description provided for @rulesNeedCondition.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one condition before saving.'**
+  String get rulesNeedCondition;
+
+  /// No description provided for @rulesEmptyRule.
+  ///
+  /// In en, this message translates to:
+  /// **'empty rule'**
+  String get rulesEmptyRule;
+
+  /// No description provided for @groupsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get groupsTitle;
+
+  /// No description provided for @groupsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No groups. Add a urltest for auto-select or a selector for manual switching.'**
+  String get groupsEmpty;
+
+  /// No description provided for @groupsAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add group'**
+  String get groupsAdd;
+
+  /// No description provided for @groupsEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit group'**
+  String get groupsEdit;
+
+  /// No description provided for @groupsDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group'**
+  String get groupsDelete;
+
+  /// No description provided for @groupsValidationErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Validation errors'**
+  String get groupsValidationErrors;
+
+  /// No description provided for @logsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get logsTitle;
+
+  /// No description provided for @logsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No engine logs yet. Connect to start the engine.'**
+  String get logsEmpty;
+
+  /// No description provided for @logsClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get logsClear;
+
+  /// No description provided for @logsLevelAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get logsLevelAll;
+
+  /// No description provided for @logsLevelErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Errors only'**
+  String get logsLevelErrors;
+
+  /// No description provided for @logsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search logs'**
+  String get logsSearchHint;
+
+  /// No description provided for @logsPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get logsPause;
+
+  /// No description provided for @logsResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get logsResume;
+
+  /// No description provided for @logsExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get logsExport;
+
+  /// No description provided for @logsExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs exported'**
+  String get logsExported;
+
+  /// No description provided for @logsRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'‹repeated {count} times›'**
+  String logsRepeat(int count);
+
+  /// No description provided for @diagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get diagnosticsTitle;
+
+  /// No description provided for @diagnosticsRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get diagnosticsRefresh;
+
+  /// No description provided for @updatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get updatesTitle;
+
+  /// No description provided for @updatesCheckNowButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get updatesCheckNowButton;
 }
 
 class _AppLocalizationsDelegate

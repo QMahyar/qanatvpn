@@ -151,7 +151,10 @@ class StateTile extends StatelessWidget {
                   : theme.colorScheme.primary,
             ),
             const SizedBox(height: 8),
-            Text(vpn.tag ?? 'no endpoint', style: theme.textTheme.titleMedium),
+            Text(
+              vpn.tag ?? l10n.homeNoEndpoint,
+              style: theme.textTheme.titleMedium,
+            ),
             if (vpn.blockReason != null)
               Text(
                 vpn.blockReason!.label(l10n),
@@ -174,19 +177,20 @@ class EndpointTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final EndpointsState state = ref.watch(endpointsControllerProvider);
     final SelectedEndpoint selected = ref.watch(selectedEndpointProvider);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     final String label =
         selected.source == 'fallback' && state.endpoints.isEmpty
-        ? 'No endpoints'
+        ? l10n.homeNoEndpoints
         : selected.tag;
     final String sub = selected.hadDeadTag
-        ? '“${selected.deadTag}” gone — using ${selected.tag}'
+        ? l10n.homeDeadTag(selected.deadTag ?? '', selected.tag)
         : state.endpoints.isEmpty
-        ? 'Tap to import'
-        : '${state.endpoints.length} stored · connect: ${selected.source}';
+        ? l10n.homeTapToImport
+        : l10n.homeStoredSuffix(state.endpoints.length, selected.source);
     final ThemeData theme = Theme.of(context);
     return Semantics(
       button: true,
-      label: 'Endpoints',
+      label: l10n.homeEndpoints,
       child: Card(
         child: InkWell(
           onTap: () => GoRouter.of(context).go('/endpoints'),
@@ -219,17 +223,22 @@ class SplitTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: () => GoRouter.of(context).go('/rules'),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.rule, size: 32),
-              SizedBox(height: 8),
-              Text('Split rules'),
-            ],
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    return Semantics(
+      button: true,
+      label: l10n.homeSplitRules,
+      child: Card(
+        child: InkWell(
+          onTap: () => GoRouter.of(context).go('/rules'),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(Icons.rule, size: 32),
+                const SizedBox(height: 8),
+                Text(l10n.homeSplitRules),
+              ],
+            ),
           ),
         ),
       ),
@@ -262,17 +271,22 @@ class WizardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: () => GoRouter.of(context).go('/home'),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.auto_fix_high, size: 32),
-              SizedBox(height: 8),
-              Text('Setup guide'),
-            ],
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    return Semantics(
+      button: true,
+      label: l10n.homeSetupGuide,
+      child: Card(
+        child: InkWell(
+          onTap: () => GoRouter.of(context).go('/home'),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(Icons.auto_fix_high, size: 32),
+                const SizedBox(height: 8),
+                Text(l10n.homeSetupGuide),
+              ],
+            ),
           ),
         ),
       ),

@@ -125,4 +125,156 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get blockBoxCrashed => 'موتور متوقف شد';
+
+  @override
+  String get homeEndpoints => 'نقاط پایانی';
+
+  @override
+  String get homeNoEndpoints => 'نقطه پایانی نیست';
+
+  @override
+  String get homeTapToImport => 'برای درون‌ریزی بزنید';
+
+  @override
+  String get homeSplitRules => 'قوانین تفکیک';
+
+  @override
+  String get homeSetupGuide => 'راهنمای راه‌اندازی';
+
+  @override
+  String get homeNoEndpoint => 'بدون نقطه پایانی';
+
+  @override
+  String homeDeadTag(String dead, String tag) {
+    return '«$dead» حذف شده — استفاده از $tag';
+  }
+
+  @override
+  String homeStoredSuffix(int count, String source) {
+    return '$count ذخیره‌شده · اتصال: $source';
+  }
+
+  @override
+  String get endpointsTitle => 'نقاط پایانی';
+
+  @override
+  String get endpointsEmpty =>
+      'نقطه پایانی نیست. پیوند اشتراک یا نشانی اشتراک را بالا بچسبانید.';
+
+  @override
+  String get endpointsImportHint =>
+      'vless://… vmess://… https://sub.example.com …';
+
+  @override
+  String get endpointsImport => 'درون‌ریزی';
+
+  @override
+  String get endpointsAwgProfile => 'نمایه AWG';
+
+  @override
+  String get endpointsDelete => 'حذف نقطه پایانی';
+
+  @override
+  String get rulesTitle => 'قوانین';
+
+  @override
+  String get rulesEmpty =>
+      'قانونی نیست. ترافیک از خروجی پیش‌فرض موتور پیروی می‌کند.';
+
+  @override
+  String get rulesAdd => 'افزودن قانون';
+
+  @override
+  String get rulesEdit => 'ویرایش قانون';
+
+  @override
+  String get rulesDelete => 'حذف قانون';
+
+  @override
+  String get rulesNew => 'قانون جدید';
+
+  @override
+  String get rulesValidationErrors => 'خطاهای اعتبارسنجی';
+
+  @override
+  String get rulesOutbound => 'خروجی';
+
+  @override
+  String get rulesSave => 'ذخیره';
+
+  @override
+  String get rulesCancel => 'لغو';
+
+  @override
+  String get rulesNeedCondition => 'پیش از ذخیره دست‌کم یک شرط بیفزایید.';
+
+  @override
+  String get rulesEmptyRule => 'قانون خالی';
+
+  @override
+  String get groupsTitle => 'گروه‌ها';
+
+  @override
+  String get groupsEmpty =>
+      'گروهی نیست. برای انتخاب خودکار urltest یا برای جابه‌جایی دستی selector بیفزایید.';
+
+  @override
+  String get groupsAdd => 'افزودن گروه';
+
+  @override
+  String get groupsEdit => 'ویرایش گروه';
+
+  @override
+  String get groupsDelete => 'حذف گروه';
+
+  @override
+  String get groupsValidationErrors => 'خطاهای اعتبارسنجی';
+
+  @override
+  String get logsTitle => 'گزارش‌ها';
+
+  @override
+  String get logsEmpty =>
+      'هنوز گزارشی از موتور نیست. برای شروع موتور متصل شوید.';
+
+  @override
+  String get logsClear => 'پاک کردن';
+
+  @override
+  String get logsLevelAll => 'همه';
+
+  @override
+  String get logsLevelErrors => 'فقط خطاها';
+
+  @override
+  String get logsSearchHint => 'جست‌وجو در گزارش‌ها';
+
+  @override
+  String get logsPause => 'توقف';
+
+  @override
+  String get logsResume => 'ادامه';
+
+  @override
+  String get logsExport => 'برون‌بری';
+
+  @override
+  String get logsExported => 'گزارش‌ها برون‌بری شد';
+
+  @override
+  String logsRepeat(int count) {
+    return '‹$count بار تکرار شد›';
+  }
+
+  @override
+  String get diagnosticsTitle => 'عیب‌یابی';
+
+  @override
+  String get diagnosticsRefresh => 'به‌روزرسانی';
+
+  @override
+  String get updatesTitle => 'به‌روزرسانی‌ها';
+
+  @override
+  String get updatesCheckNowButton => 'بررسی الان';
 }
