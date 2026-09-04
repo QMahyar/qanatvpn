@@ -39,6 +39,12 @@ class DnsConfig {
   /// The `dns` block. [proxyTag] is the selector outbound; geosite-cn traffic
   /// resolves through the local (ISP/系统) server so CN domains never burn
   /// proxy bandwidth.
+  ///
+  /// NOTE: [filterMode]/[fakeIpFilters] are intentionally NOT emitted.
+  /// The vendored fork's `FakeIPDNSServerOptions` (go/amnezia-box/option/dns.go)
+  /// carries only `inet4_range`/`inet6_range`; any `fake_ip_filter` key
+  /// FATALs `sing-box check`. Filters stay Dart-side data until the fork
+  /// schema grows them (see P2 docs debt).
   Map<String, dynamic> toDnsJson({
     required String proxyTag,
     required GeoAsset geoAsset,

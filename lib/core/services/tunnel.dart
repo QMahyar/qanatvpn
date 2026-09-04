@@ -148,8 +148,7 @@ class ConnectMetrics {
   final Map<String, Duration> phases;
 
   /// Sum of all recorded phases.
-  Duration get total =>
-      phases.values.fold(Duration.zero, (a, b) => a + b);
+  Duration get total => phases.values.fold(Duration.zero, (a, b) => a + b);
 
   /// One-line summary for logs: `tag total=1.2s box=0.9s config=0.2s …`.
   @override
@@ -283,13 +282,18 @@ class Tunnel {
       return;
     }
 
-    // foreground
+    // airplane (before foreground: no notification/service when offline)
     try {
-      await _timed(
+      final airplane = await _timed(
         phases,
-        'foreground',
-        () => foreground.start().timeout(timeouts.foregroundStart),
+        'airplane',
+        platform.isAirplaneMode,
       );
+      if (airplane) {
+        publishMetrics();
+        await _block(TunnelBlockReason.airplaneMode);
+        return;
+      }
     } on Object {
       if (_stale(epoch)) {
         publishMetrics();
@@ -304,18 +308,13 @@ class Tunnel {
       return;
     }
 
-    // airplane
+    // foreground
     try {
-      final airplane = await _timed(
+      await _timed(
         phases,
-        'airplane',
-        platform.isAirplaneMode,
+        'foreground',
+        () => foreground.start().timeout(timeouts.foregroundStart),
       );
-      if (airplane) {
-        publishMetrics();
-        await _block(TunnelBlockReason.airplaneMode);
-        return;
-      }
     } on Object {
       if (_stale(epoch)) {
         publishMetrics();
@@ -566,6 +565,13 @@ class Tunnel {
     if (fd != null) {
       platform.closeFd(fd);
       _fd = null;
+    }
+    // No stale "active" UX: a blocked tunnel owns no foreground service.
+    // Best-effort: the block state stands even if teardown throws.
+    try {
+      await foreground.stop().timeout(timeouts.foregroundStart);
+    } on Object {
+      // Already stopped or wedged; stay blocked regardless.
     }
     _setState(TunnelState.blocked);
   }

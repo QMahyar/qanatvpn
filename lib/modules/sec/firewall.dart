@@ -55,8 +55,17 @@ class FirewallPolicy {
 
   /// Merge-safe form of [baseRules]: `allowLan` only opens the pinned DNS
   /// resolver's /32 (needed for split DNS), never the whole RFC1918 space.
+  /// Implemented as baseRules with LAN blocking forced on: even when
+  /// [allowLan] is true, RFC1918 stays BLOCKed (pinned DNS DIRECT above
+  /// still permits the resolver). Use this when merging with user rules
+  /// that must not widen LAN access.
   List<Map<String, dynamic>> baseRulesScoped() {
-    return baseRules();
+    return FirewallPolicy(
+      blockIpv6: blockIpv6,
+      allowLan: false,
+      allowPinnedDnsOnly: allowPinnedDnsOnly,
+      pinnedDns: pinnedDns,
+    ).baseRules();
   }
 
   /// Validates that [routeRules] (a `route.rules` array about to ship to the
@@ -88,7 +97,12 @@ class FirewallPolicy {
         continue;
       }
       if (outbound != null) {
-        seenProxy = true;
+        // DIRECT (pinned DNS, local bypass) is not a proxy rule: BLOCKs
+        // after DIRECT pinned entries stay leak-safe (baseRules order is
+        // hijack → DIRECT pinned → ::/0/RFC1918 BLOCK → user rules).
+        if (outbound != 'DIRECT') {
+          seenProxy = true;
+        }
       }
     }
     if (!seenHijack) {

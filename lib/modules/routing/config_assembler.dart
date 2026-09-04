@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../dns/dns_config.dart';
 import '../geo/geo_asset.dart';
+import '../sec/firewall.dart';
 import 'routing_compiler.dart';
 import 'routing_policy.dart';
 
@@ -55,6 +56,10 @@ class ConfigAssembler {
       proxyTag: defaultOutbound,
       geoAsset: geoAsset,
     );
+    // Kill-switch first: hijack + pinned-DNS DIRECT + ::/0 + RFC1918 BLOCKs
+    // precede every user rule so no packet leaks before policy (fail closed).
+    // FirewallPolicy.baseRules()[0] is already hijack-dns, so the separate
+    // dns.hijackRules() call is subsumed here (no duplicate).
     // Selector must list a member (real check FATALs on empty selector) and
     // DIRECT must exist so rules/detours resolve at runtime start. Group
     // outbounds land before it so their member refs resolve.
@@ -96,7 +101,11 @@ class ConfigAssembler {
         'final': defaultOutbound,
         'default_domain_resolver': <String, dynamic>{'server': 'dns-local'},
         if (ruleSetEntries.isNotEmpty) 'rule_set': ruleSetEntries,
-        'rules': <dynamic>[...dns.hijackRules(), ...compiled.rulesJson],
+        // baseRules() before user rules: validateOrdering stays green.
+        'rules': <dynamic>[
+          ...const FirewallPolicy().baseRules(),
+          ...compiled.rulesJson,
+        ],
       },
     };
   }

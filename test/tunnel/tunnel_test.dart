@@ -228,7 +228,7 @@ List<String> sharedLog() => <String>[];
 void main() {
   group('Tunnel.connect guarded sequence', () {
     test(
-      'happy path runs grant→battery→foreground→establish→protect→start→firewall',
+      'happy path runs grant→battery→airplane→foreground→establish→protect→start→firewall',
       () async {
         final log = sharedLog();
         final platform = FakePlatformAdapter(log: log);
@@ -254,8 +254,8 @@ void main() {
         expect(log, <String>[
           'isVpnPermissionGranted',
           'isIgnoringBatteryOptimizations',
-          'foreground:start',
           'isAirplaneMode',
+          'foreground:start',
           'establish',
           'protect:42',
           'box:start:HKG-02',
@@ -396,7 +396,7 @@ void main() {
 
   group('Tunnel engine-managed TUN (libbox 1.14 openTun path)', () {
     test(
-      'happy path runs grant→battery→foreground→start→firewall, no fd steps',
+      'happy path runs grant→battery→airplane→foreground→start→firewall, no fd steps',
       () async {
         final log = sharedLog();
         final platform = FakePlatformAdapter(log: log, engineManagedTun: true);
@@ -417,8 +417,8 @@ void main() {
         expect(log, <String>[
           'isVpnPermissionGranted',
           'isIgnoringBatteryOptimizations',
-          'foreground:start',
           'isAirplaneMode',
+          'foreground:start',
           'box:start:HKG-02',
           'firewall:enforce',
         ]);
@@ -618,9 +618,7 @@ void main() {
 
   group('Tunnel timeouts + connecting crash (P0 hardening)', () {
     test('crash during connecting → blocked, not ignored', () async {
-      final box = FakeBoxAdapter(
-        startDelay: const Duration(milliseconds: 50),
-      );
+      final box = FakeBoxAdapter(startDelay: const Duration(milliseconds: 50));
       final tunnel = buildTunnel(
         platform: FakePlatformAdapter(engineManagedTun: true),
         box: box,
@@ -639,33 +637,33 @@ void main() {
       await tunnel.dispose();
     });
 
-    test('epoch checked after every await: stale connect cannot set connected',
-        () async {
-      final box = FakeBoxAdapter(
-        startDelay: const Duration(milliseconds: 80),
-      );
-      final tunnel = buildTunnel(
-        platform: FakePlatformAdapter(engineManagedTun: true),
-        box: box,
-        firewall: FakeFirewallAdapter(),
-        config: FakeConfigSource(),
-      );
+    test(
+      'epoch checked after every await: stale connect cannot set connected',
+      () async {
+        final box = FakeBoxAdapter(
+          startDelay: const Duration(milliseconds: 80),
+        );
+        final tunnel = buildTunnel(
+          platform: FakePlatformAdapter(engineManagedTun: true),
+          box: box,
+          firewall: FakeFirewallAdapter(),
+          config: FakeConfigSource(),
+        );
 
-      final first = tunnel.connect('HKG-02');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      // Second connect is a no-op while connecting; disconnect wins instead.
-      await tunnel.disconnect();
-      await first;
-      await Future<void>.delayed(Duration.zero);
+        final first = tunnel.connect('HKG-02');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Second connect is a no-op while connecting; disconnect wins instead.
+        await tunnel.disconnect();
+        await first;
+        await Future<void>.delayed(Duration.zero);
 
-      expect(tunnel.state, isNot(TunnelState.connected));
-      await tunnel.dispose();
-    });
+        expect(tunnel.state, isNot(TunnelState.connected));
+        await tunnel.dispose();
+      },
+    );
 
     test('box.start timeout → blocked with boxStartFailed', () async {
-      final box = FakeBoxAdapter(
-        startDelay: const Duration(milliseconds: 200),
-      );
+      final box = FakeBoxAdapter(startDelay: const Duration(milliseconds: 200));
       final tunnel = Tunnel(
         platform: FakePlatformAdapter(engineManagedTun: true),
         foreground: FakeForegroundAdapter(),
@@ -673,9 +671,7 @@ void main() {
         firewall: FakeFirewallAdapter(),
         tor: FakeTorAdapter(),
         configSource: FakeConfigSource(),
-        timeouts: const TunnelTimeouts(
-          boxStart: Duration(milliseconds: 20),
-        ),
+        timeouts: const TunnelTimeouts(boxStart: Duration(milliseconds: 20)),
       );
 
       await tunnel.connect('HKG-02');
@@ -693,9 +689,7 @@ void main() {
         firewall: FakeFirewallAdapter(),
         tor: FakeTorAdapter(),
         configSource: _HangingConfigSource(),
-        timeouts: const TunnelTimeouts(
-          resolve: Duration(milliseconds: 20),
-        ),
+        timeouts: const TunnelTimeouts(resolve: Duration(milliseconds: 20)),
       );
 
       await tunnel.connect('HKG-02');
@@ -731,8 +725,7 @@ void main() {
 
 class _HangingConfigSource implements ConfigSource {
   @override
-  Future<TypedConfig> resolve(String tag) =>
-      Completer<TypedConfig>().future;
+  Future<TypedConfig> resolve(String tag) => Completer<TypedConfig>().future;
 }
 
 class _HangingFirewallAdapter implements FirewallAdapter {

@@ -20,9 +20,27 @@ class WindowsBoxProcessAdapter implements BoxAdapter {
     LogBus? logBus,
   }) : _logBus = logBus ?? LogBus();
 
+  /// Absolute exe path: relative [executablePath] resolves against the
+  /// running bundle directory (Platform.resolvedExecutable), so installed
+  /// apps (CWD != bundle root) still spawn. Override stays test-relative.
+  final ProcessFactory processFactory;
+
   final String executablePath;
   final String? workingDir;
-  final ProcessFactory processFactory;
+  String get _resolvedExe {
+    final direct = File(executablePath);
+    if (direct.isAbsolute) {
+      return executablePath;
+    }
+    try {
+      final bundleDir = File(Platform.resolvedExecutable).parent.path;
+      final sep = Platform.isWindows ? '\\' : '/';
+      final rel = executablePath.replaceAll('/', sep);
+      return '$bundleDir$sep$rel';
+    } on Object {
+      return executablePath;
+    }
+  }
 
   /// Both pipes feed the shared log bus (same caps as Android) so the Logs
   /// screen is not blind on Windows; previously stdout was discarded and
@@ -59,7 +77,7 @@ class WindowsBoxProcessAdapter implements BoxAdapter {
 
     Process process;
     try {
-      process = await processFactory(executablePath, <String>[
+      process = await processFactory(_resolvedExe, <String>[
         'run',
         '-c',
         file.path,

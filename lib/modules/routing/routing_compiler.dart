@@ -65,7 +65,7 @@ class RoutingCompiler {
       ...groupTags,
       ...policy.leafOutbounds,
       'DIRECT',
-      if (torChain != null) 'TOR-CHAIN',
+      if (torChain != null) ...<String>['TOR-CHAIN', torChain.tag],
     };
 
     final outbounds = <Map<String, dynamic>>[];
@@ -417,6 +417,9 @@ class RoutingCompiler {
     }
     if (outbound == 'TOR-CHAIN') {
       return; // torChain presence checked separately with a better message.
+    }
+    if (policy.torChain != null && outbound == policy.torChain!.tag) {
+      return; // sidecar tag (default tor-entry) is a valid direct ref.
     }
     final groupTags = <String>{for (final g in policy.groups) g.tag};
     if (groupTags.contains(outbound)) {
