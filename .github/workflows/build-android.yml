@@ -2,7 +2,7 @@ name: build-android
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - uses: subosito/flutter-action@v2
         with:
@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: "1.25"
 
       - name: Install sagernet gomobile
         run: |
@@ -61,7 +61,12 @@ jobs:
           flutter test
 
       - name: Setup signing (if secrets present)
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        # `secrets` context is banned in step-if (workflow parse fails at
+        # dispatch — probed on the first real push); env indirection is the
+        # documented pattern.
+        env:
+          HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
           cat > android/key.properties <<EOF
