@@ -94,6 +94,7 @@ Future<Map<String, int?>> measureAll(
     TrojanEndpoint() => (address: endpoint.address, port: endpoint.port),
     Hysteria2Endpoint() => (address: endpoint.address, port: endpoint.port),
     TuicEndpoint() => (address: endpoint.address, port: endpoint.port),
+    SshEndpoint() => (address: endpoint.address, port: endpoint.port),
   };
 }
 

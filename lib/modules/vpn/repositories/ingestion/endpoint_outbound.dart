@@ -18,6 +18,7 @@ Map<String, dynamic> endpointToOutboundJson(NormalizedEndpoint endpoint) {
     TrojanEndpoint() => _trojan(endpoint),
     Hysteria2Endpoint() => _hysteria2(endpoint),
     TuicEndpoint() => _tuic(endpoint),
+    SshEndpoint() => _ssh(endpoint),
     WireGuardEndpoint() => throw ArgumentError(
       'WireGuard/AWG endpoints use AwgConfig.toEndpointJson (endpoints[])',
     ),
@@ -43,8 +44,15 @@ Map<String, dynamic> _vless(VlessEndpoint e) {
       utlsFingerprint: fingerprint,
       realityPublicKey: e.realityPublicKey,
       realityShortId: e.realityShortId,
+      echEnabled: e.echEnabled,
+      echConfig: e.echConfig,
     ),
-    if (e.network == 'ws') 'transport': _ws(e.wsPath, e.wsHost),
+    'transport': ?_resolveTransport(
+      network: e.network,
+      transport: e.transport,
+      wsPath: e.wsPath,
+      wsHost: e.wsHost,
+    ),
   };
 }
 
@@ -58,8 +66,39 @@ Map<String, dynamic> _vmess(VmessEndpoint e) => <String, dynamic>{
   'alter_id': e.alterId,
   if (e.tls == 'tls' || e.tls == 'reality')
     'tls': _tls(enabled: true, serverName: e.sni ?? e.address),
-  if (e.network == 'ws') 'transport': _ws(e.wsPath, null),
+  'transport': ?_resolveTransport(
+    network: e.network,
+    transport: e.transport,
+    wsPath: e.wsPath,
+  ),
 };
+
+/// Transport resolution shared by vless/vmess/trojan: the typed
+/// [TransportOptions] wins when present; otherwise fall back to the legacy
+/// flat ws fields (URI-imported ws links store there). Null → no transport
+/// key at all (a bare `transport` with unknown type FATALs).
+Map<String, dynamic>? _resolveTransport({
+  required String? network,
+  TransportOptions? transport,
+  String? wsPath,
+  String? wsHost,
+}) {
+  if (transport != null) {
+    return _transport(transport);
+  }
+  if (wsPath != null || wsHost != null) {
+    return _ws(wsPath, wsHost);
+  }
+  if (network == 'ws') {
+    return _ws(null, null);
+  }
+  // grpc/httpupgrade/xhttp links whose transport detail was lost upstream:
+  // type-only block still parses.
+  if (network != null && network != 'ws') {
+    return _transport(TransportOptions(type: network));
+  }
+  return null;
+}
 
 Map<String, dynamic> _shadowsocks(ShadowsocksEndpoint e) => <String, dynamic>{
   'type': 'shadowsocks',
@@ -86,7 +125,7 @@ Map<String, dynamic> _trojan(TrojanEndpoint e) => <String, dynamic>{
     serverName: e.sni ?? e.address,
     insecure: e.allowInsecure,
   ),
-  if (e.network == 'ws') 'transport': <String, dynamic>{'type': 'ws'},
+  'transport': ?_resolveTransport(network: e.network, transport: e.transport),
 };
 
 Map<String, dynamic> _hysteria2(Hysteria2Endpoint e) => <String, dynamic>{
@@ -129,6 +168,8 @@ Map<String, dynamic> _tls({
   String? realityShortId,
   bool insecure = false,
   List<String>? alpn,
+  bool echEnabled = false,
+  String? echConfig,
 }) {
   return <String, dynamic>{
     'enabled': enabled,
@@ -146,6 +187,17 @@ Map<String, dynamic> _tls({
         'public_key': realityPublicKey,
         'short_id': ?realityShortId,
       },
+    // ECH coexists with utls (probed). No config → engine fetches ECH
+    // configs from DNS HTTPS records. NEVER emit the removed legacy fields
+    // pq_signature_schemes_enabled / dynamic_record_sizing_disabled (init
+    // FATAL on the 1.14 fork).
+    if (echEnabled)
+      'ech': <String, dynamic>{
+        'enabled': true,
+        'config': ?(echConfig == null || echConfig.isEmpty
+            ? null
+            : <String>[echConfig]),
+      },
   };
 }
 
@@ -154,6 +206,94 @@ Map<String, dynamic> _ws(String? path, String? host) => <String, dynamic>{
   'path': ?path,
   'headers': ?(host == null ? null : <String, dynamic>{'Host': host}),
 };
+
+Map<String, dynamic> _ssh(SshEndpoint e) => <String, dynamic>{
+  // Outbound-only (endpoints[] rejects ssh, probed). Embedded key wins over
+  // key path engine-side; we never emit private_key_path (Windows installed
+  // apps cannot resolve arbitrary file paths reliably).
+  'type': 'ssh',
+  'tag': e.tag,
+  'server': e.address,
+  'server_port': e.port,
+  if (e.user.isNotEmpty && e.user != 'root') 'user': e.user,
+  if (e.password != null) 'password': e.password,
+  if (e.privateKey != null) 'private_key': e.privateKey,
+  if (e.privateKeyPassphrase != null)
+    'private_key_passphrase': e.privateKeyPassphrase,
+  if (e.hostKey != null && e.hostKey!.isNotEmpty) 'host_key': e.hostKey,
+};
+
+/// Builds the `transport` block per fork-accepted shapes
+/// (go/amnezia-box/option/v2ray_transport.go). Field whitelist is strict:
+/// unknown fields FATAL the strict JSON decoder. Probe-verified traps:
+/// - xhttp: `x_padding_bytes` has NO omitempty in the fork struct and a
+///   zero Range FATALs `x_padding_bytes cannot be disabled` — MUST always
+///   emit it, including inside a download sub-block. `headers` must not
+///   contain a host key (any case).
+/// - grpc: no method/path/host fields exist.
+/// - httpupgrade: host is a single string; no method/timeout fields.
+/// - http: host is a Listable array (1-element here).
+Map<String, dynamic>? _transport(TransportOptions? t) {
+  if (t == null) {
+    return null;
+  }
+  final cleanHeaders = <String, String>{
+    for (final entry in (t.headers ?? const <String, String>{}).entries)
+      if (entry.key.toLowerCase() != 'host') entry.key: entry.value,
+  };
+  return switch (t.type) {
+    'ws' => <String, dynamic>{
+      'type': 'ws',
+      'path': ?t.path,
+      'headers': ?(cleanHeaders.isEmpty
+          ? null
+          : Map<String, dynamic>.from(cleanHeaders)),
+    },
+    'grpc' => <String, dynamic>{
+      'type': 'grpc',
+      'service_name': ?t.serviceName,
+      if (t.idleTimeoutSeconds != null)
+        'idle_timeout': '${t.idleTimeoutSeconds}s',
+      if (t.pingTimeoutSeconds != null)
+        'ping_timeout': '${t.pingTimeoutSeconds}s',
+    },
+    'httpupgrade' => <String, dynamic>{
+      'type': 'httpupgrade',
+      'path': ?t.path,
+      'host': ?t.host,
+      'headers': ?(cleanHeaders.isEmpty
+          ? null
+          : Map<String, dynamic>.from(cleanHeaders)),
+    },
+    'xhttp' => <String, dynamic>{
+      'type': 'xhttp',
+      'path': ?t.path,
+      'host': ?t.host,
+      'mode': ?t.mode,
+      // Fork struct has no omitempty on x_padding_bytes; absence decodes as
+      // a zero Range and FATALs check. Xray emits 100-1000 by default.
+      'x_padding_bytes': '100-1000',
+      'headers': ?(cleanHeaders.isEmpty
+          ? null
+          : Map<String, dynamic>.from(cleanHeaders)),
+    },
+    'http' => <String, dynamic>{
+      'type': 'http',
+      'host': ?(t.host == null ? null : <String>[t.host!]),
+      'path': ?t.path,
+      'method': ?t.method,
+      'headers': ?(cleanHeaders.isEmpty
+          ? null
+          : Map<String, dynamic>.from(cleanHeaders)),
+      if (t.idleTimeoutSeconds != null)
+        'idle_timeout': '${t.idleTimeoutSeconds}s',
+      if (t.pingTimeoutSeconds != null)
+        'ping_timeout': '${t.pingTimeoutSeconds}s',
+    },
+    // quic or unknown: type-only pass-through (least-lossy, still checkable).
+    _ => <String, dynamic>{'type': t.type},
+  };
+}
 
 /// Clash/URI `mport` uses `20000-30000` (dash); the fork's `server_ports`
 /// uses sing-box port-range `min:max` (colon, same as route `port_range`).

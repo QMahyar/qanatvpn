@@ -92,9 +92,13 @@ void main() {
 
   group('LatencyController', () {
     test('sweep samples via pinger and exposes best', () async {
-      final container = ProviderContainer(overrides: [
-        endpointStoreProvider.overrideWithValue(EndpointStore(baseDir: _dir())),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          endpointStoreProvider.overrideWithValue(
+            EndpointStore(baseDir: _dir()),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
       final store = container.read(endpointStoreProvider);
       await store.save(<StoredEndpoint>[
@@ -126,9 +130,13 @@ void main() {
     });
 
     test('unreachable host samples null and never throws', () async {
-      final container = ProviderContainer(overrides: [
-        endpointStoreProvider.overrideWithValue(EndpointStore(baseDir: _dir())),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          endpointStoreProvider.overrideWithValue(
+            EndpointStore(baseDir: _dir()),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
       final store = container.read(endpointStoreProvider);
       await store.save(<StoredEndpoint>[

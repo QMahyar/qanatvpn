@@ -148,6 +148,8 @@ class IngestionAdapter {
         return Hysteria2UriParser().parse(line);
       case 'tuic':
         return TuicUriParser().parse(line);
+      case 'ssh':
+        return SshUriParser().parse(line);
       default:
         throw FormatException('unsupported scheme "$scheme"');
     }

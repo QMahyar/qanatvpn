@@ -49,6 +49,51 @@ class WireGuardPeer {
   final int? persistentKeepalive;
 }
 
+/// V2Ray transport layer for vless/vmess/trojan, as the fork's
+/// `option/v2ray_transport.go` accepts it: ws, grpc, httpupgrade, xhttp,
+/// http (quic exists in the enum but no real-world link carries it — parsed
+/// and passed through type-only). Field shapes are probe-verified against
+/// `windows/sing-box.exe check` (see endpoint_outbound.dart header).
+class TransportOptions {
+  const TransportOptions({
+    required this.type,
+    this.path,
+    this.host,
+    this.headers,
+    this.serviceName,
+    this.mode,
+    this.idleTimeoutSeconds,
+    this.pingTimeoutSeconds,
+    this.method,
+  });
+
+  final String type;
+
+  /// ws / xhttp / httpupgrade / http path.
+  final String? path;
+
+  /// Single-string host (ws header, httpupgrade, xhttp); http emits it as
+  /// the 1-element Listable array the fork wants.
+  final String? host;
+
+  /// Extra headers (ws Host header handled via [host]; xhttp FATALs on a
+  /// host key — the emitter strips it).
+  final Map<String, String>? headers;
+
+  /// grpc only.
+  final String? serviceName;
+
+  /// xhttp only: auto | packet-up | stream-up | stream-one.
+  final String? mode;
+
+  /// grpc/http durations, emitted as `<n>s`.
+  final int? idleTimeoutSeconds;
+  final int? pingTimeoutSeconds;
+
+  /// http only (GET/PUT/...).
+  final String? method;
+}
+
 /// AmneziaWG obfuscation values, either parsed from the source or resolved
 
 class VlessEndpoint extends NormalizedEndpoint {
@@ -66,6 +111,9 @@ class VlessEndpoint extends NormalizedEndpoint {
     this.realityShortId,
     this.wsPath,
     this.wsHost,
+    this.transport,
+    this.echEnabled = false,
+    this.echConfig,
   });
 
   final String address;
@@ -80,6 +128,15 @@ class VlessEndpoint extends NormalizedEndpoint {
   final String? realityShortId;
   final String? wsPath;
   final String? wsHost;
+
+  /// Typed transport; wins over the legacy [wsPath]/[wsHost] pair when set.
+  final TransportOptions? transport;
+
+  /// ECH (tls.ech): enabled without config fetches ECH configs from DNS
+  /// HTTPS records at runtime; [echConfig] carries a PEM `ECH CONFIGS`
+  /// block when the source supplied one.
+  final bool echEnabled;
+  final String? echConfig;
 }
 
 class VmessEndpoint extends NormalizedEndpoint {
@@ -94,6 +151,7 @@ class VmessEndpoint extends NormalizedEndpoint {
     this.tls,
     this.sni,
     this.wsPath,
+    this.transport,
   });
 
   final String address;
@@ -105,6 +163,7 @@ class VmessEndpoint extends NormalizedEndpoint {
   final String? tls;
   final String? sni;
   final String? wsPath;
+  final TransportOptions? transport;
 }
 
 class ShadowsocksEndpoint extends NormalizedEndpoint {
@@ -135,6 +194,7 @@ class TrojanEndpoint extends NormalizedEndpoint {
     this.sni,
     this.network,
     this.allowInsecure = false,
+    this.transport,
   });
 
   final String address;
@@ -143,6 +203,46 @@ class TrojanEndpoint extends NormalizedEndpoint {
   final String? sni;
   final String? network;
   final bool allowInsecure;
+
+  /// Trojan ws path/host were parsed-and-dropped before; the typed
+  /// transport captures them (emit previously shipped `{'type': 'ws'}` bare).
+  final TransportOptions? transport;
+}
+
+/// SSH outbound (fork `option/ssh.go`, outbound-only — endpoints[] rejects
+/// ssh, probed). Auth is password OR key; keys in OpenSSH-PEM / PKCS8 /
+/// PKCS1-RSA PEM parse via x/crypto/ssh (all probed EXIT=0), but
+/// `ssh-keygen -m PKCS8 -e` export output does NOT (`ssh: no key found`) —
+/// store the key verbatim and validate at emit.
+class SshEndpoint extends NormalizedEndpoint {
+  const SshEndpoint({
+    required super.tag,
+    required this.address,
+    required this.port,
+    this.user = 'root',
+    this.password,
+    this.privateKey,
+    this.privateKeyPassphrase,
+    this.hostKey,
+  });
+
+  final String address;
+  final int port;
+
+  /// Defaults to 'root' engine-side when empty.
+  final String user;
+
+  /// Password auth (probed to pass check alone).
+  final String? password;
+
+  /// PEM private key, verbatim (multi-line). Embedded key wins over
+  /// private_key_path engine-side; we never emit the path form.
+  final String? privateKey;
+
+  final String? privateKeyPassphrase;
+
+  /// authorized_keys-format lines parsed engine-side at check.
+  final List<String>? hostKey;
 }
 
 class Hysteria2Endpoint extends NormalizedEndpoint {
@@ -200,6 +300,40 @@ class TuicEndpoint extends NormalizedEndpoint {
 /// Store-facing (de)serialization for the sealed union. `kind` is the
 /// discriminator; every field is optional-tolerant so a schema evolution
 /// never bricks the stored list.
+Map<String, dynamic> _transportToJson(TransportOptions? t) {
+  if (t == null) {
+    return <String, dynamic>{};
+  }
+  return <String, dynamic>{
+    'type': t.type,
+    'path': t.path,
+    'host': t.host,
+    'headers': t.headers,
+    'serviceName': t.serviceName,
+    'mode': t.mode,
+    'idleTimeoutSeconds': t.idleTimeoutSeconds,
+    'pingTimeoutSeconds': t.pingTimeoutSeconds,
+    'method': t.method,
+  };
+}
+
+TransportOptions? _transportFromJson(Map<String, dynamic>? raw) {
+  if (raw == null || raw.isEmpty || raw['type'] == null) {
+    return null;
+  }
+  return TransportOptions(
+    type: raw['type'] as String,
+    path: raw['path'] as String?,
+    host: raw['host'] as String?,
+    headers: raw['headers']?.cast<String, String>(),
+    serviceName: raw['serviceName'] as String?,
+    mode: raw['mode'] as String?,
+    idleTimeoutSeconds: raw['idleTimeoutSeconds'] as int?,
+    pingTimeoutSeconds: raw['pingTimeoutSeconds'] as int?,
+    method: raw['method'] as String?,
+  );
+}
+
 Map<String, dynamic> normalizedToJson(NormalizedEndpoint e) {
   final json = <String, dynamic>{
     'kind': e.runtimeType.toString(),
@@ -236,7 +370,10 @@ Map<String, dynamic> normalizedToJson(NormalizedEndpoint e) {
         ..['realityPublicKey'] = e.realityPublicKey
         ..['realityShortId'] = e.realityShortId
         ..['wsPath'] = e.wsPath
-        ..['wsHost'] = e.wsHost;
+        ..['wsHost'] = e.wsHost
+        ..['transport'] = _transportToJson(e.transport)
+        ..['echEnabled'] = e.echEnabled
+        ..['echConfig'] = e.echConfig;
     case VmessEndpoint():
       json
         ..['address'] = e.address
@@ -247,7 +384,26 @@ Map<String, dynamic> normalizedToJson(NormalizedEndpoint e) {
         ..['network'] = e.network
         ..['tls'] = e.tls
         ..['sni'] = e.sni
-        ..['wsPath'] = e.wsPath;
+        ..['wsPath'] = e.wsPath
+        ..['transport'] = _transportToJson(e.transport);
+    case TrojanEndpoint():
+      json
+        ..['address'] = e.address
+        ..['port'] = e.port
+        ..['password'] = e.password
+        ..['sni'] = e.sni
+        ..['network'] = e.network
+        ..['allowInsecure'] = e.allowInsecure
+        ..['transport'] = _transportToJson(e.transport);
+    case SshEndpoint():
+      json
+        ..['address'] = e.address
+        ..['port'] = e.port
+        ..['user'] = e.user
+        ..['password'] = e.password
+        ..['privateKey'] = e.privateKey
+        ..['privateKeyPassphrase'] = e.privateKeyPassphrase
+        ..['hostKey'] = e.hostKey;
     case ShadowsocksEndpoint():
       json
         ..['address'] = e.address
@@ -256,14 +412,6 @@ Map<String, dynamic> normalizedToJson(NormalizedEndpoint e) {
         ..['password'] = e.password
         ..['plugin'] = e.plugin
         ..['pluginOpts'] = e.pluginOpts;
-    case TrojanEndpoint():
-      json
-        ..['address'] = e.address
-        ..['port'] = e.port
-        ..['password'] = e.password
-        ..['sni'] = e.sni
-        ..['network'] = e.network
-        ..['allowInsecure'] = e.allowInsecure;
     case Hysteria2Endpoint():
       json
         ..['address'] = e.address
@@ -348,6 +496,11 @@ NormalizedEndpoint normalizedFromJson(Map<String, dynamic> json) {
         realityShortId: json['realityShortId'] as String?,
         wsPath: json['wsPath'] as String?,
         wsHost: json['wsHost'] as String?,
+        transport: _transportFromJson(
+          json['transport'] as Map<String, dynamic>?,
+        ),
+        echEnabled: json['echEnabled'] as bool? ?? false,
+        echConfig: json['echConfig'] as String?,
       );
     case 'VmessEndpoint':
       return VmessEndpoint(
@@ -361,6 +514,9 @@ NormalizedEndpoint normalizedFromJson(Map<String, dynamic> json) {
         tls: json['tls'] as String?,
         sni: json['sni'] as String?,
         wsPath: json['wsPath'] as String?,
+        transport: _transportFromJson(
+          json['transport'] as Map<String, dynamic>?,
+        ),
       );
     case 'ShadowsocksEndpoint':
       return ShadowsocksEndpoint(
@@ -382,6 +538,22 @@ NormalizedEndpoint normalizedFromJson(Map<String, dynamic> json) {
         sni: json['sni'] as String?,
         network: json['network'] as String?,
         allowInsecure: json['allowInsecure'] as bool? ?? false,
+        transport: _transportFromJson(
+          json['transport'] as Map<String, dynamic>?,
+        ),
+      );
+    case 'SshEndpoint':
+      return SshEndpoint(
+        tag: json['tag'] as String? ?? 'ssh',
+        address: json['address'] as String? ?? '',
+        port: json['port'] as int? ?? 22,
+        user: json['user'] as String? ?? 'root',
+        password: json['password'] as String?,
+        privateKey: json['privateKey'] as String?,
+        privateKeyPassphrase: json['privateKeyPassphrase'] as String?,
+        hostKey: json['hostKey'] == null
+            ? null
+            : List<String>.from(json['hostKey'] as List<dynamic>),
       );
     case 'Hysteria2Endpoint':
       return Hysteria2Endpoint(

@@ -8,6 +8,7 @@ import 'ingestion/ingestion_adapter.dart'
     show
         Hysteria2Endpoint,
         ShadowsocksEndpoint,
+        SshEndpoint,
         TrojanEndpoint,
         TuicEndpoint,
         VlessEndpoint,
@@ -113,6 +114,7 @@ class EndpointsScreen extends ConsumerWidget {
     TrojanEndpoint() => 'Trojan',
     Hysteria2Endpoint() => 'Hysteria2',
     TuicEndpoint() => 'TUIC',
+    SshEndpoint() => 'SSH',
   };
 
   IconData _iconFor(StoredEndpoint stored) => switch (stored.endpoint) {
@@ -120,6 +122,7 @@ class EndpointsScreen extends ConsumerWidget {
     VlessEndpoint() || VmessEndpoint() => Icons.swap_horiz,
     ShadowsocksEndpoint() || TrojanEndpoint() => Icons.enhanced_encryption,
     Hysteria2Endpoint() || TuicEndpoint() => Icons.bolt,
+    SshEndpoint() => Icons.terminal,
   };
 }
 

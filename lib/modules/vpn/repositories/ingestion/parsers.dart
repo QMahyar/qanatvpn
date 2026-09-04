@@ -310,6 +310,55 @@ class SingboxJsonParser {
     return endpoints;
   }
 
+  /// Transport detail capture shared by vless/vmess/trojan sing-box nodes:
+  /// previously only type/path were read — grpc service_name, httpupgrade
+  /// host, xhttp mode were all dropped, so an imported round-trip lost them.
+  TransportOptions? _transport(Map<String, dynamic>? raw) {
+    final type = raw?['type'] as String?;
+    if (type == null) {
+      return null;
+    }
+    return TransportOptions(
+      type: type,
+      path: raw!['path'] as String?,
+      host: raw['host'] is String
+          ? raw['host'] as String
+          : (raw['host'] as List<dynamic>?)?.firstOrNull?.toString(),
+      headers: raw['headers'] is Map
+          ? <String, String>{
+              for (final entry
+                  in (raw['headers'] as Map<dynamic, dynamic>).entries)
+                entry.key.toString(): entry.value.toString(),
+            }
+          : null,
+      serviceName: raw['service_name'] as String?,
+      mode: raw['mode'] as String?,
+      idleTimeoutSeconds: _durationSeconds(raw['idle_timeout']),
+      pingTimeoutSeconds: _durationSeconds(raw['ping_timeout']),
+      method: raw['method'] as String?,
+    );
+  }
+
+  /// Parses sing-box duration strings ('60s', '15m', '1h30m') to seconds.
+  int? _durationSeconds(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is! String) {
+      return null;
+    }
+    final match = RegExp(r'^(\d+h)?(\d+m)?(\d+s)?$').firstMatch(value);
+    if (match == null) {
+      return null;
+    }
+    final hours = int.tryParse(match.group(1)?.replaceAll('h', '') ?? '') ?? 0;
+    final minutes =
+        int.tryParse(match.group(2)?.replaceAll('m', '') ?? '') ?? 0;
+    final seconds =
+        int.tryParse(match.group(3)?.replaceAll('s', '') ?? '') ?? 0;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
   NormalizedEndpoint? _outbound(Map<String, dynamic> node) {
     final type = node['type'] as String?;
     final tag = node['tag'] as String? ?? 'singbox';
@@ -318,6 +367,7 @@ class SingboxJsonParser {
         final tls = node['tls'] as Map<String, dynamic>?;
         final transport = node['transport'] as Map<String, dynamic>?;
         final reality = tls?['reality'] as Map<String, dynamic>?;
+        final ech = tls?['ech'] as Map<String, dynamic>?;
         return VlessEndpoint(
           tag: tag,
           address: stringField(node['server'], 'sing-box server'),
@@ -337,6 +387,9 @@ class SingboxJsonParser {
           wsHost:
               (transport?['headers'] as Map<String, dynamic>?)?['Host']
                   as String?,
+          transport: _transport(transport),
+          echEnabled: ech?['enabled'] == true,
+          echConfig: (ech?['config'] as List<dynamic>?)?.firstOrNull as String?,
         );
       case 'vmess':
         final tls = node['tls'] as Map<String, dynamic>?;
@@ -352,6 +405,7 @@ class SingboxJsonParser {
           tls: tls?['enabled'] == true ? 'tls' : null,
           sni: tls?['server_name'] as String?,
           wsPath: transport?['path'] as String?,
+          transport: _transport(transport),
         );
       case 'shadowsocks':
         final plugin = node['plugin'] as String?;
@@ -367,15 +421,34 @@ class SingboxJsonParser {
         );
       case 'trojan':
         final tls = node['tls'] as Map<String, dynamic>?;
+        final transport = node['transport'] as Map<String, dynamic>?;
         return TrojanEndpoint(
           tag: tag,
           address: stringField(node['server'], 'sing-box server'),
           port: intField(node['server_port'], 'sing-box server_port'),
           password: stringField(node['password'], 'sing-box password'),
           sni: tls?['server_name'] as String?,
-          network:
-              (node['transport'] as Map<String, dynamic>?)?['type'] as String?,
+          network: transport?['type'] as String?,
           allowInsecure: tls?['insecure'] == true,
+          transport: _transport(transport),
+        );
+      case 'ssh':
+        final hostKey = node['host_key'] is List
+            ? List<String>.from(node['host_key'] as List<dynamic>)
+            : null;
+        return SshEndpoint(
+          tag: tag,
+          address: stringField(node['server'], 'sing-box server'),
+          port: node['server_port'] == null
+              ? 22
+              : intField(node['server_port'], 'sing-box server_port'),
+          user: node['user'] as String? ?? 'root',
+          password: node['password'] as String?,
+          privateKey: node['private_key'] is String
+              ? node['private_key'] as String
+              : (node['private_key'] as List<dynamic>?)?.join('\n'),
+          privateKeyPassphrase: node['private_key_passphrase'] as String?,
+          hostKey: hostKey,
         );
       case 'hysteria2':
         final tls = node['tls'] as Map<String, dynamic>?;
@@ -489,6 +562,39 @@ class SingboxJsonParser {
   }
 }
 
+/// `ssh://user:password@host:port#tag` or `ssh://user@host:port#tag`.
+/// Private keys cannot ride a share link — password auth only; key-based
+/// nodes arrive via sing-box JSON import or manual entry.
+class SshUriParser {
+  List<NormalizedEndpoint> parse(String raw) {
+    final uri = parseShareUri(raw);
+    if (uri.scheme != 'ssh') {
+      throw FormatException('not an ssh link: ${uri.scheme}');
+    }
+    final host = uri.host;
+    if (host.isEmpty) {
+      throw const FormatException('ssh: missing host');
+    }
+    final port = uri.port == 0 ? 22 : uri.port;
+    final user = uri.userInfo.isEmpty ? 'root' : uri.userInfo.split(':').first;
+    final password = uri.userInfo.contains(':')
+        ? uri.userInfo.substring(uri.userInfo.indexOf(':') + 1)
+        : null;
+    final tag = uri.fragment.isNotEmpty
+        ? Uri.decodeComponent(uri.fragment)
+        : '$host:$port';
+    return <NormalizedEndpoint>[
+      SshEndpoint(
+        tag: tag,
+        address: host,
+        port: port,
+        user: user,
+        password: password,
+      ),
+    ];
+  }
+}
+
 /// `vless://uuid@host:port?params#tag` (Reality/Vision/XHTTP params).
 class VlessUriParser {
   List<NormalizedEndpoint> parse(String raw) {
@@ -520,6 +626,16 @@ class VlessUriParser {
         realityShortId: query['sid'],
         wsPath: query['path'],
         wsHost: query['host'],
+        // XHTTP links (share:xhttp flavors) carry mode + padding params.
+        transport: query['type'] == 'xhttp'
+            ? TransportOptions(
+                type: 'xhttp',
+                path: query['path'],
+                host: query['host'],
+                mode: query['mode'],
+              )
+            : null,
+        echEnabled: query['ech'] == '1' || query['ech'] == 'true',
       ),
     ];
   }
