@@ -1,32 +1,33 @@
-# Handoff — YOURVPN — production hardening done, uncommitted (60 sec)
+# Handoff — YOURVPN — P0+P1+P2 committed, clean tree (60 sec)
 
 ## Repo state
-- **Git `master`, 5 commits** (`16a270e` latest). **Working tree DIRTY: 23 modified + `pubspec.lock` untracked** — the whole session below is uncommitted. Next: review `git diff`, `git add pubspec.lock` + files, commit, then push + tag `v0.1.0` (no remote yet — user creates repo).
-- **194 tests green** (+14 new), **`flutter analyze` clean**, **`sing-box check` exit 0**, real exe smoke green.
-- Session: `prod-audit` workflow (9 dims → 123 raw → adversarial vote → 39 confirmed; ~102 late verifiers 502'd, synthesis OK) → fixed all 14 P0 + exe-gated skips. Details: `tasks/progress-2026-09-03.md`, decisions: `docs/decisions.tsv` (+14 rows).
+- **Git `master`, 11 commits** (`6213424` latest). **Working tree CLEAN.**
+- **241 tests green, `flutter analyze` clean, `sing-box check` exit 0**, real exe smoke green.
+- Arc: `prod-audit` (39 confirmed) → P0 (all 14) → P1 perf → P1 reliability → P2 UX. Progress logs: `tasks/progress-2026-09-03.md` (P0), P1/P2 below. Decisions: `docs/decisions.tsv` (+14 P0 rows; P1/P2 rows pending).
 
-## Engine truths (do NOT re-derive — prior handoff still holds)
+## Engine truths (do NOT re-derive)
 - aar (libbox 1.14) has **NO `Box` class** — daemon arch; TUN fd via Go→Kotlin `openTun`; `engineManagedTun=true` both platforms.
 - `endpoints[].id/ip/ib` **FATAL**; tuic `alpn` under `tls.alpn`; reality REQUIRES utls; no `chain` outbound (detour); CommandClient 6 commands only (FATAL-scan crash detection).
-- NEW: `outbound: BLOCK` passes `sing-box check` (probed); `reject`-action vs `BLOCK`-outbound both valid — compiler emits `reject`, firewall policy asserts `BLOCK` shape.
-- NEW: `windows/sing-box.exe` must be spawned via absolute path (`p.join(Directory.current.path, ...)`) — relative path breaks Win process lookup in tests.
+- `outbound: BLOCK` passes check (probed); compiler emits `reject`, firewall policy asserts `BLOCK` shape — both valid.
+- `windows/sing-box.exe` must be spawned via absolute path (`p.join(Directory.current.path, ...)`) — relative breaks Win lookup.
+- Fork `FakeIPDNSServerOptions` has ONLY `inet4_range`/`inet6_range` — no filter/mode fields exist, so `filterMode`/`fakeIpFilters` stay Dart-side data (P2 deliberately did NOT emit them).
 
-## What changed this session (files)
-- Engine: `core/services/tunnel.dart` (Timeouts+epoch+connecting-crash), `channel_adapters.dart` (30/10s), `windows_box_process.dart` (LogBus pipes), `main.dart` (fail-closed firewall adapter), `vpn/logic/vpn_notifier.dart` (dispose), `sec/firewall.dart` (validateOrdering).
-- Routing: `routing_compiler.dart` (port/CIDR/regex/enum/SRS/outbound validation), `routing_policy.dart` (shape errors), `rule_store.dart` (v2 30-field), `profile_config_source.dart` (per-group fallback, deep-copy, WG selector).
-- Ingestion/build: `parsers.dart` (base64 no-recurse), `ingestion_adapter.dart` (isolate+cache), `endpoints_controller.dart` (>64KB isolate), `.gitignore` (track pubspec.lock), `build-android.yml` (SDK 37, size gate).
-- Tests: 5 tunnel + 8 compiler + v2 round-trip + base64 regression; all exe tests `markTestSkipped` when exe absent.
+## What landed since the last handoff (commits `1d62f8a`→`6213424`)
+- **P1 startup/apps** (`1d62f8a`): PhaseTimer + `latestStartupReport`, updater deferred post-frame, wizard 1500ms app-list timeout, Kotlin bg-thread + 60s TTL app query, Dart app memoize.
+- **P1 perf** (`4d9bf0e`): config fingerprint cache + shared asset load; tmp+rename atomic writes everywhere; debounced controllers (state now, disk 300ms, `flushPending`); LogBus 2000/4KB + repeat-collapse + 250ms UI batching + static RegExps.
+- **P1 reliability** (`b7770c1`): per-phase `ConnectMetrics` + `lastConnectMetrics`; SelectedEndpoint live-tag validation + `deadTag` + real vendored tag `awg-hkg-02`; UpdateController injectable fetch/key + 5 tests; channel/Tor/plainFetch/desktop coverage (12 tests).
+- **P2 UX** (`1459539`+`6213424`): 44 EN/FA strings + regen; l10n everywhere touched; edit/delete tooltips + semantic labels; live-region errors; protocol display names; rule Save disabled until a condition + inline hint + typing listeners; Logs rewrite (owns ScrollController, filter/search/pause/tail/export); l10n parity test.
 
 ## Next (value order)
-1. **Commit:** review diff → `git add -A` (incl. `pubspec.lock`) → commit `feat: production hardening — ...`.
-2. **Push/CI:** `git remote add origin <url>` → push → tag `v0.1.0` → verify 3-job release + latest.json.
-3. **On-device proof:** `flutter install` → wizard → connect → tun0 + egress + logs; then 7 leak tests.
-4. **P1 (not started):** config rebuild cache, store coalescing, startup parallelize, connect-latency metrics, log filter/export, l10n strings, 2.0 goldens, sentry, per-ABI splits.
+1. **Push/CI:** `git remote add origin <url>` → push → tag `v0.1.0` → verify 3-job release + latest.json.
+2. **On-device proof:** `flutter install` → wizard → connect → tun0 + egress + logs; then 7 leak tests (`scripts/leak_test.sh`).
+3. **Leftovers (roadmap P2/P3, not started):** diagnostics connect-metrics tile (data ready via `lastConnectMetrics`), TextScaler 2.0 goldens, sentry/crash reporting, per-ABI splits, chain-detour integration tests, VpnNotifier blocked/reconnecting edge tests.
+4. **Docs debt:** `docs/decisions.tsv` needs P1/P2 rows; `tasks/todo.md` still shows 17/17 pre-hardening state.
 
 ## Verify (30 sec)
 ```
-& C:\tools\flutter\bin\flutter.bat test --no-pub        # 194 pass
+& C:\tools\flutter\bin\flutter.bat test --no-pub        # 241 pass
 & C:\tools\flutter\bin\flutter.bat analyze              # No issues
 windows\sing-box.exe check -c profiles/config.wg-awg.json  # exit 0
-git status --short | head -25                            # dirty, 23 mod + lock
+git log --oneline -6                                     # 6213424 … 3c011ab
 ```
