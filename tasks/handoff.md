@@ -2,9 +2,9 @@
 
 ## Repo state
 
-- **Git `master`** at the session close-out commit (5 feature commits on top of `790301d`: `cf92abf` updates fail-closed → `c7f2e59` urltest → `c4e83ac` transports → `1486dde` backup → `cf4201b` metrics tile). Clean tree.
-- **301 tests green, analyze clean, sing-box check exit 0.** New emitter shapes probed against the real exe.
-- Two workflows ran this session: scout (7 agents, facts below) + adversarial review (5 dims; confirmed findings fixed or listed below).
+- **Git `master`** at the session close-out commit (7 commits on top of `790301d`: `cf92abf` updates fail-closed → `c7f2e59` urltest → `c4e83ac` transports → `1486dde` backup → `cf4201b` metrics tile → `438c7b4` review hardening → `418ac7f` stray-file cleanup). Clean tree.
+- **302 tests green, analyze clean, sing-box check exit 0.** New emitter shapes probed against the real exe.
+- Two workflows ran this session: scout (7 agents, facts below) + adversarial review (5 dimensions → 28 raw findings → skeptic-verified 22 confirmed → ALL fixed in `438c7b4`). The review caught two critical regressions the cluster author introduced (type-only transport emission for tcp/h2/kcp FATALs the engine; ws fallback ignoring network type) — verifiers demonstrated them by running `sing-box.exe check`. Review JSON: session transcript `wopp73ah2.output`.
 
 ## Engine truths (additions — do NOT re-derive)
 
@@ -37,7 +37,7 @@
 ## Verify (30 sec)
 
 ```
-& C:\tools\flutter\bin\flutter.bat test --no-pub        # 301 pass
+& C:\tools\flutter\bin\flutter.bat test --no-pub        # 302 pass
 & C:\tools\flutter\bin\flutter.bat analyze              # No issues
 windows\sing-box.exe check -c profiles/config.wg-awg.json  # exit 0
 git log --oneline -6                                    # cf4201b .. 790301d
