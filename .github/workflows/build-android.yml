@@ -66,6 +66,10 @@ jobs:
         # documented pattern.
         env:
           HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         if: ${{ env.HAS_KEYSTORE == 'true' }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
@@ -75,11 +79,6 @@ jobs:
           keyAlias=$KEY_ALIAS
           keyPassword=$KEY_PASSWORD
           EOF
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Build APKs (split per ABI)
         run: flutter build apk --release --split-per-abi --no-tree-shake-icons --dart-define=UPDATE_CHANNEL=androidApk
