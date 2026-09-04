@@ -49,9 +49,14 @@ class GroupsController extends Notifier<GroupsState> {
     return _validated(groups, leaves);
   }
 
+  /// Runs the debounced disk write now instead of after the delay.
+  /// Production use: external writes to the store files (backup import)
+  /// flush first so a pending save cannot overwrite them.
+  Future<void> flushPendingWrites() => _saver.flush();
+
   /// Tests: run the debounced disk write now instead of after the delay.
   @visibleForTesting
-  Future<void> flushPending() => _saver.flush();
+  Future<void> flushPending() => flushPendingWrites();
 
   /// Endpoint tags are the live leaf universe; stored doc leaves kept for
   /// backward compatibility but endpoints always win.

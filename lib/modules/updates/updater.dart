@@ -207,9 +207,11 @@ class UpdateSource {
   }
 }
 
-/// Resolves the platform key used for asset filtering. Android ABI detection
-/// is injectable so tests never touch the platform channel, and [onAndroid]
-/// pins the host check (CI runs on Ubuntu, so the Android branch is only
+/// Resolves the platform key used for asset filtering. [androidAbi] is a
+/// seam, not a production input — no caller supplies it today (universal-
+/// APK releases make arm64 the correct default; wire Android abiList into
+/// the dispatcher when per-ABI splits land). [onAndroid] pins the host
+/// check for tests (CI runs on Ubuntu, so the Android branch is only
 /// reachable through this seam). Unknown ABIs throw instead of silently
 /// choosing arm64; an unknown OS still throws so a stray desktop harness
 /// never fetches phone APKs.

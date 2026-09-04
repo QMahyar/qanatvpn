@@ -54,10 +54,7 @@ void main() {
     final doc = jsonDecode(raw) as Map<String, dynamic>;
     expect((doc['rules'] as List<dynamic>), hasLength(3));
     // No tmp leftovers from the atomic write.
-    expect(
-      dir.listSync().where((e) => e.path.endsWith('.tmp')),
-      isEmpty,
-    );
+    expect(dir.listSync().where((e) => e.path.endsWith('.tmp')), isEmpty);
   });
 
   test('GroupsController: rapid edits coalesce, state stays ahead', () async {
@@ -82,36 +79,35 @@ void main() {
     expect(File('${dir.path}/policy.json').existsSync(), isFalse);
 
     await controller.flushPending();
-    expect(
-      container.read(policyStoreProvider).read().groups,
-      hasLength(2),
-    );
+    expect(container.read(policyStoreProvider).read().groups, hasLength(2));
   });
 
-  test('EndpointsController: saveManual is immediate, disk debounced',
-      () async {
-    final container = ProviderContainer(
-      overrides: [
-        endpointStoreProvider.overrideWithValue(
-          EndpointStore(baseDir: dir.path),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-    final controller = container.read(endpointsControllerProvider.notifier);
+  test(
+    'EndpointsController: saveManual is immediate, disk debounced',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          endpointStoreProvider.overrideWithValue(
+            EndpointStore(baseDir: dir.path),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(endpointsControllerProvider.notifier);
 
-    const endpoint = TrojanEndpoint(
-      tag: 't-1',
-      address: 'a',
-      port: 443,
-      password: 'p',
-    );
-    const stored = StoredEndpoint(endpoint: endpoint, label: 't-1');
-    await EndpointStore(baseDir: dir.path).save(<StoredEndpoint>[stored]);
-    await controller.delete(0);
+      const endpoint = TrojanEndpoint(
+        tag: 't-1',
+        address: 'a',
+        port: 443,
+        password: 'p',
+      );
+      const stored = StoredEndpoint(endpoint: endpoint, label: 't-1');
+      await EndpointStore(baseDir: dir.path).save(<StoredEndpoint>[stored]);
+      await controller.delete(0);
 
-    expect(container.read(endpointsControllerProvider).endpoints, isEmpty);
-    await controller.flushPending();
-    expect(EndpointStore(baseDir: dir.path).read(), isEmpty);
-  });
+      expect(container.read(endpointsControllerProvider).endpoints, isEmpty);
+      await controller.flushPending();
+      expect(EndpointStore(baseDir: dir.path).read(), isEmpty);
+    },
+  );
 }

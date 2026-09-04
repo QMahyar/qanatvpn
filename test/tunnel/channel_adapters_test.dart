@@ -37,28 +37,30 @@ void main() {
   );
 
   group('MethodChannelBoxAdapter.start/stop', () {
-    test('sends boxStart with encoded config + packages, emits started',
-        () async {
-      Map<String, dynamic>? args;
-      mockVpn((call) async {
-        args = Map<String, dynamic>.from(call.arguments as Map);
-        return null;
-      });
-      final adapter = MethodChannelBoxAdapter(logBus: LogBus());
-      final events = <BoxEvent>[];
-      final sub = adapter.events.listen(events.add);
-      addTearDown(sub.cancel);
+    test(
+      'sends boxStart with encoded config + packages, emits started',
+      () async {
+        Map<String, dynamic>? args;
+        mockVpn((call) async {
+          args = Map<String, dynamic>.from(call.arguments as Map);
+          return null;
+        });
+        final adapter = MethodChannelBoxAdapter(logBus: LogBus());
+        final events = <BoxEvent>[];
+        final sub = adapter.events.listen(events.add);
+        addTearDown(sub.cancel);
 
-      await adapter.start(
-        config(include: <String>['com.a'], exclude: <String>['com.b']),
-      );
-      await Future<void>.delayed(Duration.zero);
+        await adapter.start(
+          config(include: <String>['com.a'], exclude: <String>['com.b']),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      expect(args?['config'], json.encode(config().json));
-      expect(args?['includePackages'], <String>['com.a']);
-      expect(args?['excludePackages'], <String>['com.b']);
-      expect(events.single.kind, BoxEventKind.started);
-    });
+        expect(args?['config'], json.encode(config().json));
+        expect(args?['includePackages'], <String>['com.a']);
+        expect(args?['excludePackages'], <String>['com.b']);
+        expect(events.single.kind, BoxEventKind.started);
+      },
+    );
 
     test('omits empty package lists from boxStart args', () async {
       Map<String, dynamic>? args;
@@ -159,10 +161,10 @@ void main() {
       await sendEngineEvent('stopped');
       await Future<void>.delayed(Duration.zero);
 
-      expect(
-        events.map((e) => e.kind).toList(),
-        <BoxEventKind>[BoxEventKind.started, BoxEventKind.stopped],
-      );
+      expect(events.map((e) => e.kind).toList(), <BoxEventKind>[
+        BoxEventKind.started,
+        BoxEventKind.stopped,
+      ]);
     });
   });
 

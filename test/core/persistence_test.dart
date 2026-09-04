@@ -23,10 +23,7 @@ void main() {
       await atomicWriteString(file, '{"rules":[]}');
 
       expect(file.readAsStringSync(), '{"rules":[]}');
-      expect(
-        dir.listSync().where((e) => e.path.endsWith('.tmp')),
-        isEmpty,
-      );
+      expect(dir.listSync().where((e) => e.path.endsWith('.tmp')), isEmpty);
     });
 
     test('overwrite leaves single complete file', () async {

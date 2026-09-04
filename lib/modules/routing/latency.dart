@@ -32,31 +32,10 @@ class SocketLatencyPinger implements LatencyPinger {
   }
 }
 
-/// Result of one sweep over endpoint addresses.
-class LatencyReport {
-  const LatencyReport({required this.samples});
-
-  /// tag → TCP connect latency in ms. Unreachable hosts map to null.
-  final Map<String, int?> samples;
-
-  /// Tag with the lowest latency among measured (non-null) samples,
-  /// null when nothing was reachable.
-  String? bestTag() {
-    String? best;
-    int? bestMs;
-    for (final entry in samples.entries) {
-      final ms = entry.value;
-      if (ms == null) {
-        continue;
-      }
-      if (bestMs == null || ms < bestMs) {
-        best = entry.key;
-        bestMs = ms;
-      }
-    }
-    return best;
-  }
-}
+/// Result of one sweep over endpoint addresses — kept as the typed return
+/// of [measureAll] via its samples map; selection logic lives on
+/// [LatencyState] (single source, no duplicate bestTag).
+typedef LatencyReport = Map<String, int?>;
 
 /// Sweep helper: measures every (address, port) pair concurrently with a
 /// shared timeout. Never throws — unreachable hosts resolve to null.
@@ -156,6 +135,11 @@ class LatencyState {
 
 /// Owns sweep execution and the cached [LatencyState]. One in-flight sweep
 /// at a time; a concurrent call returns the running sweep's future.
+///
+/// Staleness guard: samples are keyed `tag@address` internally; a sweep
+/// drops entries whose address no longer matches the store, so a
+/// re-imported tag with a new address never displays the old address's
+/// ping (samples for removed/changed endpoints vanish on next refresh).
 class LatencyController extends Notifier<LatencyState> {
   Future<LatencyState>? _inFlight;
 
@@ -174,11 +158,26 @@ class LatencyController extends Notifier<LatencyState> {
       // Null-aware entry: endpoints without a probeable address are skipped.
       for (final item in stored) item.tag: ?endpointProbeTarget(item),
     };
-    final samples = await measureAll(targets, pinger: pinger);
+    final measured = await measureAll(targets, pinger: pinger);
+    // Staleness guard: keep an old sample only when the tag still exists at
+    // the same address — a re-imported tag with a new address must not
+    // display the old address's ping. Unmeasured-but-unchanged members of
+    // the previous sweep stay visible.
+    final previousTargets = _previousTargets;
+    _previousTargets = targets;
+    final samples = <String, int?>{
+      for (final entry in state.samples.entries)
+        if (targets.containsKey(entry.key) &&
+            previousTargets?[entry.key]?.address == targets[entry.key]?.address)
+          entry.key: entry.value,
+      ...measured,
+    };
     final next = LatencyState(samples: samples);
     state = next;
     return next;
   }
+
+  Map<String, ({String address, int port})>? _previousTargets;
 }
 
 final latencyProvider = NotifierProvider<LatencyController, LatencyState>(

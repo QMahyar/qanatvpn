@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cryptography/cryptography.dart' show SecretBoxAuthenticationError;
+import 'package:cryptography/cryptography.dart'
+    show SecretBoxAuthenticationError;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yourvpn/core/backup/backup_service.dart';
 import 'package:yourvpn/modules/onboarding/split_store.dart';
@@ -44,13 +45,8 @@ void main() {
   );
 
   test('export → wipe → import(replace) restores every store', () async {
-    await endpoints.save(<StoredEndpoint>[
-      trojan('t1'),
-      trojan('t2'),
-    ]);
-    await rules.save(
-      const RuleDocument(rules: []),
-    );
+    await endpoints.save(<StoredEndpoint>[trojan('t1'), trojan('t2')]);
+    await rules.save(const RuleDocument(rules: []));
     await policy.save(
       const PolicyDocument(
         groups: <OutboundGroup>[
@@ -70,7 +66,10 @@ void main() {
     // Wipe: overwrite stores with empty content.
     await endpoints.save(<StoredEndpoint>[]);
     await policy.save(
-      const PolicyDocument(groups: <OutboundGroup>[], leafOutbounds: <String>[]),
+      const PolicyDocument(
+        groups: <OutboundGroup>[],
+        leafOutbounds: <String>[],
+      ),
     );
 
     final summary = await service.import(path, 'correct horse');
@@ -87,20 +86,22 @@ void main() {
     expect(restoredSplit?.packages, <String>{'com.a'});
   });
 
-  test('wrong password fails with authentication error, store untouched',
-      () async {
-    await endpoints.save(<StoredEndpoint>[trojan('t1')]);
-    final path = '${dir.path}/backup.qnv';
-    await service.export(path, 'right');
-    await endpoints.save(<StoredEndpoint>[]);
+  test(
+    'wrong password fails with authentication error, store untouched',
+    () async {
+      await endpoints.save(<StoredEndpoint>[trojan('t1')]);
+      final path = '${dir.path}/backup.qnv';
+      await service.export(path, 'right');
+      await endpoints.save(<StoredEndpoint>[]);
 
-    await expectLater(
-      service.import(path, 'wrong'),
-      throwsA(isA<SecretBoxAuthenticationError>()),
-    );
-    // Import failed closed: store stays empty, no partial application.
-    expect(endpoints.read(), isEmpty);
-  });
+      await expectLater(
+        service.import(path, 'wrong'),
+        throwsA(isA<SecretBoxAuthenticationError>()),
+      );
+      // Import failed closed: store stays empty, no partial application.
+      expect(endpoints.read(), isEmpty);
+    },
+  );
 
   test('corrupt envelope fails with BackupFormatException', () async {
     final path = '${dir.path}/bad.qnv';
@@ -122,32 +123,112 @@ void main() {
     );
   });
 
-  test('merge folds endpoints/groups by tag (backup wins), appends rules',
-      () async {
-    await endpoints.save(<StoredEndpoint>[trojan('t1')]);
-    final path = '${dir.path}/backup.qnv';
-    await service.export(path, 'pw');
+  test(
+    'merge folds endpoints/groups by tag (backup wins), appends rules',
+    () async {
+      await endpoints.save(<StoredEndpoint>[trojan('t1')]);
+      await rules.save(
+        const RuleDocument(
+          rules: <RouteRule>[
+            RouteRule(domains: ['backup-rule.com'], outbound: 'PROXY'),
+          ],
+        ),
+      );
+      final path = '${dir.path}/backup.qnv';
+      await service.export(path, 'pw');
 
-    // Diverge local state after export.
-    await endpoints.save(<StoredEndpoint>[
-      trojan('t1'),
-      trojan('local-only'),
-    ]);
-    await rules.save(
-      const RuleDocument(rules: <RouteRule>[]),
-    );
+      // Diverge local state after export: same tag at a DIFFERENT address
+      // (discriminates backup-wins from keep-existing), a local-only rule
+      // (discriminates append), and a local-only endpoint.
+      await endpoints.save(<StoredEndpoint>[
+        const StoredEndpoint(
+          endpoint: TrojanEndpoint(
+            tag: 't1',
+            address: 'CHANGED',
+            port: 443,
+            password: 'p',
+          ),
+          label: 't1',
+        ),
+        trojan('local-only'),
+      ]);
+      await rules.save(
+        const RuleDocument(
+          rules: <RouteRule>[
+            RouteRule(domains: ['local-rule.com'], outbound: 'PROXY'),
+          ],
+        ),
+      );
 
-    final summary = await service.import(
-      path,
-      'pw',
-      mode: BackupMerge.merge,
-    );
+      final summary = await service.import(path, 'pw', mode: BackupMerge.merge);
 
-    // t1 restored from backup (wins), local-only survives.
-    final tags = endpoints.read().map((e) => e.tag);
-    expect(tags, containsAll(<String>['t1', 'local-only']));
-    expect(summary.endpoints, 1);
-  });
+      final byTag = <String, StoredEndpoint>{
+        for (final item in endpoints.read()) item.tag: item,
+      };
+      final t1 = byTag['t1']!.endpoint as TrojanEndpoint;
+      // Backup wins on tag collision — the address comes from the backup.
+      expect(t1.address, 'a');
+      expect(byTag.containsKey('local-only'), isTrue);
+      // Rules append: both survive.
+      final domains = rules
+          .read()
+          .rules
+          .map((r) => r.domains?.firstOrNull)
+          .whereType<String>()
+          .toList();
+      expect(
+        domains,
+        containsAll(<String>['backup-rule.com', 'local-rule.com']),
+      );
+      expect(summary.endpoints, 1);
+    },
+  );
+
+  test(
+    'backup failing routing validation is rejected, local state untouched',
+    () async {
+      await endpoints.save(<StoredEndpoint>[trojan('t1')]);
+      final path = '${dir.path}/backup.qnv';
+      await service.export(path, 'pw');
+
+      // Craft the malformed backup through a SECOND service whose stores live
+      // in a separate dir (all stores share one root — same-dir stores would
+      // clobber the good ones).
+      final badDir = Directory.systemTemp.createTempSync('backup-bad');
+      addTearDown(() => badDir.deleteSync(recursive: true));
+      final badEndpoints = EndpointStore(baseDir: badDir.path);
+      final badGroups = PolicyStore(baseDir: badDir.path);
+      final badRules = RuleStore(baseDir: badDir.path);
+      final badService = BackupService(
+        endpointStore: badEndpoints,
+        policyStore: badGroups,
+        ruleStore: badRules,
+        splitStore: SplitStore(baseDir: badDir.path),
+      );
+      await badEndpoints.save(<StoredEndpoint>[]);
+      await badGroups.save(
+        const PolicyDocument(
+          groups: <OutboundGroup>[
+            OutboundGroup.urlTest(
+              tag: 'auto',
+              members: <String>['ghost-endpoint'],
+            ),
+          ],
+          leafOutbounds: <String>[],
+        ),
+      );
+      final badPath = '${dir.path}/bad.qnv';
+      await badService.export(badPath, 'pw');
+
+      // Import must fail closed — the dangling group member is compiler-
+      // visible — and the local store must keep t1.
+      await expectLater(
+        service.import(badPath, 'pw'),
+        throwsA(isA<BackupFormatException>()),
+      );
+      expect(endpoints.read().map((e) => e.tag), <String>['t1']);
+    },
+  );
 
   test('empty password rejected at export', () async {
     await expectLater(
@@ -160,7 +241,8 @@ void main() {
     await endpoints.save(<StoredEndpoint>[trojan('t')]);
     final path = '${dir.path}/b.qnv';
     await service.export(path, 'pw');
-    final doc = jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
+    final doc =
+        jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
     expect(doc['magic'], 'YOURVPN-BACKUP');
     expect(doc['version'], 1);
     expect((doc['kdf'] as Map)['algo'], 'argon2id');

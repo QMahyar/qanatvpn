@@ -7,6 +7,7 @@ import 'package:cryptography/cryptography.dart';
 
 import '../../modules/onboarding/split_store.dart';
 import '../../modules/routing/policy_store.dart';
+import '../../modules/routing/routing_compiler.dart';
 import '../../modules/routing/routing_policy.dart';
 import '../../modules/routing/rule_store.dart';
 import '../../modules/vpn/repositories/endpoint_store.dart';
@@ -95,6 +96,12 @@ class BackupService {
   /// existing endpoint-import precedent), appends rules (positional list,
   /// no key exists), and leaves the single-doc split choice alone. Returns
   /// a summary for the confirmation UI.
+  ///
+  /// Validation (review hardening): every other write path runs the
+  /// compiler before persisting — an authenticated-but-malformed backup
+  /// (or one from a newer schema) must not wipe valid local state with
+  /// content the engine would FATAL on. Groups compile against the merged
+  /// endpoint-tag universe; rules ship through the compiler too.
   Future<BackupSummary> import(
     String path,
     String password, {
@@ -113,6 +120,23 @@ class BackupService {
       payload['rules'] as Map<String, dynamic>? ?? <String, dynamic>{},
     );
     final splitJson = payload['split'] as Map<String, dynamic>?;
+
+    final endpointTags = <String>[for (final item in endpoints) item.tag];
+    final compiler = const RoutingCompiler();
+    final groupErrors = compiler
+        .compile(
+          RoutingPolicy(
+            rules: rules.rules,
+            groups: policy.groups,
+            leafOutbounds: endpointTags,
+          ),
+        )
+        .validationErrors;
+    if (groupErrors.isNotEmpty) {
+      throw BackupFormatException(
+        'backup content failed routing validation: ${groupErrors.join('; ')}',
+      );
+    }
 
     switch (mode) {
       case BackupMerge.replace:
@@ -152,7 +176,7 @@ class BackupService {
         await _ruleStore.save(
           RuleDocument(rules: <RouteRule>[...existingRules, ...rules.rules]),
         );
-        // Single-doc split choice: merge mode leaves it alone.
+      // Single-doc split choice: merge mode leaves it alone.
     }
     return BackupSummary(
       endpoints: endpoints.length,

@@ -144,10 +144,12 @@ class ProfileConfigSource implements ConfigSource {
     if (base != null) {
       return Future.value(base);
     }
-    _loading ??= _load().then((loaded) {
-      _cache = loaded;
-      return loaded;
-    }).whenComplete(() => _loading = null);
+    _loading ??= _load()
+        .then((loaded) {
+          _cache = loaded;
+          return loaded;
+        })
+        .whenComplete(() => _loading = null);
     return _loading!;
   }
 
@@ -166,7 +168,8 @@ class ProfileConfigSource implements ConfigSource {
     ]);
     final groups = policy?.toJsonString() ?? '';
     final ruleJson = rules == null ? '' : json.encode(rules.toJson());
-    final split = '${allowMode ?? '-'}=${(packages ?? const <String>{}).join(',')}';
+    final split =
+        '${allowMode ?? '-'}=${(packages ?? const <String>{}).join(',')}';
     return '${endpoints.length}:$endpoints|$groups|$ruleJson|$split';
   }
 

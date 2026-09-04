@@ -19,11 +19,7 @@ void main() {
       bus.add(const EngineLogLine(level: 'INFO', message: 'different'));
 
       final messages = bus.lines.map((l) => l.message).toList();
-      expect(messages, <String>[
-        'same',
-        '‹repeated 5 times›',
-        'different',
-      ]);
+      expect(messages, <String>['same', '‹repeated 5 times›', 'different']);
       expect(bus.droppedRepeats, 4);
     });
 
@@ -33,10 +29,7 @@ void main() {
       bus.add(const EngineLogLine(level: 'INFO', message: 'a'));
       bus.add(const EngineLogLine(level: 'INFO', message: 'b'));
 
-      expect(
-        bus.lines.map((l) => l.message).toList(),
-        <String>['a', 'b'],
-      );
+      expect(bus.lines.map((l) => l.message).toList(), <String>['a', 'b']);
     });
 
     test('same text at different levels does not collapse', () {

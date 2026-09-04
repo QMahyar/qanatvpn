@@ -592,10 +592,7 @@ void main() {
 
     test('bad regex rejected', () {
       final bad = compileOne(
-        const RouteRule(
-          outbound: 'PROXY',
-          domainRegex: <String>['([unclosed'],
-        ),
+        const RouteRule(outbound: 'PROXY', domainRegex: <String>['([unclosed']),
       );
       expect(bad.isValid, isFalse);
       expect(bad.validationErrors.join(), contains('regex'));
@@ -628,10 +625,7 @@ void main() {
 
     test('outbound typo rejected', () {
       final bad = compileOne(
-        const RouteRule(
-          outbound: 'PROXI',
-          domains: <String>['example.com'],
-        ),
+        const RouteRule(outbound: 'PROXI', domains: <String>['example.com']),
       );
       expect(bad.isValid, isFalse);
       expect(bad.validationErrors.join(), contains('PROXI'));
@@ -648,10 +642,7 @@ void main() {
         ),
       );
       expect(noMode.isValid, isFalse);
-      expect(
-        noMode.validationErrors.join(),
-        contains('logicalMode'),
-      );
+      expect(noMode.validationErrors.join(), contains('logicalMode'));
 
       final noSubs = compileOne(
         const RouteRule(outbound: 'PROXY', logicalMode: 'and'),

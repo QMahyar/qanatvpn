@@ -131,19 +131,21 @@ void main() {
     expect((state as UpdateFailed).message, isNotEmpty);
   });
 
-  test('checkNow offline with empty store → Failed, store stays empty',
-      () async {
-    final container = containerWith(
-      dir: dir,
-      fetch: (_, _) async => throw const SocketException('offline'),
-    );
-    addTearDown(container.dispose);
+  test(
+    'checkNow offline with empty store → Failed, store stays empty',
+    () async {
+      final container = containerWith(
+        dir: dir,
+        fetch: (_, _) async => throw const SocketException('offline'),
+      );
+      addTearDown(container.dispose);
 
-    await container
-        .read(updateControllerProvider.notifier)
-        .checkNow(localVersion: '1.0.0');
+      await container
+          .read(updateControllerProvider.notifier)
+          .checkNow(localVersion: '1.0.0');
 
-    expect(container.read(updateControllerProvider), isA<UpdateFailed>());
-    expect(container.read(updateStoreProvider).read(), isNull);
-  });
+      expect(container.read(updateControllerProvider), isA<UpdateFailed>());
+      expect(container.read(updateStoreProvider).read(), isNull);
+    },
+  );
 }

@@ -339,6 +339,19 @@ class SingboxJsonParser {
     );
   }
 
+  /// ECH config normalizer: the fork's `config` is Listable[string] (PEM
+  /// block) — accept a bare string, take a list's first entry, null out
+  /// anything else instead of crashing the whole import.
+  String? _echConfigString(Object? raw) {
+    if (raw is String) {
+      return raw;
+    }
+    if (raw is List<dynamic>) {
+      return raw.firstOrNull?.toString();
+    }
+    return null;
+  }
+
   /// Parses sing-box duration strings ('60s', '15m', '1h30m') to seconds.
   int? _durationSeconds(Object? value) {
     if (value is int) {
@@ -389,7 +402,9 @@ class SingboxJsonParser {
                   as String?,
           transport: _transport(transport),
           echEnabled: ech?['enabled'] == true,
-          echConfig: (ech?['config'] as List<dynamic>?)?.firstOrNull as String?,
+          // Config may be a string OR list (fork Listable); a scalar must
+          // not crash the whole import with a cast TypeError.
+          echConfig: _echConfigString(ech?['config']),
         );
       case 'vmess':
         final tls = node['tls'] as Map<String, dynamic>?;
@@ -578,7 +593,9 @@ class SshUriParser {
     final port = uri.port == 0 ? 22 : uri.port;
     final user = uri.userInfo.isEmpty ? 'root' : uri.userInfo.split(':').first;
     final password = uri.userInfo.contains(':')
-        ? uri.userInfo.substring(uri.userInfo.indexOf(':') + 1)
+        ? Uri.decodeComponent(
+            uri.userInfo.substring(uri.userInfo.indexOf(':') + 1),
+          )
         : null;
     final tag = uri.fragment.isNotEmpty
         ? Uri.decodeComponent(uri.fragment)
@@ -787,6 +804,18 @@ class TrojanUriParser {
         sni: query['sni'] ?? query['peer'],
         network: query['type'],
         allowInsecure: boolOf(query['allowInsecure']),
+        // ws path/host were parsed-and-dropped here while the emitter
+        // already supported them — a trojan+ws link silently shipped a
+        // bare {'type':'ws'} that could not connect.
+        transport:
+            query['type'] == 'ws' &&
+                (query['path'] != null || query['host'] != null)
+            ? TransportOptions(
+                type: 'ws',
+                path: query['path'],
+                host: query['host'],
+              )
+            : null,
       ),
     ];
   }

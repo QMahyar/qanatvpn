@@ -32,9 +32,14 @@ class RulesController extends Notifier<RulesState> {
     return _validated(doc.rules);
   }
 
+  /// Runs the debounced disk write now instead of after the delay.
+  /// Production use: external writes to the store files (backup import)
+  /// flush first so a pending save cannot overwrite them.
+  Future<void> flushPendingWrites() => _saver.flush();
+
   /// Tests: run the debounced disk write now instead of after the delay.
   @visibleForTesting
-  Future<void> flushPending() => _saver.flush();
+  Future<void> flushPending() => flushPendingWrites();
 
   RulesState _validated(List<RouteRule> rules) {
     final compiled = const RoutingCompiler().compile(

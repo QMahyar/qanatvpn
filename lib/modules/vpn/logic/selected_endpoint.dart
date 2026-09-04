@@ -37,11 +37,7 @@ const String vendoredEndpointTag = 'awg-hkg-02';
 
 final selectedEndpointProvider = Provider<SelectedEndpoint>((ref) {
   final endpoints = ref.watch(endpointStoreProvider).read();
-  final liveTags = <String>{
-    ...endpoints.map((e) => e.tag),
-    'DIRECT',
-    'BLOCK',
-  };
+  final liveTags = <String>{...endpoints.map((e) => e.tag), 'DIRECT', 'BLOCK'};
   String? deadTag;
   final groups = ref.watch(policyStoreProvider).read().groups;
   for (final group in groups) {
@@ -74,8 +70,5 @@ final selectedEndpointProvider = Provider<SelectedEndpoint>((ref) {
       deadTag: deadTag,
     );
   }
-  return SelectedEndpoint(
-    tag: vendoredEndpointTag,
-    deadTag: deadTag,
-  );
+  return SelectedEndpoint(tag: vendoredEndpointTag, deadTag: deadTag);
 });

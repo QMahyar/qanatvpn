@@ -113,9 +113,7 @@ class RuleDocument {
     if (raw == null) {
       return null;
     }
-    return <int>[
-      for (final s in raw as List<dynamic>) (s as num).toInt(),
-    ];
+    return <int>[for (final s in raw as List<dynamic>) (s as num).toInt()];
   }
 
   final List<RouteRule> rules;

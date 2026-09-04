@@ -42,10 +42,7 @@ class RulesScreen extends ConsumerWidget {
             if (state.rules.isEmpty)
               Expanded(
                 child: Center(
-                  child: Text(
-                    l10n.rulesEmpty,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(l10n.rulesEmpty, textAlign: TextAlign.center),
                 ),
               )
             else

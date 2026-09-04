@@ -67,9 +67,14 @@ class EndpointsController extends Notifier<EndpointsState> {
     return EndpointsState(endpoints: ref.watch(endpointStoreProvider).read());
   }
 
+  /// Runs the debounced disk write now instead of after the delay.
+  /// Production use: external writes to the store files (backup import)
+  /// flush first so a pending save cannot overwrite them.
+  Future<void> flushPendingWrites() => _saver.flush();
+
   /// Tests: run the debounced disk write now instead of after the delay.
   @visibleForTesting
-  Future<void> flushPending() => _saver.flush();
+  Future<void> flushPending() => flushPendingWrites();
 
   /// Ingests raw text pasted by the user. URL-looking text is fetched
   /// (plain fetch, no cache dependency); anything else parses directly.

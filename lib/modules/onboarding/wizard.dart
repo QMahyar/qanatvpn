@@ -279,12 +279,10 @@ class _SplitStepState extends ConsumerState<_SplitStep> {
     // A hung PackageManager must never strand the wizard on the spinner:
     // fall through to the existing empty-state path ("No user apps found"
     // + Finish stays enabled).
-    final installed = await platform
-        .listInstalledApps()
-        .timeout(
-          const Duration(milliseconds: 1500),
-          onTimeout: () => const <InstalledApp>[],
-        );
+    final installed = await platform.listInstalledApps().timeout(
+      const Duration(milliseconds: 1500),
+      onTimeout: () => const <InstalledApp>[],
+    );
     if (!mounted) {
       return;
     }

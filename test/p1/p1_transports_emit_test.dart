@@ -41,10 +41,18 @@ void main() {
     );
   }
 
-  String? probeKey(String name) {
-    final file = File(p.join(Directory.current.path, 'build/tmp-probe', name));
-    return file.existsSync() ? file.readAsStringSync() : null;
-  }
+  /// Commit-checked fixture key (build/tmp-probe/ is gitignored, so the
+  /// tagged release CI would otherwise find nothing and emit an empty key
+  /// that FATALs at connect). A throwaway ed25519 OpenSSH PEM generated for
+  /// this fixture, comment 'test-fixture-not-a-secret' — no real credential.
+  const String probeEd25519Pem = '''-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACANOQGKG3s2D3gQITMcVL9VHR16vx4O7Az2yNetNG84SwAAAKBs4oJhbOKC
+YQAAAAtzc2gtZWQyNTUxOQAAACANOQGKG3s2D3gQITMcVL9VHR16vx4O7Az2yNetNG84Sw
+AAAEDNRl1U91slBBifPAM2GhUxn0bvNV0bYXD1kINs/cB4Pw05AYobezYPeBAhMxxUv1Ud
+HXq/Hg7sDPbI1600bzhLAAAAGXRlc3QtZml4dHVyZS1ub3QtYS1zZWNyZXQBAgME
+-----END OPENSSH PRIVATE KEY-----
+''';
 
   group('SSH outbound', () {
     test('emits user/password/port (password auth)', () async {
@@ -66,13 +74,12 @@ void main() {
     });
 
     test('emits OpenSSH-PEM key and passes real check', () async {
-      final key = probeKey('probe_ed25519');
       final json = endpointToOutboundJson(
-        SshEndpoint(
+        const SshEndpoint(
           tag: 'ssh-key',
           address: '203.0.113.10',
           port: 22,
-          privateKey: key ?? '',
+          privateKey: probeEd25519Pem,
         ),
       );
       expect(json['private_key'], isNotNull);

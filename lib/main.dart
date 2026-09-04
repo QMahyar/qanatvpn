@@ -47,10 +47,7 @@ Future<void> main() async {
     'platformAdapter',
     () async => _platformAdapter(),
   );
-  final LogBus sharedLogBus = await timer.timed(
-    'logBus',
-    () async => LogBus(),
-  );
+  final LogBus sharedLogBus = await timer.timed('logBus', () async => LogBus());
   final BoxAdapter box = await timer.timed(
     'boxAdapter',
     () async => _boxAdapter(sharedLogBus),

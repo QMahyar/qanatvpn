@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/backup/backup_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../routing/groups_controller.dart';
+import '../../routing/rules_controller.dart';
 import '../../vpn/amnezia/awg_profile_screen.dart';
 import 'endpoints_controller.dart';
 import 'ingestion/ingestion_adapter.dart'
@@ -76,18 +78,14 @@ class EndpointsScreen extends ConsumerWidget {
             if (state.endpoints.isEmpty)
               Expanded(
                 child: Center(
-                  child: Text(
-                    l10n.endpointsEmpty,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(l10n.endpointsEmpty, textAlign: TextAlign.center),
                 ),
               )
             else
               Expanded(
                 child: Semantics(
                   liveRegion: true,
-                  label:
-                      '${state.endpoints.length} ${l10n.endpointsTitle}',
+                  label: '${state.endpoints.length} ${l10n.endpointsTitle}',
                   child: ListView.builder(
                     itemCount: state.endpoints.length,
                     itemBuilder: (BuildContext context, int index) {
@@ -103,16 +101,13 @@ class EndpointsScreen extends ConsumerWidget {
                           ),
                           trailing: Semantics(
                             button: true,
-                            label:
-                                '${l10n.endpointsDelete} ${stored.label}',
+                            label: '${l10n.endpointsDelete} ${stored.label}',
                             child: IconButton(
                               tooltip:
                                   '${l10n.endpointsDelete} ${stored.label}',
                               icon: const Icon(Icons.delete_outline),
                               onPressed: () => ref
-                                  .read(
-                                    endpointsControllerProvider.notifier,
-                                  )
+                                  .read(endpointsControllerProvider.notifier)
                                   .delete(index),
                             ),
                           ),
@@ -176,15 +171,22 @@ class EndpointsScreen extends ConsumerWidget {
 
   Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    final picked = await FilePicker.pickFiles(
-      dialogTitle: 'Import encrypted backup',
-      type: FileType.custom,
-      allowedExtensions: const <String>['qnv'],
-    );
+    final List<PlatformFile> picked;
+    try {
+      picked = await FilePicker.pickFiles(
+        dialogTitle: 'Import encrypted backup',
+        type: FileType.custom,
+        allowedExtensions: const <String>['qnv'],
+      );
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Import failed: $error')));
+      return;
+    }
     if (picked.isEmpty) {
       return;
     }
-    final path = picked.single.path;
+    // first, not single: the platform dialog permits multi-select.
+    final path = picked.first.path;
     if (path == null) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Picked file has no readable path')),
@@ -200,6 +202,21 @@ class EndpointsScreen extends ConsumerWidget {
     }
     try {
       final summary = await BackupService().import(path, password);
+      // The import wrote every store file directly; pending 300ms debounced
+      // saves from these controllers would overwrite the imported files,
+      // and a stale in-memory state would silently revert them on the next
+      // edit — flush then invalidate all four.
+      ref
+        ..read(groupsControllerProvider.notifier).flushPendingWrites()
+        ..read(rulesControllerProvider.notifier).flushPendingWrites()
+        ..read(endpointsControllerProvider.notifier).flushPendingWrites();
+      ref
+        ..invalidate(endpointsControllerProvider)
+        ..invalidate(groupsControllerProvider)
+        ..invalidate(rulesControllerProvider);
+      if (!context.mounted) {
+        return;
+      }
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -208,9 +225,6 @@ class EndpointsScreen extends ConsumerWidget {
           ),
         ),
       );
-      // Import wrote the store directly; invalidate so controllers rebuild
-      // from disk on next watch.
-      ref.invalidate(endpointsControllerProvider);
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text('Import failed: $error')));
     }

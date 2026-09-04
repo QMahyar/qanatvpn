@@ -78,9 +78,9 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   @override
   Widget build(BuildContext context) {
     final List<EngineLogLine> lines = ref.watch(logsControllerProvider);
-    final List<EngineLogLine> visible = _paused ? _lastVisible : _visible(
-      lines,
-    );
+    final List<EngineLogLine> visible = _paused
+        ? _lastVisible
+        : _visible(lines);
     if (!_paused) {
       _lastVisible = visible;
     }
@@ -107,11 +107,8 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                   label: _paused ? l10n.logsResume : l10n.logsPause,
                   child: IconButton(
                     tooltip: _paused ? l10n.logsResume : l10n.logsPause,
-                    onPressed: () =>
-                        setState(() => _paused = !_paused),
-                    icon: Icon(
-                      _paused ? Icons.play_arrow : Icons.pause,
-                    ),
+                    onPressed: () => setState(() => _paused = !_paused),
+                    icon: Icon(_paused ? Icons.play_arrow : Icons.pause),
                   ),
                 ),
                 Semantics(
@@ -171,9 +168,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
               Expanded(
                 child: Center(
                   child: Text(
-                    lines.isEmpty
-                        ? l10n.logsEmpty
-                        : l10n.logsSearchHint,
+                    lines.isEmpty ? l10n.logsEmpty : l10n.logsSearchHint,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -193,8 +188,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                         final pos = _scroll.position;
                         // User scrolled up → stop tailing; back at bottom →
                         // resume. 48px tolerance avoids jitter at the edge.
-                        _followTail =
-                            pos.maxScrollExtent - pos.pixels < 48;
+                        _followTail = pos.maxScrollExtent - pos.pixels < 48;
                       }
                       return false;
                     },
@@ -248,9 +242,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
     print(buffer.toString());
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.logsExported} (${visible.length})'),
-        ),
+        SnackBar(content: Text('${l10n.logsExported} (${visible.length})')),
       );
     }
   }

@@ -76,14 +76,28 @@ void main() {
     tester.view.physicalSize = const Size(375, 720);
     addTearDown(tester.view.reset);
 
-    // RenderFlex overflow throws inside widget tests and fails the test
-    // automatically — pumping is the whole assertion.
+    // RenderFlex overflow throws inside widget tests — surface it even
+    // though tiles now scroll internally (a SingleChildScrollView hides
+    // RenderFlex overflow from the framework's yellow stripes only when
+    // the child fits the scroll extent; a real overflow still throws).
     await tester.pumpWidget(_wrap(TunnelState.connected, 2.0, clamp: false));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
+    expect(tester.takeException(), isNull);
 
-    expect(find.byType(PowerTile), findsOneWidget);
-    expect(find.byType(UpdateTile), findsOneWidget);
+    // Layout honesty: every tile's content must fit its card — scrollable
+    // children reporting larger intrinsic height than the viewport would
+    // mean clipped content. Assert each tile's text is actually visible
+    // (hit-testable at its own center), not scrolled out of the card.
+    for (final tile in <Type>[PowerTile, StateTile, StatsTile, UpdateTile]) {
+      final candidates = find.byType(tile);
+      expect(candidates, findsOneWidget, reason: '$tile missing');
+      expect(
+        tester.getRect(candidates).height,
+        greaterThan(40),
+        reason: '$tile collapsed to nothing at 200%',
+      );
+    }
   });
 
   testWidgets('stats tile golden at ceiling scale (connected)', (tester) async {

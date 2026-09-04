@@ -74,9 +74,14 @@ Map<String, dynamic> _vmess(VmessEndpoint e) => <String, dynamic>{
 };
 
 /// Transport resolution shared by vless/vmess/trojan: the typed
-/// [TransportOptions] wins when present; otherwise fall back to the legacy
-/// flat ws fields (URI-imported ws links store there). Null → no transport
-/// key at all (a bare `transport` with unknown type FATALs).
+/// [TransportOptions] wins when present; otherwise the legacy flat fields
+/// map by network type. Null → no transport key at all.
+///
+/// Probe-verified (review workflow): the fork accepts ONLY
+/// ws/grpc/httpupgrade/xhttp/http/quic as transport types — a type-only
+/// block with tcp/h2/kcp/splithttp FATALs `unknown transport type` and one
+/// bad node bricks the whole profile at import. Plain TCP has no transport
+/// layer, so tcp (and unknown networks) emit nothing.
 Map<String, dynamic>? _resolveTransport({
   required String? network,
   TransportOptions? transport,
@@ -86,18 +91,26 @@ Map<String, dynamic>? _resolveTransport({
   if (transport != null) {
     return _transport(transport);
   }
-  if (wsPath != null || wsHost != null) {
-    return _ws(wsPath, wsHost);
+  switch (network) {
+    case 'ws':
+      return _ws(wsPath, wsHost);
+    case 'grpc':
+      // Share links carry the gRPC service name in the path field.
+      return _transport(TransportOptions(type: 'grpc', serviceName: wsPath));
+    case 'h2':
+      // The fork has no h2 — its HTTP/2 transport is `http` (host array).
+      return _transport(
+        TransportOptions(type: 'http', path: wsPath, host: wsHost),
+      );
+    case 'httpupgrade':
+    case 'xhttp':
+    case 'quic':
+      return _transport(TransportOptions(type: network!));
+    default:
+      // tcp/kcp/splithttp/unknown: NO transport key (pre-diff behavior for
+      // tcp; type-only blocks for the rest FATAL the engine).
+      return null;
   }
-  if (network == 'ws') {
-    return _ws(null, null);
-  }
-  // grpc/httpupgrade/xhttp links whose transport detail was lost upstream:
-  // type-only block still parses.
-  if (network != null && network != 'ws') {
-    return _transport(TransportOptions(type: network));
-  }
-  return null;
 }
 
 Map<String, dynamic> _shadowsocks(ShadowsocksEndpoint e) => <String, dynamic>{
@@ -217,7 +230,10 @@ Map<String, dynamic> _ssh(SshEndpoint e) => <String, dynamic>{
   'server_port': e.port,
   if (e.user.isNotEmpty && e.user != 'root') 'user': e.user,
   if (e.password != null) 'password': e.password,
-  if (e.privateKey != null) 'private_key': e.privateKey,
+  // An empty-string key (fixture-less test, placeholder UI state) would
+  // reach the engine and FATAL `ssh: no key found` at connect.
+  if (e.privateKey != null && e.privateKey!.trim().isNotEmpty)
+    'private_key': e.privateKey,
   if (e.privateKeyPassphrase != null)
     'private_key_passphrase': e.privateKeyPassphrase,
   if (e.hostKey != null && e.hostKey!.isNotEmpty) 'host_key': e.hostKey,
@@ -237,9 +253,14 @@ Map<String, dynamic>? _transport(TransportOptions? t) {
   if (t == null) {
     return null;
   }
+  // xhttp FATALs on a host header (any case); every other transport accepts
+  // headers.Host (the ws dialer routes by it — sing-box imports round-trip
+  // it, so stripping it here silently changed the routing).
+  final stripHost = t.type == 'xhttp';
   final cleanHeaders = <String, String>{
     for (final entry in (t.headers ?? const <String, String>{}).entries)
-      if (entry.key.toLowerCase() != 'host') entry.key: entry.value,
+      if (!stripHost || entry.key.toLowerCase() != 'host')
+        entry.key: entry.value,
   };
   return switch (t.type) {
     'ws' => <String, dynamic>{

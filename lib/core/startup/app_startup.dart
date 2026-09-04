@@ -15,10 +15,8 @@ import 'dart:async';
 
 /// Snapshot of one startup: wall-clock total plus per-phase durations.
 class StartupReport {
-  StartupReport({
-    required this.total,
-    required Map<String, Duration> phases,
-  }) : phases = Map<String, Duration>.unmodifiable(phases);
+  StartupReport({required this.total, required Map<String, Duration> phases})
+    : phases = Map<String, Duration>.unmodifiable(phases);
 
   final Duration total;
 

@@ -2,6 +2,8 @@
 
 > Each task: one focused session, ≤5 files, explicit Acceptance, Verify, Files. Ordered by dependency, not importance. Check one before next, per `principle-sequence-verifiable-units`. Downstream `incremental-implementation` expects this file at `tasks/todo.md`.
 
+> **STATUS 2026-09-04: 17/17 DONE — this file is the original build record.** Active work queue lives in `tasks/handoff.md` (Next section) + `tasks/plan.md`; session history in `tasks/progress-*.md` + `docs/decisions.tsv`. Post-hardening work (P0 fail-closed, P1 emit-parity/perf/reliability, P2 UX + roadmap sweep) landed without new todo entries — the TSV is the audit trail.
+
 ---
 
 - [x] Task: Scaffold Flutter+Go project + CONTEXT.md + Hallmark preflight + l10n ARB skeleton — DONE 2026-08-30 stub, scaffolded 2026-09-01 with real SDK
@@ -54,7 +56,7 @@
 
 - [x] Task: UI — Blended Bento×Hum home + M3E + cue + navigation
   - DONE 2026-09-01: functional core — go_router ShellRoute 5 tabs (Home/Groups/Rules/Logs/Diagnostics), bento home adaptive 4/2/1 columns, PowerTile wired to VpnNotifier.connect('HKG-02')/disconnect with AnimatedRotation + Semantics, StateTile with blockReason, EdgeInsetsDirectional, riverpod overrides in main.dart (real MethodChannelPlatformAdapter). M3E widget-level polish + goldens deferred (Material 3 useMaterial3 active).
-  - UI-SCOPE-NOTE  - Verify: `flutter test` golden EN/FA at 200% scale no overflow, `flutter analyze` no `EdgeInsets.only(left:)`, manual 320/375/414/768 no horizontal scroll, no two-line clickables, `cue` spring `smooth()` on power toggle.
+  - UI-SCOPE-NOTE - Verify: `flutter test` golden EN/FA at 200% scale no overflow, `flutter analyze` no `EdgeInsets.only(left:)`, manual 320/375/414/768 no horizontal scroll, no two-line clickables, `cue` spring `smooth()` on power toggle.
   - Files: `lib/app/main.dart`, `lib/modules/vpn/screens/home.dart`, `lib/modules/routing_editor/screens/`, `analysis_options.yaml`
 
 - [x] Task: Health 06 Deep + Diagnostics + l10n — Health.snapshot()+stream hierarchical + Drift + network_reachability Rust
@@ -91,6 +93,3 @@
   - Acceptance: After each phase checkpoint, agent writes `tasks/progress-YYYY-MM-DD.md` (daily log) + appends `show-me-your-work` TSV row + updates `tasks/todo.md` checkbox + runs `handoff` to emit `handoff.md` (compact: done/next/blockers). Next session agent runs `recall` (reads `handoff.md` + `progress-*.md` + `CONTEXT.md` + `tasks/todo.md`) then `context-engineering` loads only that todo's files per `principle-guard-the-context-window`. If work exceeds one session, `wayfinder` splits `todo.md` into `tasks/tickets/*.md` with `blocked-on` edges, parallel agents don't collide on `core` vs `routing`. `agent-memory` vault at `C:\Users\qmahyar\.config\opencode\agent-memory` persists long-term facts.
   - Verify: `tasks/progress-2026-08-30.md` exists + `handoff.md` compact + `agent-memory` vault has `yourvpn` entry, next session `recall` reconstructs context without re-asking.
   - Files: `tasks/progress-*.md`, `handoff.md`, `docs/decisions.tsv`, `tasks/tickets/*.md` (if wayfinder), `C:\Users\qmahyar\.config\opencode\agent-memory/*`
-
-
-

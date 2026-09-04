@@ -50,10 +50,7 @@ class LogBus {
   void _flushRepeats() {
     if (_repeatCount >= 3 && _lastMessage != null) {
       _emit(
-        EngineLogLine(
-          level: '',
-          message: '‹repeated $_repeatCount times›',
-        ),
+        EngineLogLine(level: '', message: '‹repeated $_repeatCount times›'),
       );
     }
     _repeatCount = 0;

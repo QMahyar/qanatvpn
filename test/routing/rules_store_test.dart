@@ -142,14 +142,8 @@ void main() {
             clashMode: 'Direct',
             logicalMode: 'and',
             rules: <RouteRule>[
-              RouteRule(
-                domains: <String>['a.com'],
-                ports: <String>['80'],
-              ),
-              RouteRule(
-                domains: <String>['b.com'],
-                ports: <String>['443'],
-              ),
+              RouteRule(domains: <String>['a.com'], ports: <String>['80']),
+              RouteRule(domains: <String>['b.com'], ports: <String>['443']),
             ],
             invert: true,
           ),

@@ -11,9 +11,7 @@ import 'package:yourvpn/l10n/app_localizations.dart';
 /// regression that ships English to FA users.
 void main() {
   Map<String, dynamic> readArb(String locale) {
-    final raw = File(
-      'lib/l10n/app_$locale.arb',
-    ).readAsStringSync();
+    final raw = File('lib/l10n/app_$locale.arb').readAsStringSync();
     return jsonDecode(raw) as Map<String, dynamic>;
   }
 

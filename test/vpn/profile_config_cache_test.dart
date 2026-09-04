@@ -63,9 +63,9 @@ void main() {
 
   test('same inputs twice → second resolve is a cache hit', () async {
     final s = source();
-    await EndpointStore(baseDir: dir.path).save(<StoredEndpoint>[
-      trojan('t-1'),
-    ]);
+    await EndpointStore(
+      baseDir: dir.path,
+    ).save(<StoredEndpoint>[trojan('t-1')]);
 
     await s.resolve('PROXY');
     expect(s.cacheStats(), 'hits=0 misses=1');
@@ -85,9 +85,9 @@ void main() {
     expect(s.cacheStats(), 'hits=0 misses=2');
     List<dynamic> tagsOf(Map<String, dynamic> json) {
       final outbounds = json['outbounds'] as List<dynamic>;
-      final selector = outbounds
-          .whereType<Map<String, dynamic>>()
-          .firstWhere((o) => o['type'] == 'selector');
+      final selector = outbounds.whereType<Map<String, dynamic>>().firstWhere(
+        (o) => o['type'] == 'selector',
+      );
       return selector['outbounds'] as List<dynamic>;
     }
 
@@ -95,21 +95,20 @@ void main() {
     expect(tagsOf(second.json), containsAll(<String>['t-1', 't-2']));
   });
 
-  test('caller mutating the returned map does not pollute the cache',
-      () async {
+  test('caller mutating the returned map does not pollute the cache', () async {
     final s = source();
-    await EndpointStore(baseDir: dir.path).save(<StoredEndpoint>[
-      trojan('t-1'),
-    ]);
+    await EndpointStore(
+      baseDir: dir.path,
+    ).save(<StoredEndpoint>[trojan('t-1')]);
 
     final first = await s.resolve('PROXY');
     (first.json['outbounds'] as List<dynamic>).clear();
     final second = await s.resolve('PROXY');
 
     final outbounds = second.json['outbounds'] as List<dynamic>;
-    final selector = outbounds
-        .whereType<Map<String, dynamic>>()
-        .firstWhere((o) => o['type'] == 'selector');
+    final selector = outbounds.whereType<Map<String, dynamic>>().firstWhere(
+      (o) => o['type'] == 'selector',
+    );
     expect(selector['outbounds'], contains('t-1'));
     expect(s.cacheStats(), 'hits=1 misses=1');
   });

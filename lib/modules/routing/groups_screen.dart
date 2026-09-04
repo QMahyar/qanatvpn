@@ -34,8 +34,7 @@ class GroupsScreen extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'Measure latency',
-                  onPressed: () =>
-                      ref.read(latencyProvider.notifier).refresh(),
+                  onPressed: () => ref.read(latencyProvider.notifier).refresh(),
                   icon: const Icon(Icons.speed),
                 ),
                 IconButton(
@@ -48,10 +47,7 @@ class GroupsScreen extends ConsumerWidget {
             if (state.groups.isEmpty)
               Expanded(
                 child: Center(
-                  child: Text(
-                    l10n.groupsEmpty,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(l10n.groupsEmpty, textAlign: TextAlign.center),
                 ),
               )
             else
@@ -90,8 +86,7 @@ class GroupsScreen extends ConsumerWidget {
                               button: true,
                               label: '${l10n.groupsDelete} ${group.tag}',
                               child: IconButton(
-                                tooltip:
-                                    '${l10n.groupsDelete} ${group.tag}',
+                                tooltip: '${l10n.groupsDelete} ${group.tag}',
                                 icon: const Icon(Icons.delete_outline),
                                 onPressed: () => ref
                                     .read(groupsControllerProvider.notifier)
@@ -207,10 +202,9 @@ class _GroupFormSheetState extends State<_GroupFormSheet> {
         ? '5'
         : widget.existing!.interval!.inMinutes.toString(),
   );
-  late final TextEditingController _toleranceController =
-      TextEditingController(
-        text: widget.existing?.tolerance?.toString() ?? '50',
-      );
+  late final TextEditingController _toleranceController = TextEditingController(
+    text: widget.existing?.tolerance?.toString() ?? '50',
+  );
   late final Set<String> _members = <String>{...?widget.existing?.members};
   String? _defaultMember;
 
@@ -347,7 +341,9 @@ class _GroupFormSheetState extends State<_GroupFormSheet> {
                                 int.tryParse(_intervalController.text.trim()) ??
                                 5;
                             final tolerance =
-                                int.tryParse(_toleranceController.text.trim()) ??
+                                int.tryParse(
+                                  _toleranceController.text.trim(),
+                                ) ??
                                 50;
                             Navigator.of(context).pop(
                               OutboundGroup.urlTest(

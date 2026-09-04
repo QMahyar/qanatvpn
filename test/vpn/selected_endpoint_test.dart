@@ -158,30 +158,32 @@ void main() {
     expect(selected.hadDeadTag, isTrue);
   });
 
-  test('dead group member with nothing else falls back to vendored tag',
-      () async {
-    final policyStore = PolicyStore(baseDir: dir.path);
-    await policyStore.save(
-      const PolicyDocument(
-        groups: <OutboundGroup>[
-          OutboundGroup.selector(
-            tag: 'manual',
-            members: <String>['ghost-tag'],
-          ),
-        ],
-        leafOutbounds: <String>[],
-      ),
-    );
+  test(
+    'dead group member with nothing else falls back to vendored tag',
+    () async {
+      final policyStore = PolicyStore(baseDir: dir.path);
+      await policyStore.save(
+        const PolicyDocument(
+          groups: <OutboundGroup>[
+            OutboundGroup.selector(
+              tag: 'manual',
+              members: <String>['ghost-tag'],
+            ),
+          ],
+          leafOutbounds: <String>[],
+        ),
+      );
 
-    final container = ProviderContainer(
-      overrides: [policyStoreProvider.overrideWithValue(policyStore)],
-    );
-    addTearDown(container.dispose);
+      final container = ProviderContainer(
+        overrides: [policyStoreProvider.overrideWithValue(policyStore)],
+      );
+      addTearDown(container.dispose);
 
-    final selected = container.read(selectedEndpointProvider);
+      final selected = container.read(selectedEndpointProvider);
 
-    expect(selected.tag, 'awg-hkg-02');
-    expect(selected.source, 'fallback');
-    expect(selected.deadTag, 'ghost-tag');
-  });
+      expect(selected.tag, 'awg-hkg-02');
+      expect(selected.source, 'fallback');
+      expect(selected.deadTag, 'ghost-tag');
+    },
+  );
 }

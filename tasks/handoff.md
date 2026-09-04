@@ -1,35 +1,44 @@
-# Handoff — YOURVPN — P0 fail-closed + P1 emit-parity merged, clean tree (60 sec)
+# Handoff — YOURVPN — roadmap P2 sweep landed: transports/urltest/backup/metrics (60 sec)
 
 ## Repo state
-- **Git `master`, 13 commits** (`e9a98ed` latest). **Working tree CLEAN, no branches, no stashes, single worktree.**
-- **251 tests green, `flutter analyze` clean, `sing-box check` exit 0**, real exe smoke green (Hy2/TUIC/reality probed).
-- Arc: deep-review swarm (12 dims, `tasks/review-swarm-full.md`) → P0 fail-closed (`bce7604`) → P1 emit-parity (`e9a98ed`), both fast-forward merged, branches deleted.
-- Decisions: `docs/decisions.tsv` +4 rows (P0×3, P1×1). Prior P1/P2-perf backfill + `tasks/todo.md` 17/17 staleness still open.
 
-## Engine truths (do NOT re-derive)
-- aar (libbox 1.14) has **NO `Box` class** — daemon arch; TUN fd via Go→Kotlin `openTun`; `engineManagedTun=true` both platforms.
-- `endpoints[].id/ip/ib` **FATAL**; tuic `alpn` under `tls.alpn`; reality REQUIRES utls (emitter defaults `chrome`); no `chain` outbound (detour); CommandClient 6 commands only (FATAL-scan crash detection).
-- `outbound: BLOCK` passes check (probed); compiler emits `reject`, firewall policy asserts `BLOCK` shape — both valid.
-- `windows/sing-box.exe` spawned via absolute path from `Platform.resolvedExecutable` parent — relative breaks installed app.
-- Fork `FakeIPDNSServerOptions` has ONLY `inet4_range`/`inet6_range` — no filter/mode fields exist, so `filterMode`/`fakeIpFilters` stay Dart-side data (swarm emit proposal refuted by struct, P0 row).
-- Hy2 `server_ports` uses `min:max` colon syntax — Clash/URI dash `mport` normalized on emit (`_hy2Ports`); `hop_interval` emits `${n}s`; TUIC `udp_relay_mode` native/quic passes through.
+- **Git `master`** at the session close-out commit (5 feature commits on top of `790301d`: `cf92abf` updates fail-closed → `c7f2e59` urltest → `c4e83ac` transports → `1486dde` backup → `cf4201b` metrics tile). Clean tree.
+- **301 tests green, analyze clean, sing-box check exit 0.** New emitter shapes probed against the real exe.
+- Two workflows ran this session: scout (7 agents, facts below) + adversarial review (5 dims; confirmed findings fixed or listed below).
 
-## What landed since the last handoff (commits `8b52a05`→`e9a98ed`)
-- **P0 fail-closed** (`bce7604`, `test/p0` ×4): assembler prepends `baseRules()`; validator exempts pinned DIRECT; TOR-CHAIN + `tor-entry` both valid; `baseRulesScoped()` forces LAN BLOCK; airplane before foreground; `_block()` stops foreground; absolute exe; dns non-emission documented.
-- **P1 emit-parity** (`e9a98ed`, `test/p1` ×6): Clash full AWG (S3/S4/I1-I5/id/ip/ib); Hy2 mport/hop + TUIC relay emitted; reality fp default; `stringField`/`intField` hardening (no TypeError DoS); real `sing-box check` on all three.
-- **Review:** `tasks/review-swarm-full.md` (11 dims, 70+ findings); top-20 gaps + P0-P3 ship plan in report tail.
+## Engine truths (additions — do NOT re-derive)
+
+- **xhttp `x_padding_bytes` is MANDATORY on the fork** (struct field has no omitempty; absent → zero Range → FATAL `x_padding_bytes cannot be disabled`). Emitter always writes `100-1000`; applies inside `download` sub-blocks too. `headers` must not contain a host key (FATAL).
+- **SSH is outbound-only** (`endpoints[]` FATALs `unknown endpoint type: ssh`). Keys: OpenSSH-PEM, true PKCS8, PKCS1-RSA all parse; `ssh-keygen -m PKCS8 -e` EXPORT output does NOT (`ssh: no key found`). Cipher/mac/kex NOT validated at check.
+- **ECH**: `tls.ech{enabled:true}` without config = DNS HTTPS-record fetch at runtime (check passes); config must be PEM `ECH CONFIGS`; `pq_signature_schemes_enabled`/`dynamic_record_sizing_disabled` still parse but FATAL at init — never emit.
+- **urltest** accepts `idle_timeout` + `interrupt_exist_connections` (Dart model still lacks them — cheap follow-up; must update BOTH `routing_compiler.dart:101` and `profile_config_source.dart:_groupJson` if added).
+- **pub.dev 403s on this network** — use `PUB_HOSTED_URL=https://pub.flutter-io.cn` for any pub add. Added deps this session: `cryptography ^2.9.0` (Argon2id/AesGcm pure-Dart, smoke-probed), `file_picker ^12.2.0` (static API: `FilePicker.saveFile` consumes `bytes` itself).
+
+## What landed (clusters A–E; details + evidence → tasks/progress-2026-09-04.md)
+
+- **Updates fail-closed**: epoch reset parse; StoredUpdate envelope (restart semantics fixed); mirror wired both paths; bg task real localVersion; ABI fail-closed; geo seeding actually wired (rootBundle fallback now works on Android).
+- **urltest best-node**: form fields landed (were dropped); interval guard on the real connect emitter; urltest group connects as GROUP tag (engine auto-picks); latency sweep module + UI.
+- **Transports**: SSH + XHTTP/gRPC/HTTPUpgrade/http + ECH — import AND emit, all `sing-box check`-probed; 6 exhaustive switch sites; store round-trip.
+- **Encrypted backup**: Argon2id+AES-GCM envelope over endpoints/rules/policy/split; replace + merge-by-tag; endpoints-screen UI; fail-closed wrong-password.
+- **Metrics tile + 200% goldens**: StatsTile real data; clamp-bypass golden proves raw layout; two real overflows fixed.
+
+## Review workflow outcome
+
+5-dimension adversarial review over `790301d..HEAD`; findings that survived skeptic verification were fixed before close-out (see progress log + decisions.tsv rows for the session clusters).
 
 ## Next (value order)
-1. **Push/CI:** `git remote add origin <url>` → push → tag `v0.1.0` → verify 3-job release + latest.json.
-2. **On-device proof:** `flutter install` → wizard → connect → tun0 + egress + logs; then 7 leak tests (`scripts/leak_test.sh`).
-3. **Leftovers (roadmap P2/P3, not started):** P2 transports (SSH/XHTTP emitters), best-node urltest, encrypted backup export/import, Sentry, per-ABI splits, chain-detour tests, connect-metrics tile wiring, TextScaler 2.0 goldens.
-4. **Docs debt (remaining):** older P1-perf/P2-UX rows in `decisions.tsv`; `tasks/todo.md` still 17/17 pre-hardening.
+
+1. **Push/CI** (still first): `git remote add origin <url>` → push → tag `v0.1.0` → verify 3-job release + latest.json.
+2. **On-device proof**: install → wizard → connect → leak tests (`scripts/leak_test.sh`).
+3. **v1.0 gate leftovers (Dim 11)**: `scripts/compare_capabilities.py` matrix (highest ROI, ~1h), Sentry, AND/OR group editor UI.
+4. **Quick engine-parity follow-up**: urltest `idle_timeout`/`interrupt_exist_connections` in model + both emitters.
+5. **Docs debt**: none — `decisions.tsv` (81 rows), `todo.md` staleness note, progress + handoff all current.
 
 ## Verify (30 sec)
+
 ```
-& C:\tools\flutter\bin\flutter.bat test --no-pub        # 251 pass
+& C:\tools\flutter\bin\flutter.bat test --no-pub        # 301 pass
 & C:\tools\flutter\bin\flutter.bat analyze              # No issues
 windows\sing-box.exe check -c profiles/config.wg-awg.json  # exit 0
-git log --oneline -4                                     # e9a98ed … 8b52a05
-git branch -vv; git stash list; git worktree list        # master only, no stash, single worktree
+git log --oneline -6                                    # cf4201b .. 790301d
 ```
