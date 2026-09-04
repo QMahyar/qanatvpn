@@ -48,7 +48,12 @@ final selectedEndpointProvider = Provider<SelectedEndpoint>((ref) {
     liveTags.add(group.tag);
   }
   for (final group in groups) {
+    // Urltest groups auto-select engine-side: the shipped config carries the
+    // group and its interval probe, so connecting to the group tag lets the
+    // engine pick the best member (and fail over) — members.first would
+    // pin a fixed node and defeat the urltest semantics.
     final candidates = <String?>[
+      if (group.isUrlTest) group.tag,
       group.defaultMember,
       if (group.members.isNotEmpty) group.members.first,
     ];

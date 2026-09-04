@@ -300,7 +300,9 @@ class ProfileConfigSource implements ConfigSource {
           'tag': group.tag,
           'outbounds': List<String>.from(group.members),
           if (group.url != null) 'url': group.url,
-          if (group.interval != null)
+          // Same guard as the compiler's urltest validation: a zero/negative
+          // interval must not reach the engine through the connect path.
+          if (group.interval != null && group.interval! > Duration.zero)
             'interval': _formatDuration(group.interval!),
           if (group.tolerance != null) 'tolerance': group.tolerance,
         }

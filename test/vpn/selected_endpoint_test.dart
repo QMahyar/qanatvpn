@@ -60,6 +60,42 @@ void main() {
     expect(selected.source, 'group');
   });
 
+  test('urltest group resolves to the group tag (engine picks best)', () async {
+    final policyStore = PolicyStore(baseDir: dir.path);
+    await policyStore.save(
+      const PolicyDocument(
+        groups: <OutboundGroup>[
+          OutboundGroup.urlTest(
+            tag: 'auto',
+            members: <String>['trojan-1', 'trojan-2'],
+          ),
+        ],
+        leafOutbounds: <String>['trojan-1', 'trojan-2'],
+      ),
+    );
+    final endpointStore = EndpointStore(baseDir: dir.path);
+    await endpointStore.save(<StoredEndpoint>[
+      trojan('trojan-1'),
+      trojan('trojan-2'),
+    ]);
+
+    final container = ProviderContainer(
+      overrides: [
+        policyStoreProvider.overrideWithValue(policyStore),
+        endpointStoreProvider.overrideWithValue(endpointStore),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final selected = container.read(selectedEndpointProvider);
+
+    // Engine-side auto-select: the shipped config carries the urltest group,
+    // so the group tag is what the tunnel connects with — not members.first,
+    // which would pin a fixed node.
+    expect(selected.tag, 'auto');
+    expect(selected.source, 'group');
+  });
+
   test('first stored endpoint when no groups', () async {
     final endpointStore = EndpointStore(baseDir: dir.path);
     await endpointStore.save(<StoredEndpoint>[

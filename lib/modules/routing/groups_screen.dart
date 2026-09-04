@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import 'groups_controller.dart';
+import 'latency.dart';
 import 'routing_policy.dart';
 
 /// Groups tab: outbound-group CRUD (selector/urltest) with live validation.
@@ -32,6 +33,12 @@ class GroupsScreen extends ConsumerWidget {
                   ),
                 ),
                 IconButton(
+                  tooltip: 'Measure latency',
+                  onPressed: () =>
+                      ref.read(latencyProvider.notifier).refresh(),
+                  icon: const Icon(Icons.speed),
+                ),
+                IconButton(
                   tooltip: l10n.groupsAdd,
                   onPressed: () => _editGroup(context, ref, null, null),
                   icon: const Icon(Icons.add),
@@ -53,6 +60,7 @@ class GroupsScreen extends ConsumerWidget {
                   itemCount: state.groups.length,
                   itemBuilder: (BuildContext context, int index) {
                     final OutboundGroup group = state.groups[index];
+                    final latency = ref.watch(latencyProvider);
                     return Card(
                       child: ListTile(
                         leading: Icon(
@@ -62,6 +70,7 @@ class GroupsScreen extends ConsumerWidget {
                         subtitle: Text(
                           group.isUrlTest
                               ? 'urltest · ${group.members.length} members'
+                                    '${_bestMsSuffix(group, latency)}'
                               : 'selector · ${group.members.length} members',
                         ),
                         trailing: Row(
@@ -121,6 +130,20 @@ class GroupsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Latency suffix for urltest group cards: ' · best 123 ms' when the sweep
+  /// has measured a member of this group, empty otherwise.
+  String _bestMsSuffix(OutboundGroup group, LatencyState latency) {
+    final measured = <int?>[
+      for (final member in group.members) latency.samples[member],
+    ];
+    final live = measured.whereType<int>().toList();
+    if (live.isEmpty) {
+      return '';
+    }
+    final best = live.reduce((a, b) => a < b ? a : b);
+    return ' · best $best ms';
   }
 
   Future<void> _editGroup(
