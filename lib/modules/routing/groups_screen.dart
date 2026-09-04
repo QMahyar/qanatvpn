@@ -176,6 +176,18 @@ class _GroupFormSheetState extends State<_GroupFormSheet> {
   late final TextEditingController _tagController = TextEditingController(
     text: widget.existing?.tag ?? '',
   );
+  late final TextEditingController _urlController = TextEditingController(
+    text: widget.existing?.url ?? 'https://www.gstatic.com/generate_204',
+  );
+  late final TextEditingController _intervalController = TextEditingController(
+    text: widget.existing?.interval == null
+        ? '5'
+        : widget.existing!.interval!.inMinutes.toString(),
+  );
+  late final TextEditingController _toleranceController =
+      TextEditingController(
+        text: widget.existing?.tolerance?.toString() ?? '50',
+      );
   late final Set<String> _members = <String>{...?widget.existing?.members};
   String? _defaultMember;
 
@@ -183,6 +195,15 @@ class _GroupFormSheetState extends State<_GroupFormSheet> {
   void initState() {
     super.initState();
     _defaultMember = widget.existing?.defaultMember;
+  }
+
+  @override
+  void dispose() {
+    _tagController.dispose();
+    _urlController.dispose();
+    _intervalController.dispose();
+    _toleranceController.dispose();
+    super.dispose();
   }
 
   @override
@@ -247,6 +268,42 @@ class _GroupFormSheetState extends State<_GroupFormSheet> {
                 onChanged: (String? value) =>
                     setState(() => _defaultMember = value),
               ),
+            ] else ...<Widget>[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _urlController,
+                decoration: const InputDecoration(
+                  labelText: 'Probe URL',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: _intervalController,
+                      decoration: const InputDecoration(
+                        labelText: 'Interval (minutes)',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _toleranceController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tolerance (ms)',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
             ],
             const SizedBox(height: 16),
             Row(
@@ -262,18 +319,31 @@ class _GroupFormSheetState extends State<_GroupFormSheet> {
                       ? null
                       : () {
                           final String tag = _tagController.text.trim();
-                          Navigator.of(context).pop(
-                            _isUrlTest
-                                ? OutboundGroup.urlTest(
-                                    tag: tag,
-                                    members: _members.toList(),
-                                  )
-                                : OutboundGroup.selector(
-                                    tag: tag,
-                                    members: _members.toList(),
-                                    defaultMember: _defaultMember,
-                                  ),
-                          );
+                          if (_isUrlTest) {
+                            final intervalMinutes =
+                                int.tryParse(_intervalController.text.trim()) ??
+                                5;
+                            final tolerance =
+                                int.tryParse(_toleranceController.text.trim()) ??
+                                50;
+                            Navigator.of(context).pop(
+                              OutboundGroup.urlTest(
+                                tag: tag,
+                                members: _members.toList(),
+                                url: _urlController.text.trim(),
+                                interval: Duration(minutes: intervalMinutes),
+                                tolerance: tolerance,
+                              ),
+                            );
+                          } else {
+                            Navigator.of(context).pop(
+                              OutboundGroup.selector(
+                                tag: tag,
+                                members: _members.toList(),
+                                defaultMember: _defaultMember,
+                              ),
+                            );
+                          }
                         },
                   child: const Text('Save'),
                 ),

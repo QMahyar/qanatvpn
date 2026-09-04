@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/services.dart' show rootBundle;
 
 import '../../core/network/http_cache.dart';
 import '../../core/persistence/atomic_write.dart';
@@ -15,7 +18,14 @@ class GeoAsset {
     required this.cacheDir,
     required this.initialDir,
     required this.http,
+    this.bundledLoader,
   });
+
+  /// Resolves a bundled initial asset by name. Default tries the Flutter
+  /// asset bundle first (packaged apps — APK assets are not filesystem
+  /// files) then plain File IO under [initialDir] (dev runs + tests).
+  /// Injectable so tests pin exact bytes without the asset bundle.
+  Future<Uint8List?> Function(String fileName)? bundledLoader;
 
   /// Where live (downloaded) assets are stored.
   final Directory cacheDir;
@@ -52,9 +62,9 @@ class GeoAsset {
       return cached.path;
     }
     await cacheDir.create(recursive: true);
-    final initial = File('${initialDir.path}/${spec.initialFile}');
-    if (initial.existsSync()) {
-      await initial.copy(cached.path);
+    final bundled = await _loadBundled(spec.initialFile);
+    if (bundled != null) {
+      await atomicWriteBytes(cached, bundled);
       return cached.path;
     }
     final bytes = await http.getBytes(
@@ -64,6 +74,27 @@ class GeoAsset {
     await atomicWriteBytes(cached, bytes);
     return cached.path;
   }
+
+  Future<Uint8List?> _loadBundled(String fileName) async {
+    final loader = bundledLoader;
+    if (loader != null) {
+      return loader(fileName);
+    }
+    try {
+      final data = await rootBundle.load('$initialAssetDir/$fileName');
+      return data.buffer.asUint8List();
+    } on Object {
+      // Not a bundled asset (tests, dev runs) — try the filesystem copy.
+    }
+    final initial = File('${initialDir.path}/$fileName');
+    if (initial.existsSync()) {
+      return initial.readAsBytes();
+    }
+    return null;
+  }
+
+  /// Flutter asset prefix the pubspec declares for bundled SRS fallbacks.
+  static const String initialAssetDir = 'rule_sets/initial_assets';
 
   /// Sync accessor for config builders (dns + routing). Call [ensure] at
   /// startup first.
@@ -114,14 +145,16 @@ class GeoAsset {
   /// at `resetAt`), 429 as [RateLimitException] with `retryAfter`. Any other
   /// failure keeps the stale bytes and moves on to the next asset.
   Future<void> refreshAll() async {
-    for (final spec in registry.values) {
+    for (final entry in registry.entries) {
       try {
         final bytes = await http.getBytes(
-          Uri.parse(spec.url),
+          Uri.parse(entry.value.url),
           () => const <String, String>{},
         );
+        // Written under the tag key so [getPath]/[ensure] read the refreshed
+        // bytes even when a future spec's initialFile diverges from the tag.
         await atomicWriteBytes(
-          File('${cacheDir.path}/${spec.initialFile}'),
+          File('${cacheDir.path}/${entry.key}.srs'),
           bytes,
         );
       } on RateLimitException {

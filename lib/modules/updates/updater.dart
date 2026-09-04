@@ -123,7 +123,9 @@ class UpdateFetcher {
     if (value == null) {
       return null;
     }
-    return DateTime.now().add(Duration(seconds: value));
+    // GitHub sends an absolute epoch timestamp, not a relative offset
+    // (same parse as http_cache.dart).
+    return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true);
   }
 
   Duration? _parseSeconds(String? seconds) {
@@ -141,6 +143,11 @@ class UpdateFetcher {
 /// platform assets are attached (single producer — see workflows).
 class UpdateSource {
   UpdateSource({required this.fetchImpl, this.mirrorUrl});
+
+  /// Production default for [mirrorUrl]: the gh-pages mirror written by the
+  /// release pipeline (single producer). Tests pass their own or none.
+  static const String defaultMirrorUrl =
+      'https://yourvpn.github.io/yourvpn/latest.json';
 
   final Fetch fetchImpl;
 
@@ -201,13 +208,22 @@ class UpdateSource {
 }
 
 /// Resolves the platform key used for asset filtering. Android ABI detection
-/// is injectable so tests never touch the platform channel.
-String resolvePlatformKey({String? androidAbi}) {
-  if (Platform.isAndroid) {
+/// is injectable so tests never touch the platform channel, and [onAndroid]
+/// pins the host check (CI runs on Ubuntu, so the Android branch is only
+/// reachable through this seam). Unknown ABIs throw instead of silently
+/// choosing arm64; an unknown OS still throws so a stray desktop harness
+/// never fetches phone APKs.
+String resolvePlatformKey({String? androidAbi, bool? onAndroid}) {
+  final android = onAndroid ?? Platform.isAndroid;
+  if (android) {
     return switch (androidAbi) {
       'armeabi-v7a' => 'android-arm',
       'x86_64' => 'android-x64',
-      _ => 'android-arm64',
+      'arm64-v8a' => 'android-arm64',
+      null => 'android-arm64',
+      // x86 (32-bit) has no APK in the release matrix — fail loudly rather
+      // than route an x64 APK the device cannot install.
+      _ => throw ArgumentError('unsupported Android ABI: $androidAbi'),
     };
   }
   if (Platform.isWindows) {
@@ -245,6 +261,20 @@ class UpdateStore {
         return null;
       }
       return _decodeStoredUpdate(file.readAsStringSync());
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Full envelope including the local version seen at check time — the
+  /// restart comparison needs both halves (see [StoredUpdate]).
+  StoredUpdate? readStored() {
+    try {
+      final file = _file();
+      if (!file.existsSync()) {
+        return null;
+      }
+      return decodeStoredUpdate(file.readAsStringSync());
     } on Object {
       return null;
     }
@@ -288,18 +318,60 @@ UpdateInfo? _decodeStoredUpdate(String? raw) {
   }
 }
 
+/// What [UpdateStore] persists: the remote [UpdateInfo] plus the local
+/// version seen at check time. Persisting both is what lets a restart
+/// distinguish "update found" from "checked, already current" — reading
+/// only the remote half made every check render Available forever.
+class StoredUpdate {
+  const StoredUpdate({required this.info, required this.localVersion});
+
+  final UpdateInfo info;
+  final String localVersion;
+
+  bool get isNewerThanLocal => info.isNewerThan(localVersion);
+}
+
+StoredUpdate? decodeStoredUpdate(String? raw) {
+  if (raw == null || raw.isEmpty) {
+    return null;
+  }
+  try {
+    final doc = jsonDecode(raw) as Map<String, dynamic>;
+    return StoredUpdate(
+      info: UpdateInfo(
+        version: doc['version'] as String,
+        changelog: doc['changelog'] as String? ?? '',
+        assetUrl: doc['assetUrl'] as String? ?? '',
+        platformKey: doc['platformKey'] as String? ?? '',
+      ),
+      localVersion: doc['localVersion'] as String? ?? '',
+    );
+  } on Object {
+    return null;
+  }
+}
+
 /// Callback entry point for workmanager's background isolate. Top-level +
 /// entry-point annotated so the dispatcher survives tree shaking.
+///
+/// [localVersion] comes from the UI isolate (package_info_plus) via the
+/// dispatcher's `inputData`; the background isolate avoids the plugin
+/// channel. An empty value means "unknown" — the store keeps the remote
+/// info and restart comparison shows the artifact rather than a false
+/// "up to date" (see UpdateController.build).
 @pragma('vm:entry-point')
-Future<bool> updateCheckBackgroundTask() async {
+Future<bool> updateCheckBackgroundTask({String? localVersion}) async {
   try {
     final platformKey = resolvePlatformKey();
-    final source = UpdateSource(fetchImpl: plainFetch);
+    final source = UpdateSource(
+      fetchImpl: plainFetch,
+      mirrorUrl: UpdateSource.defaultMirrorUrl,
+    );
     final info = await source.latestFor(platformKey);
     if (info == null) {
       return true;
     }
-    await const UpdateStore().save(info, info.version);
+    await const UpdateStore().save(info, localVersion ?? '');
     return true;
   } on Object {
     return false;

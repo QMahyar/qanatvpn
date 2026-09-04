@@ -1,13 +1,13 @@
 name: yourvpn
 description: YOURVPN — Flutter+Go VPN (All Protocols, WG+AWG priority first)
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.12.0 <4.0.0'
+  sdk: ">=3.12.0 <4.0.0"
   # Flutter 3.44+ required: material_3_expressive 1.x (45 M3E) + flutter_foreground_task 11.x
   # Installed/latest stable: 3.47.2. Android min SDK = 24 (Android 7) — supported via minSdkVersion.
-  flutter: '>=3.44.0'
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:
@@ -15,9 +15,9 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.0
-  material_3_expressive: ^1.1.1   # full 45 M3E widget set (Slipnet-faithful), requires Flutter >=3.44
-  material_ui: ^1.1.0             # decoupled Material library that material_3_expressive 1.x needs
-  cue: ^0.3.1                     # physics-first animations (latest is 0.3.1; ^1.0.0 does not exist)
+  material_3_expressive: ^1.1.1 # full 45 M3E widget set (Slipnet-faithful), requires Flutter >=3.44
+  material_ui: ^1.1.0 # decoupled Material library that material_3_expressive 1.x needs
+  cue: ^0.3.1 # physics-first animations (latest is 0.3.1; ^1.0.0 does not exist)
   flutter_riverpod: ^3.4.2
   go_router: ^18.0.0
   drift: ^2.34.3
@@ -28,7 +28,7 @@ dependencies:
   workmanager: ^0.10.9
   package_info_plus: ^10.2.1
   fl_chart: ^1.2.0
-  flutter_foreground_task: ^11.0.1   # requires Flutter >=3.44 / Dart >=3.12, Kotlin 2.2.20+, Gradle 8.11.1+
+  flutter_foreground_task: ^11.0.1 # requires Flutter >=3.44 / Dart >=3.12, Kotlin 2.2.20+, Gradle 8.11.1+
   yaml: ^3.1.4
 
 dev_dependencies:
@@ -44,3 +44,4 @@ flutter:
   generate: true
   assets:
     - profiles/config.wg-awg.json
+    - rule_sets/initial_assets/
