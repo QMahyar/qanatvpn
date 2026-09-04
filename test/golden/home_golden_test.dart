@@ -25,9 +25,23 @@ class _FakeTunnel extends Fake implements Tunnel {
 
   @override
   Stream<TunnelState> get status => const Stream<TunnelState>.empty();
+
+  @override
+  ConnectMetrics? get lastConnectMetrics =>
+      phase == TunnelState.connected ? _fakeMetrics : null;
+
+  static final ConnectMetrics _fakeMetrics = ConnectMetrics(
+    tag: 'awg-hkg-02',
+    phases: <String, Duration>{
+      'grant': const Duration(milliseconds: 12),
+      'config': const Duration(milliseconds: 34),
+      'box': const Duration(milliseconds: 210),
+      'firewall': const Duration(milliseconds: 3),
+    },
+  );
 }
 
-Widget _wrap(TunnelState phase, double textScale) {
+Widget _wrap(TunnelState phase, double textScale, {bool clamp = true}) {
   return ProviderScope(
     overrides: [tunnelProvider.overrideWithValue(_FakeTunnel(phase))],
     child: MaterialApp(
@@ -39,10 +53,14 @@ Widget _wrap(TunnelState phase, double textScale) {
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (BuildContext context, Widget? child) => MediaQuery(
-        // Same clamp the real app applies in YourVpnApp.builder.
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: clampTextScaler(TextScaler.linear(textScale))),
+        // Same clamp the real app applies in YourVpnApp.builder — bypassed
+        // (clamp: false) for pre-clamp 200% goldens, which must prove the
+        // raw layout survives, not the clamped output.
+        data: MediaQuery.of(context).copyWith(
+          textScaler: clamp
+              ? clampTextScaler(TextScaler.linear(textScale))
+              : TextScaler.linear(textScale),
+        ),
         child: child ?? const SizedBox.shrink(),
       ),
       home: const Scaffold(body: HomeScreen()),
@@ -60,12 +78,33 @@ void main() {
 
     // RenderFlex overflow throws inside widget tests and fails the test
     // automatically — pumping is the whole assertion.
-    await tester.pumpWidget(_wrap(TunnelState.connected, 2.0));
+    await tester.pumpWidget(_wrap(TunnelState.connected, 2.0, clamp: false));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.byType(PowerTile), findsOneWidget);
     expect(find.byType(UpdateTile), findsOneWidget);
+  });
+
+  testWidgets('stats tile golden at ceiling scale (connected)', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(360, 800);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_wrap(TunnelState.connected, 1.35));
+    await tester.pump(const Duration(seconds: 1));
+    // 5th tile in the bento grid: bring it on-screen before rasterizing.
+    await tester.scrollUntilVisible(
+      find.byType(StatsTile),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    await expectLater(
+      find.byType(StatsTile),
+      matchesGoldenFile('goldens/stats_tile_connected_135.png'),
+    );
   });
 
   testWidgets('power tile golden at ceiling scale (connected)', (tester) async {
