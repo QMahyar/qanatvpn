@@ -24,22 +24,29 @@ Map<String, dynamic> endpointToOutboundJson(NormalizedEndpoint endpoint) {
   };
 }
 
-Map<String, dynamic> _vless(VlessEndpoint e) => <String, dynamic>{
-  'type': 'vless',
-  'tag': e.tag,
-  'server': e.address,
-  'server_port': e.port,
-  'uuid': e.uuid,
-  if (e.flow != null) 'flow': e.flow,
-  'tls': _tls(
-    enabled: true,
-    serverName: e.sni ?? e.address,
-    utlsFingerprint: e.fingerprint,
-    realityPublicKey: e.realityPublicKey,
-    realityShortId: e.realityShortId,
-  ),
-  if (e.network == 'ws') 'transport': _ws(e.wsPath, e.wsHost),
-};
+Map<String, dynamic> _vless(VlessEndpoint e) {
+  // Reality without uTLS FATALs the fork at start (probed engine truth).
+  // Default to chrome so an imported pbk/sid link never ships a dead
+  // profile; the user can still override fp explicitly.
+  final fingerprint =
+      e.fingerprint ?? (e.realityPublicKey != null ? 'chrome' : null);
+  return <String, dynamic>{
+    'type': 'vless',
+    'tag': e.tag,
+    'server': e.address,
+    'server_port': e.port,
+    'uuid': e.uuid,
+    if (e.flow != null) 'flow': e.flow,
+    'tls': _tls(
+      enabled: true,
+      serverName: e.sni ?? e.address,
+      utlsFingerprint: fingerprint,
+      realityPublicKey: e.realityPublicKey,
+      realityShortId: e.realityShortId,
+    ),
+    if (e.network == 'ws') 'transport': _ws(e.wsPath, e.wsHost),
+  };
+}
 
 Map<String, dynamic> _vmess(VmessEndpoint e) => <String, dynamic>{
   'type': 'vmess',
@@ -88,6 +95,8 @@ Map<String, dynamic> _hysteria2(Hysteria2Endpoint e) => <String, dynamic>{
   'server': e.address,
   'server_port': e.port,
   'password': e.auth,
+  if (e.ports != null) 'server_ports': _hy2Ports(e.ports!),
+  if (e.hopIntervalSeconds != null) 'hop_interval': '${e.hopIntervalSeconds}s',
   if (e.upMbps != null) 'up_mbps': e.upMbps,
   if (e.downMbps != null) 'down_mbps': e.downMbps,
   if (e.obfsPassword != null)
@@ -108,6 +117,7 @@ Map<String, dynamic> _tuic(TuicEndpoint e) => <String, dynamic>{
   'uuid': e.uuid,
   'password': e.password,
   if (e.congestionControl != null) 'congestion_control': e.congestionControl,
+  if (e.udpRelayMode != null) 'udp_relay_mode': e.udpRelayMode,
   'tls': _tls(enabled: true, serverName: e.sni ?? e.address, alpn: e.alpn),
 };
 
@@ -144,3 +154,10 @@ Map<String, dynamic> _ws(String? path, String? host) => <String, dynamic>{
   'path': ?path,
   'headers': ?(host == null ? null : <String, dynamic>{'Host': host}),
 };
+
+/// Clash/URI `mport` uses `20000-30000` (dash); the fork's `server_ports`
+/// uses sing-box port-range `min:max` (colon, same as route `port_range`).
+/// Normalize per entry so an imported hop range never FATALs `check`.
+List<String> _hy2Ports(String raw) => <String>[
+  for (final part in raw.split(',')) part.trim().replaceAll('-', ':'),
+];

@@ -189,8 +189,10 @@ class ClashYamlParser {
         final ports = node['ports'] as String?;
         return Hysteria2Endpoint(
           tag: name,
-          address: node['server'] as String,
-          port: node['port'] as int? ?? 443,
+          address: stringField(node['server'], 'clash server'),
+          port: node['port'] == null
+              ? 443
+              : intField(node['port'], 'clash port'),
           auth: node['password'] as String? ?? node['auth'] as String? ?? '',
           sni: node['sni'] as String?,
           obfsPassword: (node['obfs'] as YamlMap?)?['password'] as String?,
@@ -203,8 +205,8 @@ class ClashYamlParser {
       case 'tuic':
         return TuicEndpoint(
           tag: name,
-          address: node['server'] as String,
-          port: node['port'] as int,
+          address: stringField(node['server'], 'clash server'),
+          port: intField(node['port'], 'clash port'),
           uuid: stringField(node['uuid'], 'sing-box uuid'),
           password: node['password'] as String? ?? '',
           congestionControl: node['congestion-controller'] as String?,
@@ -250,10 +252,20 @@ class ClashYamlParser {
       jmax: amnezia['jmax'] as int?,
       s1: amnezia['s1'] as int?,
       s2: amnezia['s2'] as int?,
+      s3: amnezia['s3'] as int?,
+      s4: amnezia['s4'] as int?,
       h1: amnezia['h1']?.toString(),
       h2: amnezia['h2']?.toString(),
       h3: amnezia['h3']?.toString(),
       h4: amnezia['h4']?.toString(),
+      i1: amnezia['i1']?.toString(),
+      i2: amnezia['i2']?.toString(),
+      i3: amnezia['i3']?.toString(),
+      i4: amnezia['i4']?.toString(),
+      i5: amnezia['i5']?.toString(),
+      id: amnezia['id']?.toString(),
+      ip: amnezia['ip']?.toString(),
+      ib: amnezia['ib']?.toString(),
     );
   }
 
