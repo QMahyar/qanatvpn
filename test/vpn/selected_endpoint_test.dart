@@ -36,11 +36,11 @@ void main() {
         groups: <OutboundGroup>[
           OutboundGroup.selector(
             tag: 'manual',
-            members: <String>['DIRECT', 'awg-2'],
-            defaultMember: 'awg-2',
+            members: <String>['DIRECT', 'trojan-1'],
+            defaultMember: 'trojan-1',
           ),
         ],
-        leafOutbounds: <String>['awg-2'],
+        leafOutbounds: <String>['trojan-1'],
       ),
     );
     final endpointStore = EndpointStore(baseDir: dir.path);
@@ -56,7 +56,7 @@ void main() {
 
     final selected = container.read(selectedEndpointProvider);
 
-    expect(selected.tag, 'awg-2');
+    expect(selected.tag, 'trojan-1');
     expect(selected.source, 'group');
   });
 
@@ -84,7 +84,68 @@ void main() {
 
     final selected = container.read(selectedEndpointProvider);
 
-    expect(selected.tag, 'HKG-02');
+    expect(selected.tag, 'awg-hkg-02');
     expect(selected.source, 'fallback');
+    expect(selected.hadDeadTag, isFalse);
+  });
+
+  test('dead group member falls back with deadTag warning', () async {
+    final policyStore = PolicyStore(baseDir: dir.path);
+    await policyStore.save(
+      const PolicyDocument(
+        groups: <OutboundGroup>[
+          OutboundGroup.selector(
+            tag: 'manual',
+            members: <String>['ghost-tag'],
+            defaultMember: 'ghost-tag',
+          ),
+        ],
+        leafOutbounds: <String>[],
+      ),
+    );
+    final endpointStore = EndpointStore(baseDir: dir.path);
+    await endpointStore.save(<StoredEndpoint>[trojan('trojan-1')]);
+
+    final container = ProviderContainer(
+      overrides: [
+        policyStoreProvider.overrideWithValue(policyStore),
+        endpointStoreProvider.overrideWithValue(endpointStore),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final selected = container.read(selectedEndpointProvider);
+
+    expect(selected.tag, 'trojan-1');
+    expect(selected.source, 'endpoint');
+    expect(selected.deadTag, 'ghost-tag');
+    expect(selected.hadDeadTag, isTrue);
+  });
+
+  test('dead group member with nothing else falls back to vendored tag',
+      () async {
+    final policyStore = PolicyStore(baseDir: dir.path);
+    await policyStore.save(
+      const PolicyDocument(
+        groups: <OutboundGroup>[
+          OutboundGroup.selector(
+            tag: 'manual',
+            members: <String>['ghost-tag'],
+          ),
+        ],
+        leafOutbounds: <String>[],
+      ),
+    );
+
+    final container = ProviderContainer(
+      overrides: [policyStoreProvider.overrideWithValue(policyStore)],
+    );
+    addTearDown(container.dispose);
+
+    final selected = container.read(selectedEndpointProvider);
+
+    expect(selected.tag, 'awg-hkg-02');
+    expect(selected.source, 'fallback');
+    expect(selected.deadTag, 'ghost-tag');
   });
 }

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/network/http_cache.dart' show Fetch;
 import 'updater.dart';
 
 /// UI state of the update flow.
@@ -37,6 +39,18 @@ class UpdateFailed extends UpdateState {
 
 final updateStoreProvider = Provider<UpdateStore>((ref) => const UpdateStore());
 
+/// Overridable fetch + platform key so tests exercise the full
+/// check-now path without touching the network or the platform channel.
+final updateFetchProvider = Provider<Fetch>((ref) => plainFetch);
+
+final updatePlatformKeyProvider = Provider<String>((ref) {
+  try {
+    return resolvePlatformKey();
+  } on UnsupportedError {
+    return 'android-arm64';
+  }
+});
+
 /// Loads the stored result at startup and refreshes it on demand. The daily
 /// background task writes the same store, so a fresh install shows the last
 /// check without a network round trip.
@@ -51,12 +65,18 @@ class UpdateController extends Notifier<UpdateState> {
     return UpdateIdle(lastCheckedAt: store.lastCheckedAt());
   }
 
+  /// Tests: inject a fake fetch without overriding providers.
+  @visibleForTesting
+  Fetch? fetchForTest;
+
   Future<void> checkNow({String? localVersion}) async {
     state = const UpdateChecking();
     final store = ref.read(updateStoreProvider);
     try {
-      final platformKey = resolvePlatformKey();
-      final source = UpdateSource(fetchImpl: plainFetch);
+      final platformKey = ref.read(updatePlatformKeyProvider);
+      final source = UpdateSource(
+        fetchImpl: fetchForTest ?? ref.read(updateFetchProvider),
+      );
       final info = await source.latestFor(platformKey);
       if (info == null) {
         state = UpdateUpToDate(localVersion: localVersion ?? '');

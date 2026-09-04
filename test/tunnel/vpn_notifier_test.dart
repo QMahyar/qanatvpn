@@ -43,6 +43,9 @@ class _StubTunnel implements Tunnel {
   @override
   TunnelTimeouts get timeouts => const TunnelTimeouts();
 
+  @override
+  ConnectMetrics? lastConnectMetrics;
+
   void finishConnect(String tag) {
     _state = TunnelState.connected;
     _status.add(TunnelState.connected);

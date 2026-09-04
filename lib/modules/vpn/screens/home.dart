@@ -178,7 +178,9 @@ class EndpointTile extends ConsumerWidget {
         selected.source == 'fallback' && state.endpoints.isEmpty
         ? 'No endpoints'
         : selected.tag;
-    final String sub = state.endpoints.isEmpty
+    final String sub = selected.hadDeadTag
+        ? '“${selected.deadTag}” gone — using ${selected.tag}'
+        : state.endpoints.isEmpty
         ? 'Tap to import'
         : '${state.endpoints.length} stored · connect: ${selected.source}';
     final ThemeData theme = Theme.of(context);

@@ -133,6 +133,34 @@ class TunnelTimeouts {
   final Duration boxStop;
 }
 
+/// Per-phase timings for one `connect()` run, oldest phase first.
+///
+/// Recorded with a monotonic Stopwatch inside [Tunnel.connect] and exposed
+/// via [Tunnel.lastConnectMetrics] for the diagnostics screen. Timings are
+/// best-effort (a phase that throws still records its elapsed) and never
+/// affect control flow.
+class ConnectMetrics {
+  ConnectMetrics({required this.tag, required this.phases});
+
+  final String tag;
+
+  /// Phase name → elapsed wall time, in run order.
+  final Map<String, Duration> phases;
+
+  /// Sum of all recorded phases.
+  Duration get total =>
+      phases.values.fold(Duration.zero, (a, b) => a + b);
+
+  /// One-line summary for logs: `tag total=1.2s box=0.9s config=0.2s …`.
+  @override
+  String toString() {
+    final parts = <String>[
+      for (final e in phases.entries) '${e.key}=${e.value.inMilliseconds}ms',
+    ];
+    return '$tag total=${total.inMilliseconds}ms ${parts.join(' ')}';
+  }
+}
+
 /// Deep module owning the Dart↔Kotlin↔Go VPN seam.
 ///
 /// One call runs the whole guarded sequence
@@ -180,9 +208,30 @@ class Tunnel {
 
   Stream<TunnelState> get status => _status.stream;
 
+  /// Timings for the most recent `connect()` attempt (success or blocked).
+  /// Null before the first connect. The Diagnostics screen reads this to
+  /// show where slow connects spend their time.
+  ConnectMetrics? lastConnectMetrics;
+
   /// Abort the sequence when a newer connect/disconnect invalidated [epoch].
   /// Returns true when the caller must stop immediately.
   bool _stale(int epoch) => epoch != _epoch;
+
+  /// Time [phase] and record it into [phases]. The phase records even when
+  /// [work] throws, so slow-then-failing steps still show their cost.
+  static Future<T> _timed<T>(
+    Map<String, Duration> phases,
+    String phase,
+    Future<T> Function() work,
+  ) async {
+    final sw = Stopwatch()..start();
+    try {
+      return await work();
+    } finally {
+      sw.stop();
+      phases[phase] = sw.elapsed;
+    }
+  }
 
   Future<void> connect(String tag) async {
     if (_state == TunnelState.connecting || _state == TunnelState.connected) {
@@ -191,87 +240,138 @@ class Tunnel {
     final epoch = ++_epoch;
     blockReason = null;
     _setState(TunnelState.connecting);
+    final phases = <String, Duration>{};
+    // Publish exactly once per attempt, on every exit path below.
+    void publishMetrics() {
+      lastConnectMetrics = ConnectMetrics(tag: tag, phases: Map.of(phases));
+    }
 
     // grant
-    if (!await platform.isVpnPermissionGranted()) {
-      await _block(TunnelBlockReason.vpnPermissionDenied);
+    try {
+      final granted = await _timed(
+        phases,
+        'grant',
+        platform.isVpnPermissionGranted,
+      );
+      if (!granted) {
+        publishMetrics();
+        await _block(TunnelBlockReason.vpnPermissionDenied);
+        return;
+      }
+    } on Object {
+      publishMetrics();
+      await _block(TunnelBlockReason.establishFailed);
       return;
     }
     if (_stale(epoch)) {
+      publishMetrics();
       return;
     }
 
     // battery (non-fatal: wizard owns the request UX, Doze risk recorded)
     try {
-      if (!await platform.isIgnoringBatteryOptimizations()) {
-        await platform.requestIgnoreBatteryOptimizations();
-      }
+      await _timed(phases, 'battery', () async {
+        if (!await platform.isIgnoringBatteryOptimizations()) {
+          await platform.requestIgnoreBatteryOptimizations();
+        }
+      });
     } on Object {
       // A failing battery API must not strand connect; the wizard owns UX.
     }
     if (_stale(epoch)) {
+      publishMetrics();
       return;
     }
 
     // foreground
     try {
-      await foreground.start().timeout(timeouts.foregroundStart);
+      await _timed(
+        phases,
+        'foreground',
+        () => foreground.start().timeout(timeouts.foregroundStart),
+      );
     } on Object {
       if (_stale(epoch)) {
+        publishMetrics();
         return;
       }
+      publishMetrics();
       await _block(TunnelBlockReason.establishFailed);
       return;
     }
     if (_stale(epoch)) {
+      publishMetrics();
       return;
     }
 
     // airplane
     try {
-      if (await platform.isAirplaneMode()) {
+      final airplane = await _timed(
+        phases,
+        'airplane',
+        platform.isAirplaneMode,
+      );
+      if (airplane) {
+        publishMetrics();
         await _block(TunnelBlockReason.airplaneMode);
         return;
       }
     } on Object {
       if (_stale(epoch)) {
+        publishMetrics();
         return;
       }
+      publishMetrics();
       await _block(TunnelBlockReason.establishFailed);
       return;
     }
     if (_stale(epoch)) {
+      publishMetrics();
       return;
     }
 
     TypedConfig config;
     try {
-      config = await configSource.resolve(tag).timeout(timeouts.resolve);
+      config = await _timed(
+        phases,
+        'config',
+        () => configSource.resolve(tag).timeout(timeouts.resolve),
+      );
     } on Object {
       if (_stale(epoch)) {
+        publishMetrics();
         return;
       }
+      publishMetrics();
       await _block(TunnelBlockReason.establishFailed);
       return;
     }
     if (_stale(epoch)) {
+      publishMetrics();
       return;
     }
 
     // tor down → block fallback, sing-box never starts on a dead chain
     try {
-      if (config.requiresTor && !await tor.isSocksUp()) {
+      final torDown = await _timed(phases, 'tor', () async {
+        return config.requiresTor && !await tor.isSocksUp();
+      });
+      if (torDown) {
+        publishMetrics();
         await _block(TunnelBlockReason.torDown);
         return;
       }
     } on Object {
       if (_stale(epoch)) {
+        publishMetrics();
         return;
       }
+      publishMetrics();
       await _block(TunnelBlockReason.torDown);
       return;
     }
     if (_stale(epoch)) {
+      publishMetrics();
       return;
     }
 
@@ -282,33 +382,42 @@ class Tunnel {
       fd = null;
     } else {
       try {
-        fd = await platform.establish();
+        fd = await _timed(phases, 'establish', platform.establish);
       } on Object {
         if (_stale(epoch)) {
+          publishMetrics();
           return;
         }
+        publishMetrics();
         await _block(TunnelBlockReason.establishFailed);
         return;
       }
       if (fd == null) {
+        publishMetrics();
         await _block(TunnelBlockReason.establishFailed);
         return;
       }
       if (_stale(epoch)) {
         platform.closeFd(fd);
+        publishMetrics();
         return;
       }
       _fd = fd;
 
       // protect
       try {
-        platform.protect(fd);
+        final protectFd = fd;
+        await _timed(phases, 'protect', () async {
+          platform.protect(protectFd);
+        });
       } on Object {
         platform.closeFd(fd);
         _fd = null;
         if (_stale(epoch)) {
+          publishMetrics();
           return;
         }
+        publishMetrics();
         await _block(TunnelBlockReason.establishFailed);
         return;
       }
@@ -316,15 +425,21 @@ class Tunnel {
 
     // start
     try {
-      await box.start(config).timeout(timeouts.boxStart);
+      await _timed(
+        phases,
+        'box',
+        () => box.start(config).timeout(timeouts.boxStart),
+      );
     } on Object {
       if (fd != null) {
         platform.closeFd(fd);
         _fd = null;
       }
       if (_stale(epoch)) {
+        publishMetrics();
         return;
       }
+      publishMetrics();
       await _block(TunnelBlockReason.boxStartFailed);
       return;
     }
@@ -341,6 +456,7 @@ class Tunnel {
       } on Object {
         // engine already gone
       }
+      publishMetrics();
       return;
     }
     if (_stale(epoch)) {
@@ -356,13 +472,18 @@ class Tunnel {
       } on Object {
         // engine already gone
       }
+      publishMetrics();
       await disconnect();
       return;
     }
 
     // firewall — enforced last, only once traffic is already flowing
     try {
-      await firewall.enforce().timeout(timeouts.firewallEnforce);
+      await _timed(
+        phases,
+        'firewall',
+        () => firewall.enforce().timeout(timeouts.firewallEnforce),
+      );
     } on Object {
       if (fd != null) {
         platform.closeFd(fd);
@@ -374,12 +495,15 @@ class Tunnel {
         // engine already gone
       }
       if (_stale(epoch)) {
+        publishMetrics();
         return;
       }
+      publishMetrics();
       await _block(TunnelBlockReason.boxStartFailed);
       return;
     }
     if (_stale(epoch)) {
+      publishMetrics();
       await disconnect();
       return;
     }
@@ -387,8 +511,10 @@ class Tunnel {
     // A crash event that arrived while box.start/firewall were in flight
     // already moved us to blocked via _onBoxEvent; do not resurrect.
     if (_state == TunnelState.blocked) {
+      publishMetrics();
       return;
     }
+    publishMetrics();
     _setState(TunnelState.connected);
   }
 
