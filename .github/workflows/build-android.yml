@@ -37,6 +37,13 @@ jobs:
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
       - name: Install Android SDK + NDK 28
+        # ubuntu-latest ships cmdline-tools but not sdkmanager on PATH —
+        # probed live (exit 127). android-actions/setup-android wires the
+        # preinstalled SDK into the environment; sdkmanager then installs
+        # the pinned NDK/platform.
+        uses: android-actions/setup-android@v3
+
+      - name: Install pinned NDK + platform
         run: |
           sdkmanager --install "ndk;28.2.13676358" "platforms;android-37" "build-tools;37.0.0" >/dev/null
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
