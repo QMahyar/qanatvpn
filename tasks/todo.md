@@ -83,7 +83,7 @@ it closes (F# = index into salvage-joined.json for traceability).
 
 ## Phase W2 — Core product (weeks 2-3)
 
-- [ ] W2.1 Endpoint selection UI — user cannot choose which server to connect (F-E: delete-only
+- [x] W2.1 Endpoint selection UI — user cannot choose which server to connect (F-E: delete-only
   list tiles, selection auto-picks first endpoint)
   - Acceptance: tap tile = select + persist; selected tile highlighted; connect uses selection;
     selection survives restart; deleting selected endpoint clears selection safely.
@@ -92,12 +92,12 @@ it closes (F# = index into salvage-joined.json for traceability).
   - Acceptance: settings module + route; minimum: theme mode, language (EN/FA), auto-connect on
     launch, notification toggle, log level; wired to persisted store.
   - Verify: widget tests; l10n keys both locales.
-- [ ] W2.3 Wizard persistence + skippable consent — wizard restarts every launch; VPN-consent
+- [x] W2.3 Wizard persistence + skippable consent — wizard restarts every launch; VPN-consent
   decline = dead end (F-G ×2)
   - Acceptance: completion persisted (split store); skip path reaches home with connect
     disabled + banner; consent-decline screen offers re-request.
   - Verify: widget tests for skip/resume/decline paths.
-- [ ] W2.4 Auto-reconnect — TunnelState.reconnecting is dead code (F-H)
+- [x] W2.4 Auto-reconnect — TunnelState.reconnecting is dead code (F-H)
   - Acceptance: on network-change/crash events → reconnect with exp backoff (cap 5);
     user-initiated disconnect cancels; state visible in UI.
   - Verify: tunnel tests with fake adapters (crash→reconnect→connected; manual stop cancels).
@@ -106,13 +106,13 @@ it closes (F# = index into salvage-joined.json for traceability).
     workmanager job refreshes with If-None-Match; 304 = no-op; user-info headers parsed
     (traffic/expire) shown on endpoints screen; per-sub endpoint grouping.
   - Verify: controller tests (ETag 304/200/429), workmanager dispatch test.
-- [ ] W2.6 Ingestion hardening — one bad node kills whole import (F-high#2,#3,#4,#5,#20)
+- [x] W2.6 Ingestion hardening — one bad node kills whole import (F-high#2,#3,#4,#5,#20)
   - Acceptance: parseShareLines catches all per-line errors (FormatException + TypeError +
     CastError) → per-line failure list, rest imports; vmess base64 fields null-safe with
     FormatException; Clash scalar-vs-map obfs handled; percent-decode userinfo for
     trojan/hy2/tuic/vless; vmess ws Host preserved; pasted-import cache key = content hash.
   - Verify: parser fuzz table tests for each case.
-- [ ] W2.7 Engine-failure detail — six enum labels are the whole failure taxonomy (F-high#17)
+- [x] W2.7 Engine-failure detail — six enum labels are the whole failure taxonomy (F-high#17)
   - Acceptance: FATAL/ERROR line text captured into TunnelBlockReason.detail; diagnostics
     screen shows last failure detail + "copy" action.
   - Verify: tunnel test asserting detail propagation.

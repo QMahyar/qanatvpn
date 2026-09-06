@@ -212,6 +212,7 @@ Tunnel buildTunnel({
   required FakeConfigSource config,
   FakeForegroundAdapter? foreground,
   FakeTorAdapter? tor,
+  Duration Function(int attempt)? reconnectBackoff,
 }) {
   return Tunnel(
     platform: platform,
@@ -220,6 +221,8 @@ Tunnel buildTunnel({
     firewall: firewall,
     tor: tor ?? FakeTorAdapter(),
     configSource: config,
+    // Zero backoff in tests: the reconnect loop advances on microtasks.
+    reconnectBackoff: reconnectBackoff ?? ((_) => Duration.zero),
   );
 }
 
@@ -427,11 +430,11 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
 
-      expect(tunnel.state, TunnelState.blocked);
-      expect(tunnel.blockReason, TunnelBlockReason.boxCrashed);
+      // W2.4: crash while connected → reconnecting (the loop retries);
+      // the crash text is still captured for the UI (W2.7).
+      expect(tunnel.state, TunnelState.reconnecting);
       expect(tunnel.blockDetail, contains('decode config: bad endpoint'));
-    });
-  });
+    });  });
 
   group('Tunnel engine-managed TUN (libbox 1.14 openTun path)', () {
     test(
@@ -609,7 +612,7 @@ void main() {
       await tunnel.dispose();
     });
 
-    test('box crash while connected → blocked + firewall enforced', () async {
+    test('box crash while connected → auto-reconnects and recovers', () async {
       final platform = FakePlatformAdapter();
       final box = FakeBoxAdapter();
       final firewall = FakeFirewallAdapter();
@@ -623,15 +626,82 @@ void main() {
       await tunnel.connect('HKG-02');
       expect(tunnel.state, TunnelState.connected);
 
+      // Crash mid-session: the loop announces reconnecting, tears the dead
+      // engine down, retries, and recovers to connected (audit W2.4).
       box.crash();
       await Future<void>.delayed(Duration.zero);
+      expect(tunnel.state, TunnelState.reconnecting);
 
-      expect(tunnel.state, TunnelState.blocked);
-      expect(tunnel.blockReason, TunnelBlockReason.boxCrashed);
+      // Let teardown + zero-backoff retries settle.
+      for (var i = 0; i < 5 && tunnel.state != TunnelState.connected; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(tunnel.state, TunnelState.connected);
       expect(
         firewall.calls.where((c) => c == 'firewall:enforce'),
         hasLength(2),
       );
+      await tunnel.disconnect();
+      await tunnel.dispose();
+    });
+
+    test('reconnect gives up into blocked after max attempts', () async {
+      final platform = FakePlatformAdapter();
+      final box = FakeBoxAdapter()..startThrows = true;
+      final firewall = FakeFirewallAdapter();
+      final tunnel = buildTunnel(
+        platform: platform,
+        box: box,
+        firewall: firewall,
+        config: FakeConfigSource(),
+      );
+
+      // First connect succeeds (startThrows flipped after), then a crash
+      // starts the loop; every retry fails because start now throws.
+      box.startThrows = false;
+      await tunnel.connect('HKG-02');
+      expect(tunnel.state, TunnelState.connected);
+      box.startThrows = true;
+
+      box.crash();
+      for (
+        var i = 0;
+        i < 30 && tunnel.state != TunnelState.blocked;
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(tunnel.state, TunnelState.blocked);
+      // The exhausted loop reports the last concrete failure reason.
+      expect(tunnel.blockReason, TunnelBlockReason.boxStartFailed);
+      expect(tunnel.blockDetail, contains('gave up after 5'));
+      await tunnel.dispose();
+    });
+
+    test('user disconnect cancels the reconnect loop', () async {
+      final platform = FakePlatformAdapter();
+      final box = FakeBoxAdapter()..startThrows = true;
+      final firewall = FakeFirewallAdapter();
+      final tunnel = buildTunnel(
+        platform: platform,
+        box: box,
+        firewall: firewall,
+        config: FakeConfigSource(),
+      );
+
+      box.startThrows = false;
+      await tunnel.connect('HKG-02');
+      box.startThrows = true;
+      box.crash();
+      await Future<void>.delayed(Duration.zero);
+      expect(tunnel.state, TunnelState.reconnecting);
+
+      // The user hits disconnect mid-loop: no further attempts.
+      await tunnel.disconnect();
+      final callsAfter = box.calls.where((c) => c == 'box:start').length;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(box.calls.where((c) => c == 'box:start').length, callsAfter);
+      expect(tunnel.state, TunnelState.disconnected);
       await tunnel.dispose();
     });
 

@@ -17,6 +17,10 @@ class _StubTunnel implements Tunnel {
   @override
   String? blockDetail;
 
+  @override
+  Duration Function(int attempt) get reconnectBackoff =>
+      (_) => Duration.zero;
+
   TunnelState _state = TunnelState.disconnected;
 
   @override

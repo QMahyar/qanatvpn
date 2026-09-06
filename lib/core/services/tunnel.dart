@@ -175,6 +175,7 @@ class Tunnel {
     required this.tor,
     required this.configSource,
     this.timeouts = const TunnelTimeouts(),
+    this.reconnectBackoff = defaultReconnectBackoff,
   }) {
     _boxSub = box.events.listen(_onBoxEvent);
   }
@@ -187,9 +188,26 @@ class Tunnel {
   final ConfigSource configSource;
   final TunnelTimeouts timeouts;
 
+  /// Auto-reconnect backoff (audit W2.4): 1s, 2s, 4s, 8s, 16s. Tests inject
+  /// zero-duration backoff to drive the whole loop synchronously.
+  final Duration Function(int attempt) reconnectBackoff;
+
+  static Duration defaultReconnectBackoff(int attempt) {
+    final shift = (attempt - 1).clamp(0, 4);
+    return Duration(seconds: 1 << shift);
+  }
+
+  /// Cap on automatic reconnect attempts after an engine crash while
+  /// connected; exhaustion fails closed into blocked (audit W2.4).
+  static const int maxReconnectAttempts = 5;
+
   late final StreamSubscription<BoxEvent> _boxSub;
   int? _fd;
   bool _firewallEnforced = false;
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
+  bool _reconnectWanted = false;
+  String? _activeTag;
 
   /// Generation counter: invalidated by connect/disconnect so stale
   /// in-flight sequences abort instead of racing the newer one.
@@ -241,6 +259,13 @@ class Tunnel {
     if (_state == TunnelState.connecting || _state == TunnelState.connected) {
       return;
     }
+    // An auto-reconnect attempt re-enters connect() from reconnecting
+    // state; a user connect cancels any pending reconnect loop.
+    if (_state != TunnelState.reconnecting) {
+      _reconnectWanted = false;
+      _reconnectTimer?.cancel();
+    }
+    _activeTag = tag;
     final epoch = ++_epoch;
     blockReason = null;
     _setState(TunnelState.connecting);
@@ -533,11 +558,20 @@ class Tunnel {
       publishMetrics();
       return;
     }
+    // Connected again after an auto-reconnect attempt: the loop is done.
+    _reconnectWanted = false;
+    _reconnectTimer?.cancel();
+    _reconnectAttempt = 0;
     publishMetrics();
     _setState(TunnelState.connected);
   }
 
   Future<void> disconnect() async {
+    // A user-initiated disconnect always wins over the reconnect loop.
+    _reconnectWanted = false;
+    _reconnectTimer?.cancel();
+    _reconnectAttempt = 0;
+    _activeTag = null;
     if (_state == TunnelState.disconnected) {
       return;
     }
@@ -597,15 +631,45 @@ class Tunnel {
     } on Object {
       // Already stopped or wedged; stay blocked regardless.
     }
+    if (_reconnectWanted && _retryable(reason)) {
+      // The auto-reconnect loop owns recovery (audit W2.4): announce
+      // reconnecting and queue the next attempt. Firewall stays enforced
+      // between attempts — fail closed while retrying. Exhaustion gives up
+      // into blocked with the last crash detail.
+      if (_reconnectAttempt >= maxReconnectAttempts) {
+        _reconnectWanted = false;
+        _reconnectTimer?.cancel();
+        blockDetail =
+            'gave up after $maxReconnectAttempts reconnect attempts: '
+            '${detail ?? blockDetail ?? 'engine crash'}';
+        _setState(TunnelState.blocked);
+        return;
+      }
+      _queueNextReconnect(detail ?? blockDetail);
+      if (_reconnectWanted && _state != TunnelState.reconnecting) {
+        _setState(TunnelState.reconnecting);
+      }
+      return;
+    }
     _setState(TunnelState.blocked);
   }
+
+  /// Failures the reconnect loop cannot fix by itself: they need user
+  /// action (grant permission, disable airplane mode), so retrying would
+  /// churn forever.
+  bool _retryable(TunnelBlockReason reason) =>
+      reason != TunnelBlockReason.vpnPermissionDenied &&
+      reason != TunnelBlockReason.airplaneMode;
 
   void _onBoxEvent(BoxEvent event) {
     if (event.kind != BoxEventKind.crashed) {
       return;
     }
     if (_state == TunnelState.connected) {
-      _block(TunnelBlockReason.boxCrashed, event.error);
+      // Audit W2.4: a crash while connected schedules auto-reconnect with
+      // exponential backoff instead of dead-ending in blocked — a daily
+      // driver must survive transient engine deaths on network switches.
+      _scheduleReconnect(event.error);
       return;
     }
     // A FATAL between box.start and connected (log-watcher `crashed`
@@ -619,12 +683,74 @@ class Tunnel {
     }
   }
 
+  /// Schedules the auto-reconnect loop: announcing `reconnecting` (the UI
+  /// maps it to a connecting-like state), tearing down the dead engine's
+  /// leftovers, then re-running the guarded connect sequence.
+  void _scheduleReconnect(Object? detail) {
+    _reconnectWanted = true;
+    _reconnectAttempt = 0;
+    // The crash text stays visible while reconnecting (W2.7/W2.4): the UI
+    // reads blockDetail for reconnecting state too.
+    blockDetail = detail?.toString();
+    _setState(TunnelState.reconnecting);
+    // Serialize: teardown must finish before the first retry spawns a fresh
+    // engine (a stop/start race would trip the adapter's already-running
+    // guard).
+    unawaited(
+      _teardownAfterCrash().whenComplete(() => _queueNextReconnect(detail)),
+    );
+  }
+
+  Future<void> _teardownAfterCrash() async {
+    final fd = _fd;
+    if (fd != null) {
+      platform.closeFd(fd);
+      _fd = null;
+    }
+    try {
+      await box.stop().timeout(timeouts.boxStop);
+    } on Object {
+      // Engine already dead — that is why we are reconnecting.
+    }
+    if (_firewallEnforced) {
+      try {
+        await firewall.relax();
+      } on Object {
+        // Best-effort; the reconnect re-enforces.
+      }
+      _firewallEnforced = false;
+    }
+  }
+
+  void _queueNextReconnect(Object? detail) {
+    if (!_reconnectWanted) {
+      return;
+    }
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(
+      reconnectBackoff(_reconnectAttempt + 1),
+      () => unawaited(_attemptReconnect(detail)),
+    );
+  }
+
+  Future<void> _attemptReconnect(Object? detail) async {
+    if (!_reconnectWanted || _activeTag == null) {
+      return;
+    }
+    _reconnectAttempt += 1;
+    // connect() never throws: every failure path lands in _block, which
+    // re-queues the loop while attempts remain and fails closed after
+    // exhaustion.
+    await connect(_activeTag!);
+  }
+
   void _setState(TunnelState next) {
     _state = next;
     _status.add(next);
   }
 
   Future<void> dispose() async {
+    _reconnectTimer?.cancel();
     await _boxSub.cancel();
     await _status.close();
   }

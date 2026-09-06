@@ -68,7 +68,9 @@ class PowerTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bool connected = phase == TunnelState.connected;
     final bool busy =
-        phase == TunnelState.connecting || phase == TunnelState.disconnecting;
+        phase == TunnelState.connecting ||
+        phase == TunnelState.disconnecting ||
+        phase == TunnelState.reconnecting;
     final ThemeData theme = Theme.of(context);
     final AppLocalizations l10n = AppLocalizations.of(context)!;
     // Honor the OS "remove animations" setting: rotation snaps instead of
@@ -166,7 +168,9 @@ class StateTile extends StatelessWidget {
                     color: theme.colorScheme.error,
                   ),
                 ),
-              if (vpn.blockDetail != null)
+              if (vpn.blockDetail != null &&
+                  (vpn.blockReason != null ||
+                      vpn.phase == TunnelState.reconnecting))
                 Padding(
                   padding: const EdgeInsetsDirectional.only(top: 4),
                   child: Text(

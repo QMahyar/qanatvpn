@@ -17,6 +17,11 @@ class VpnState {
       VpnState(TunnelState.connected, tag, null);
   factory VpnState.disconnecting() =>
       const VpnState(TunnelState.disconnecting, null, null);
+
+  /// Distinct from connecting so the UI can show the auto-reconnect loop
+  /// (audit W2.4) instead of a plain spinner.
+  factory VpnState.reconnecting([String? detail]) =>
+      VpnState(TunnelState.reconnecting, null, null, detail);
   factory VpnState.blocked(
     TunnelBlockReason reason, [
     String? detail,
@@ -94,7 +99,7 @@ class VpnNotifier extends Notifier<VpnState> {
         TunnelState.connecting => VpnState.connecting(),
         TunnelState.connected => VpnState.connected(_lastTag ?? ''),
         TunnelState.disconnecting => VpnState.disconnecting(),
-        TunnelState.reconnecting => VpnState.connecting(),
+        TunnelState.reconnecting => VpnState.reconnecting(tunnel.blockDetail),
         TunnelState.blocked => VpnState.blocked(
           tunnel.blockReason ?? TunnelBlockReason.establishFailed,
           tunnel.blockDetail,
