@@ -57,12 +57,15 @@ jobs:
           Compress-Archive -Path "$dir/*" -DestinationPath "yourvpn_v${v}_windows-x64.zip"
           $hash = (Get-FileHash "yourvpn_v${v}_windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
           @{ "yourvpn_v${v}_windows-x64.zip" = $hash } | ConvertTo-Json | Set-Content sha256-windows.json
+          # Sibling .sha256 the in-app installer probes (audit W1.5)
+          "$hash  yourvpn_v${v}_windows-x64.zip" | Set-Content "yourvpn_v${v}_windows-x64.zip.sha256"
 
       - name: Release windows asset
         uses: softprops/action-gh-release@v2
         with:
           files: |
             yourvpn_v*_windows-x64.zip
+            yourvpn_v*_windows-x64.zip.sha256
             sha256-windows.json
           generate_release_notes: true
         # latest.json is produced by build-android's metadata job (single

@@ -22,21 +22,19 @@ class WindowsBoxProcessAdapter implements BoxAdapter {
 
   /// Absolute exe path: relative [executablePath] resolves against the
   /// running bundle directory (Platform.resolvedExecutable), so installed
-  /// apps (CWD != bundle root) still spawn. Override stays test-relative.
+  /// apps (CWD != bundle root) still spawn. CI zips the exe at the bundle
+  /// root while dev checkouts keep it under `windows/` — both layouts are
+  /// probed, first existing wins (audit finding: released builds resolved
+  /// only the dev layout and could never spawn the engine). Override stays
+  /// test-relative.
   final ProcessFactory processFactory;
 
   final String executablePath;
   final String? workingDir;
   String get _resolvedExe {
-    final direct = File(executablePath);
-    if (direct.isAbsolute) {
-      return executablePath;
-    }
     try {
       final bundleDir = File(Platform.resolvedExecutable).parent.path;
-      final sep = Platform.isWindows ? '\\' : '/';
-      final rel = executablePath.replaceAll('/', sep);
-      return '$bundleDir$sep$rel';
+      return resolveWindowsExe(executablePath, bundleDir);
     } on Object {
       return executablePath;
     }
@@ -214,3 +212,31 @@ typedef ProcessFactory =
       List<String> arguments, {
       ProcessStartMode mode,
     });
+
+/// Resolves a relative engine exe against the running bundle directory.
+/// Probe order (audit W1.3):
+/// 1. absolute configured path — used verbatim;
+/// 2. `<bundle>/<configured>` — dev checkout layout (`windows/sing-box.exe`);
+/// 3. `<bundle>/sing-box.exe` — release zip layout (exe beside the runner);
+/// 4. fallback: the dev-layout candidate, so the spawn error names what the
+///    config asked for (diagnosable failure, not a silent swap).
+String resolveWindowsExe(String executablePath, String bundleDir) {
+  final direct = File(executablePath);
+  if (direct.isAbsolute) {
+    return executablePath;
+  }
+  final sep = Platform.isWindows ? '\\' : '/';
+  final rel = executablePath.replaceAll('/', sep);
+  final devLayout = '$bundleDir$sep$rel';
+  final candidates = <String>[
+    devLayout,
+    // Release layout: exe sits beside the runner binary.
+    '$bundleDir${sep}sing-box.exe',
+  ];
+  for (final candidate in candidates) {
+    if (File(candidate).existsSync()) {
+      return candidate;
+    }
+  }
+  return devLayout;
+}

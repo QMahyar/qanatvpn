@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -41,6 +38,19 @@ class UpdatesScreen extends ConsumerWidget {
                   child: CircularProgressIndicator(),
                 ),
               ),
+              UpdateVerifying() => const Center(
+                child: Padding(
+                  padding: EdgeInsetsDirectional.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      CircularProgressIndicator(),
+                      SizedBox(height: 12),
+                      Text('Verifying download (sha256)...'),
+                    ],
+                  ),
+                ),
+              ),
               UpdateAvailable(:final info) => _UpdateCard(info: info),
               UpdateUpToDate(:final localVersion) => _MessageCard(
                 icon: Icons.check_circle,
@@ -70,13 +80,13 @@ class UpdatesScreen extends ConsumerWidget {
   }
 }
 
-class _UpdateCard extends StatelessWidget {
+class _UpdateCard extends ConsumerWidget {
   const _UpdateCard({required this.info});
 
   final UpdateInfo info;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     return Card(
       color: theme.colorScheme.primaryContainer,
@@ -108,7 +118,7 @@ class _UpdateCard extends StatelessWidget {
             ],
             const SizedBox(height: 12),
             FilledButton(
-              onPressed: () => _install(context),
+              onPressed: () => _install(context, ref),
               child: const Text('Download & install'),
             ),
           ],
@@ -117,19 +127,11 @@ class _UpdateCard extends StatelessWidget {
     );
   }
 
-  Future<void> _install(BuildContext context) async {
+  Future<void> _install(BuildContext context, WidgetRef ref) async {
     try {
-      if (Platform.isAndroid) {
-        // FileProvider ACTION_VIEW intent is the Play-safe install path;
-        // the platform service lands with the release todo.
-        await const MethodChannel(
-          'vpn_service',
-        ).invokeMethod<void>('installUpdate', {'url': info.assetUrl});
-      } else if (Platform.isWindows) {
-        await Process.start('explorer', <String>[info.assetUrl]);
-      } else {
-        throw UnsupportedError('no installer for ${Platform.operatingSystem}');
-      }
+      // Audit W1.5: the controller downloads + sha256-verifies the artifact
+      // fail-closed, then hands the verified file to the platform installer.
+      await ref.read(updateControllerProvider.notifier).installVerified();
     } on Object catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(

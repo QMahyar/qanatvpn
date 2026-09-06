@@ -99,14 +99,29 @@ object VpnServiceBridge {
                     }
                 }
                 "installUpdate" -> {
-                    val url = call.argument<String>("url")
-                    if (url.isNullOrEmpty()) {
-                        result.error("invalid_args", "url is required", null)
+                    // Audit W1.5: Dart downloads + sha256-verifies the
+                    // artifact, then hands over a LOCAL path. The install
+                    // intent reads the verified blob through FileProvider —
+                    // never a re-downloaded URL.
+                    val path = call.argument<String>("path")
+                    if (path.isNullOrEmpty()) {
+                        result.error("invalid_args", "path is required", null)
                     } else {
                         try {
-                            activity.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                            val file = java.io.File(path)
+                            val uri = androidx.core.content.FileProvider.getUriForFile(
+                                activity,
+                                "${activity.packageName}.fileprovider",
+                                file,
                             )
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/vnd.android.package-archive")
+                                addFlags(
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                        Intent.FLAG_ACTIVITY_NEW_TASK,
+                                )
+                            }
+                            activity.startActivity(intent)
                             result.success(null)
                         } catch (e: Exception) {
                             result.error("install_failed", e.message, null)

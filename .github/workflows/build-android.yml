@@ -109,7 +109,9 @@ jobs:
           for abi in arm64-v8a armeabi-v7a x86_64; do
             name="yourvpn_v${V}_${abi}.apk"
             cp "app-$abi-release.apk" "$name"
-            sha256sum "$name" >> sha256-android.json
+            # Sibling .sha256 per asset: the in-app installer probes this
+            # exact URL and fails closed when absent/mismatched (audit W1.5).
+            sha256sum "$name" | awk '{print $1"  "$2}' > "$name.sha256"
           done
 
       - name: Release android assets
@@ -117,7 +119,7 @@ jobs:
         with:
           files: |
             build/app/outputs/flutter-apk/yourvpn_*.apk
-            build/app/outputs/flutter-apk/sha256-android.json
+            build/app/outputs/flutter-apk/yourvpn_*.apk.sha256
           generate_release_notes: true
 
   # Single producer of latest.json: waits until BOTH platform jobs have
@@ -155,11 +157,22 @@ jobs:
               'android-x64': ['x86_64', '.apk'],
               'windows-x64': ['windows-x64', '.zip'],
           }
+          import urllib.request, urllib.error
+          def sha_for(asset_name, asset_url):
+              # Sibling .sha256 files (android job) or repo-side sha256-windows.json.
+              try:
+                  with urllib.request.urlopen(asset_url + '.sha256', timeout=30) as r:
+                      first = r.read(512).decode('utf-8', 'replace').split()[0]
+                      if len(first) == 64:
+                          return first
+              except Exception:
+                  pass
+              return None
           platforms = {}
           for key, needles in filters.items():
               for name, url in assets.items():
                   if all(n in name for n in needles):
-                      platforms[key] = {'url': url, 'version': tag}
+                      platforms[key] = {'url': url, 'version': tag, 'sha256': sha_for(name, url)}
                       break
           json.dump({'version': tag, 'platforms': platforms},
                     open('latest.json', 'w'), indent=2)

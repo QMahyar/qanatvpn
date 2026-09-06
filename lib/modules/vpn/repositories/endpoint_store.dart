@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../core/persistence/atomic_write.dart';
+import '../../../core/persistence/app_paths.dart';
 import 'ingestion/endpoint_outbound.dart';
 import 'ingestion/normalized_endpoint.dart';
 
@@ -57,8 +58,7 @@ class EndpointStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/endpoints.json'
-        : '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? Directory.systemTemp.path}'
-              '/.yourvpn/endpoints.json',
+        : '${defaultBaseDirSync()}/.yourvpn/endpoints.json',
   );
 }
 

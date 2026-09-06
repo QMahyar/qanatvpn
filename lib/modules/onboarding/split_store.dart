@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../core/persistence/atomic_write.dart';
+import '../../core/persistence/app_paths.dart';
 
 /// The user's per-app split decision from the wizard step 3.
 class SplitChoice {
@@ -71,7 +72,6 @@ class SplitStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/split_choice.json'
-        : '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? Directory.systemTemp.path}'
-              '/.yourvpn/split_choice.json',
+        : '${defaultBaseDirSync()}/.yourvpn/split_choice.json',
   );
 }

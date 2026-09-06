@@ -169,4 +169,55 @@ void main() {
     expect(kinds, contains(BoxEventKind.started));
     expect(kinds.last, BoxEventKind.crashed);
   });
+
+  group('exe resolution (audit W1.3: CI bundles at bundle root)', () {
+    test('release layout: <bundle>/sing-box.exe wins when dev path missing', () {
+      // Bundle contains ONLY the root exe (CI zip layout). The configured
+      // dev path must fall through to the bundle-root candidate.
+      File('${dir.path}${Platform.pathSeparator}sing-box.exe')
+          .writeAsStringSync('mz');
+      final resolved = resolveWindowsExe('windows/sing-box.exe', dir.path);
+      expect(resolved, '${dir.path}${Platform.pathSeparator}sing-box.exe');
+    });
+
+    test('dev layout: <bundle>/windows/sing-box.exe wins when present', () {
+      final nested = Directory(
+        '${dir.path}${Platform.pathSeparator}windows',
+      )..createSync();
+      File(
+        '${nested.path}${Platform.pathSeparator}sing-box.exe',
+      ).writeAsStringSync('mz');
+      final resolved = resolveWindowsExe('windows/sing-box.exe', dir.path);
+      expect(
+        resolved,
+        '${nested.path}${Platform.pathSeparator}sing-box.exe',
+      );
+    });
+
+    test('absolute configured path used verbatim', () {
+      final resolved = resolveWindowsExe('C:/tools/box/sing-box.exe', dir.path);
+      expect(resolved, 'C:/tools/box/sing-box.exe');
+    });
+
+    test('neither layout present: dev-layout candidate returned (diagnosable)', () {
+      final resolved = resolveWindowsExe(
+        'windows/definitely-missing.exe',
+        dir.path,
+      );
+      expect(resolved, contains('definitely-missing.exe'));
+    });
+
+    test('dev layout preferred when BOTH exist (config wins)', () {
+      final nested = Directory(
+        '${dir.path}${Platform.pathSeparator}windows',
+      )..createSync();
+      File(
+        '${nested.path}${Platform.pathSeparator}sing-box.exe',
+      ).writeAsStringSync('mz');
+      File('${dir.path}${Platform.pathSeparator}sing-box.exe')
+          .writeAsStringSync('mz');
+      final resolved = resolveWindowsExe('windows/sing-box.exe', dir.path);
+      expect(resolved, contains('${Platform.pathSeparator}windows'));
+    });
+  });
 }

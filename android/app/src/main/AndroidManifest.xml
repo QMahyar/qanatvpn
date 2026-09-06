@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- VPN acceptable use: Doze must not kill the tunnel (developer.android.com/training/monitoring-device-state/doze-standby) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- In-app update installs: verified APK opened through the package installer (audit W1.5). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="yourvpn"
         android:name="${applicationName}"
@@ -37,6 +39,17 @@
             android:name=".ForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync|remoteMessaging"/>
+        <!-- FileProvider exposes sha256-verified update APKs to the system
+             package installer (audit W1.5). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
         <service
             android:name=".YourVpnService"
             android:exported="false"

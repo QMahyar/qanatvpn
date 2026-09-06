@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../core/network/http_cache.dart';
 import '../../core/network/plain_fetch.dart';
+import '../../core/persistence/app_paths.dart';
 import '../../core/persistence/atomic_write.dart';
 
 export '../../core/network/plain_fetch.dart' show plainFetch;
@@ -15,12 +16,21 @@ class UpdateInfo {
     required this.changelog,
     required this.assetUrl,
     required this.platformKey,
+    this.sha256,
   });
 
   final String version;
   final String changelog;
   final String assetUrl;
   final String platformKey;
+
+  /// Hex sha256 of the artifact when the release/mirror provides one. The
+  /// installer fails closed when this and the sibling digest are both
+  /// absent (audit W1.5).
+  final String? sha256;
+
+  UpdateInfo withSha256(String? sha256) =>
+      UpdateInfo(version: version, changelog: changelog, assetUrl: assetUrl, platformKey: platformKey, sha256: sha256);
 
   bool isNewerThan(String localVersion) =>
       _semverKey(version).compareTo(_semverKey(localVersion)) > 0;
@@ -87,11 +97,16 @@ class UpdateFetcher {
       final name = asset['name'] as String? ?? '';
       final url = asset['browser_download_url'] as String? ?? '';
       if (filters.every((f) => name.contains(f))) {
+        // Prefer a digest carried in the release body's `<asset>: <hex>`
+        // line for this asset; CI also attaches sibling `.sha256` files
+        // which the installer probes at download time.
+        final digest = _digestForAsset(doc['body'] as String? ?? '', name);
         return UpdateInfo(
           version: version,
           changelog: doc['body'] as String? ?? '',
           assetUrl: url,
           platformKey: platformKey,
+          sha256: digest,
         );
       }
     }
@@ -116,6 +131,21 @@ class UpdateFetcher {
       }
     }
     return <String, dynamic>{'platforms': map, 'version': release['tag_name']};
+  }
+
+  /// Release-body convention (CI writes it): lines of
+  /// `<asset-name>: <64-hex>` for the matching artifact. Null when absent.
+  static String? _digestForAsset(String body, String assetName) {
+    for (final line in body.split(RegExp(r'[\r\n]+'))) {
+      final m = RegExp(
+        '^\\s*${RegExp.escape(assetName)}\\s*[:=]\\s*([0-9a-fA-F]{64})\\s*'
+        r'$',
+      ).firstMatch(line);
+      if (m != null) {
+        return m.group(1)!.toLowerCase();
+      }
+    }
+    return null;
   }
 
   DateTime? _parseReset(String? seconds) {
@@ -200,6 +230,7 @@ class UpdateSource {
         changelog: '',
         assetUrl: entry['url'] as String? ?? '',
         platformKey: platformKey,
+        sha256: (entry['sha256'] as String?),
       );
     } on Object {
       return null;
@@ -250,6 +281,7 @@ class UpdateStore {
         'changelog': info.changelog,
         'assetUrl': info.assetUrl,
         'platformKey': info.platformKey,
+        'sha256': info.sha256,
         'localVersion': localVersion,
         'checkedAt': DateTime.now().toIso8601String(),
       }),
@@ -298,8 +330,7 @@ class UpdateStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/last_update_check.json'
-        : '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? Directory.systemTemp.path}'
-              '/.yourvpn/last_update_check.json',
+        : '${defaultBaseDirSync()}/.yourvpn/last_update_check.json',
   );
 }
 
@@ -314,6 +345,7 @@ UpdateInfo? _decodeStoredUpdate(String? raw) {
       changelog: doc['changelog'] as String? ?? '',
       assetUrl: doc['assetUrl'] as String? ?? '',
       platformKey: doc['platformKey'] as String? ?? '',
+      sha256: doc['sha256'] as String?,
     );
   } on Object {
     return null;
@@ -345,6 +377,7 @@ StoredUpdate? decodeStoredUpdate(String? raw) {
         changelog: doc['changelog'] as String? ?? '',
         assetUrl: doc['assetUrl'] as String? ?? '',
         platformKey: doc['platformKey'] as String? ?? '',
+        sha256: doc['sha256'] as String?,
       ),
       localVersion: doc['localVersion'] as String? ?? '',
     );
@@ -364,6 +397,11 @@ StoredUpdate? decodeStoredUpdate(String? raw) {
 @pragma('vm:entry-point')
 Future<bool> updateCheckBackgroundTask({String? localVersion}) async {
   try {
+    // Background isolate: startup wiring did not run here, so resolve the
+    // store directory via path_provider before any file IO (audit W1.4:
+    // the env-var chain is unset on Android and the temp fallback is
+    // unreadable).
+    await resolveAppSupportDir();
     final platformKey = resolvePlatformKey();
     final source = UpdateSource(
       fetchImpl: plainFetch,

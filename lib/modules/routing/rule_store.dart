@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../core/persistence/atomic_write.dart';
+import '../../core/persistence/app_paths.dart';
 import 'routing_compiler.dart';
 import 'routing_policy.dart';
 
@@ -34,8 +35,7 @@ class RuleStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/rules.json'
-        : '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? Directory.systemTemp.path}'
-              '/.yourvpn/rules.json',
+        : '${defaultBaseDirSync()}/.yourvpn/rules.json',
   );
 }
 

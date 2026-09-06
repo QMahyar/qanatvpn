@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../core/persistence/atomic_write.dart';
+import '../../core/persistence/app_paths.dart';
 import 'routing_policy.dart';
 
 /// File-backed outbound-group policy persistence.
@@ -29,8 +30,7 @@ class PolicyStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/policy.json'
-        : '${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? Directory.systemTemp.path}'
-              '/.yourvpn/policy.json',
+        : '${defaultBaseDirSync()}/.yourvpn/policy.json',
   );
 }
 

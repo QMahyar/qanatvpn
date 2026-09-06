@@ -9,6 +9,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'app/app.dart';
 import 'core/network/http_cache.dart';
+import 'core/persistence/app_paths.dart';
 import 'core/startup/app_startup.dart';
 import 'core/services/channel_adapters.dart';
 import 'core/services/desktop_platform_adapter.dart';
@@ -43,6 +44,13 @@ Future<void> main() async {
   final Stopwatch total = Stopwatch()..start();
   final PhaseTimer timer = PhaseTimer();
   WidgetsFlutterBinding.ensureInitialized();
+  // Store path resolution + one-time legacy migration must land before any
+  // store is constructed (audit W1.4: the env-var chain is unset on Android
+  // and every default-path store write failed there).
+  await timer.timed('appPaths', () async {
+    await resolveAppSupportDir();
+    await migrateLegacyDotYourVpn();
+  });
   final PlatformAdapter platform = await timer.timed(
     'platformAdapter',
     () async => _platformAdapter(),

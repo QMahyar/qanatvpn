@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/network/http_cache.dart' show Fetch;
+import '../../core/persistence/app_paths.dart';
+import 'update_installer.dart';
 import 'updater.dart';
 
 /// UI state of the update flow.
@@ -18,6 +23,13 @@ class UpdateIdle extends UpdateState {
 
 class UpdateChecking extends UpdateState {
   const UpdateChecking();
+}
+
+/// Download+sha256-verify in progress (audit W1.5: install was a browser
+/// handoff with no integrity check — the artifact is now fetched locally,
+/// verified fail-closed, and only then handed to the platform installer).
+class UpdateVerifying extends UpdateState {
+  const UpdateVerifying();
 }
 
 class UpdateAvailable extends UpdateState {
@@ -122,6 +134,55 @@ class UpdateController extends Notifier<UpdateState> {
       state = UpdateAvailable(info);
     } on Object catch (error) {
       state = UpdateFailed(error.toString());
+    }
+  }
+
+  /// Downloads the pending artifact, sha256-verifies it fail-closed, and
+  /// hands the verified local file to the platform installer. Throws on
+  /// any verification failure — the caller surfaces the message.
+  Future<File> installVerified() async {
+    final stored = ref.read(updateStoreProvider).readStored()
+        ?? (switch (state) {
+          UpdateAvailable(:final info) => StoredUpdate(info: info, localVersion: ''),
+          _ => null,
+        });
+    if (stored == null || stored.info.assetUrl.isEmpty) {
+      throw const VerifyException('no update available to install');
+    }
+    state = const UpdateVerifying();
+    try {
+      final verifier = UpdateVerifier(fetchImpl: fetchForTest ?? ref.read(updateFetchProvider));
+      final tempDir = await resolveTempDir();
+      final file = await verifier.downloadVerified(
+        Uri.parse(stored.info.assetUrl),
+        stored.info.sha256,
+        digestResolver: () async => stored.info.sha256 ??
+            await verifier.siblingDigest(Uri.parse(stored.info.assetUrl)) ??
+            (throw const VerifyException('no sha256 digest available — install refused')),
+        targetDir: tempDir,
+      );      await _handToInstaller(file);
+      // Install handed off: the flow is done from our side.
+      state = UpdateAvailable(stored.info);
+      return file;
+    } on Object {
+      state = UpdateAvailable(stored.info);
+      rethrow;
+    }
+  }
+
+  Future<void> _handToInstaller(File file) async {
+    if (Platform.isAndroid) {
+      // Local file + FileProvider ACTION_VIEW application/apk: the install
+      // happens from the verified blob, never a re-downloaded URL.
+      await const MethodChannel(
+        'vpn_service',
+      ).invokeMethod<void>('installUpdate', {'path': file.path});
+    } else if (Platform.isWindows) {
+      // Portable zip: reveal the verified artifact in Explorer (no browser
+      // handoff, no OS re-download). /select takes path in the same arg.
+      await Process.start('explorer', <String>['/select,${file.path}']);
+    } else {
+      throw UnsupportedError('no installer for ${Platform.operatingSystem}');
     }
   }
 }
