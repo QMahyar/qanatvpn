@@ -1,4 +1,30 @@
-# Handoff — YOURVPN — roadmap P2 sweep landed: transports/urltest/backup/metrics (60 sec)
+# Handoff — YOURVPN — mother-audit W1 landed (commit 8ba372e, 326 tests): LICENSE+THIRD_PARTY, UA fix, Windows exe fix, Android store paths, sha256-verified updates, README (60 sec)
+
+## Repo state
+
+- **Mother audit done** (5 workflows, 117 finders, 1003 findings, 351 confirmed): full report `tasks/mother-audit-2026-09-05.md`, machine-readable `tasks/salvage-joined-2026-09-05.json`, fix queue `tasks/todo.md` (W1 done, W2-W4 open).
+- **W1 shipped** (`8ba372e`): LICENSE+THIRD_PARTY · plainFetch UA (GitHub 403 hole) · Windows exe resolution (bundle-root first — released app can now spawn engine) · app_paths.dart path_provider + ~/.yourvpn migration (Android store writes work) · UpdateVerifier sha256 fail-closed install (12 tests; CI emits sibling .sha256; latest.json carries sha256; Android installs via FileProvider from verified blob) · real README. 326 tests green, analyze clean.
+- v1.0 state below: 302→326 tests, engine truths unchanged.
+
+## Next (value order)
+
+1. **W1.7 CI proof** — `gh workflow run build-android.yml/gh-pages.yml --ref master` (needs YOUR admin token; local gh got HTTP 403 on dispatch) → verify 3 APKs land on a re-cut v0.1.1 release + `latest.json` live on Pages. Then set the 4 signing secrets.
+2. **W2 core product** (todo.md): endpoint tap-to-select, settings screen, wizard persistence, auto-reconnect, subscription ETag-24h model, ingestion hardening, engine-failure detail.
+3. **W3 security**: kill-switch reality, key redaction in logs, secrets at rest, HTTPS-only subs, FLAG_SECURE, backup AAD.
+4. **W4**: geo seeding initial_path, orphaned sing-box.exe job object, FA l10n completion, pubspec.lock repin to pub.dev.
+
+## Verify (30 sec)
+
+```
+flutter test --no-pub        # 326 pass
+flutter analyze              # No issues
+gh api repos/QMahyar/yourvpn --jq .license.spdx_id   # AGPL-3.0 after GitHub reindex
+curl -s https://qmahyar.github.io/yourvpn/latest.json  # after W1.7 pages run
+```
+
+---
+
+# Previous handoff (v0.1.0 state, 2026-09-04)
 
 ## Repo state
 
