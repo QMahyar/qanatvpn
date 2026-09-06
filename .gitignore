@@ -39,3 +39,7 @@ latest.json
 coverage/
 doc/api/
 *.log
+
+# agent session scratch
+.pi/
+thirdparty_rows.json
