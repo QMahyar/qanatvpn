@@ -14,6 +14,28 @@ Uri parseShareUri(String raw) {
   return Uri.parse(trimmed);
 }
 
+/// Dart does NOT percent-decode [Uri.userInfo] ("the returned string is not
+/// decoded"): trojan/hysteria2/tuic/vless credentials containing special
+/// characters arrive encoded and would be stored corrupted (audit W2.6).
+String decodedUserInfo(Uri uri) => uri.userInfo.isEmpty
+    ? ''
+    : Uri.decodeComponent(uri.userInfo);
+
+/// Share-link port: 0 means "scheme default applied by the caller"; a
+/// parsed port outside 1..65535 must fail parsing — Uri.parse accepts 99999
+/// and even negative ports, and one bad share line FATALs the whole engine
+/// at connect (audit W2.6).
+int sharePort(Uri uri) {
+  final port = uri.port;
+  if (port == 0) {
+    return 0;
+  }
+  if (port < 1 || port > 65535) {
+    throw FormatException('share-link port out of range: $port');
+  }
+  return port;
+}
+
 Map<String, String> queryOf(Uri uri) {
   return <String, String>{
     for (final entry in uri.queryParameters.entries) entry.key: entry.value,
@@ -39,13 +61,18 @@ int intOf(String source, String what) {
 /// Coerces a YAML/JSON scalar to int, FormatException on any failure
 /// (floats, bools, null) so malformed subscriptions never escape as TypeError.
 int intField(Object? value, String what) {
-  if (value is int) {
-    return value;
+  final result = switch (value) {
+    int() => value,
+    String() => intOf(value, what),
+    _ => throw FormatException('bad integer in $what: $value'),
+  };
+  // All current uses are ports or ids bounded by 65535 — catch garbage
+  // (99999, -1) at parse time instead of FATALing the engine at connect
+  // (audit W2.6).
+  if (result < 0 || result > 65535) {
+    throw FormatException('$what out of range: $result');
   }
-  if (value is String) {
-    return intOf(value, what);
-  }
-  throw FormatException('bad integer in $what: $value');
+  return result;
 }
 
 /// Coerces to non-null String, FormatException when missing.
@@ -187,6 +214,14 @@ class ClashYamlParser {
         );
       case 'hysteria2':
         final ports = node['ports'] as String?;
+        // mihomo emits two obfs shapes: scalar `obfs: salamander` (obfs
+        // type only) and map `obfs: {type: salamander, password: ...}`.
+        // A blind `as YamlMap?` cast threw on the scalar form and aborted
+        // the whole import (audit W2.6).
+        final obfsNode = node['obfs'];
+        final obfsPassword = obfsNode is YamlMap
+            ? obfsNode['password'] as String?
+            : null;
         return Hysteria2Endpoint(
           tag: name,
           address: stringField(node['server'], 'clash server'),
@@ -195,7 +230,7 @@ class ClashYamlParser {
               : intField(node['port'], 'clash port'),
           auth: node['password'] as String? ?? node['auth'] as String? ?? '',
           sni: node['sni'] as String?,
-          obfsPassword: (node['obfs'] as YamlMap?)?['password'] as String?,
+          obfsPassword: obfsPassword,
           upMbps: _asInt(node['up']),
           downMbps: _asInt(node['down']),
           ports: ports,
@@ -590,7 +625,7 @@ class SshUriParser {
     if (host.isEmpty) {
       throw const FormatException('ssh: missing host');
     }
-    final port = uri.port == 0 ? 22 : uri.port;
+    final port = sharePort(uri) == 0 ? 22 : sharePort(uri);
     final user = uri.userInfo.isEmpty ? 'root' : uri.userInfo.split(':').first;
     final password = uri.userInfo.contains(':')
         ? Uri.decodeComponent(
@@ -620,9 +655,9 @@ class VlessUriParser {
       throw FormatException('not a vless link: ${uri.scheme}');
     }
     final query = queryOf(uri);
-    final userInfo = uri.userInfo;
+    final userInfo = decodedUserInfo(uri);
     final host = uri.host;
-    final port = uri.port == 0 ? 443 : uri.port;
+    final port = sharePort(uri) == 0 ? 443 : sharePort(uri);
     final tag = uri.fragment.isNotEmpty
         ? Uri.decodeComponent(uri.fragment)
         : '$host:$port';
@@ -677,23 +712,90 @@ class VmessUriParser {
       body = body.substring(0, question);
     }
     final decoded = decodeBase64Flex(body.trim());
-    final doc = jsonDecode(decoded);
-    if (doc is! Map<String, dynamic>) {
+    final Object? doc0 = jsonDecode(decoded);
+    if (doc0 is! Map) {
       throw const FormatException('vmess: payload not an object');
     }
-    final port = doc['port'];
+    // Field reads are type-checked, not blind-cast: malformed bundles must
+    // throw FormatException (per-line import error), not TypeError (kills
+    // the whole import — audit W2.6).
+    String stringOf(String key) {
+      final value = doc0[key];
+      if (value == null) {
+        return '';
+      }
+      if (value is String) {
+        return value;
+      }
+      throw FormatException('vmess: $key must be a string');
+    }
+
+    String? optionalString(String key) {
+      final value = doc0[key];
+      if (value == null) {
+        return null;
+      }
+      if (value is String && value.isNotEmpty) {
+        return value;
+      }
+      if (value is String) {
+        return null;
+      }
+      throw FormatException('vmess: $key must be a string');
+    }
+
+    final address = stringOf('add');
+    if (address.isEmpty) {
+      throw const FormatException('vmess: add (server address) missing');
+    }
+    final uuid = stringOf('id');
+    if (uuid.isEmpty) {
+      throw const FormatException('vmess: id (uuid) missing');
+    }
+    final portObject = doc0['port'];
+    final port = portObject == null
+        ? 443
+        : portObject is int
+        ? portObject
+        : intOf('$portObject', 'vmess port');
+    if (port < 1 || port > 65535) {
+      throw FormatException('vmess: port out of range: $port');
+    }
+    final network = optionalString('net');
+    final path = optionalString('path');
+    final wsHost = optionalString('host');
+    // v2rayN stores the ws Host header in 'host' — it must reach the
+    // engine or CDN-routed nodes cannot connect (previously dropped).
+    final transport =
+        (network == 'ws' || network == 'httpupgrade' || network == 'http') &&
+            (path != null || wsHost != null)
+        ? TransportOptions(
+            type: network!,
+            path: path,
+            host: wsHost,
+          )
+        : null;
+    final aidObject = doc0['aid'];
+    final alterId = aidObject == null
+        ? 0
+        : aidObject is int
+        ? aidObject
+        : intOf('$aidObject', 'vmess aid');
+    final ps = optionalString('ps');
     return <NormalizedEndpoint>[
       VmessEndpoint(
-        tag: doc['ps'] as String? ?? '${doc['add']}:$port',
-        address: doc['add'] as String,
-        port: intField(port, 'vmess port'),
-        uuid: doc['id'] as String,
-        security: doc['scy'] as String? ?? doc['security'] as String? ?? 'auto',
-        alterId: doc['aid'] == null ? 0 : intField(doc['aid'], 'vmess aid'),
-        network: doc['net'] as String?,
-        tls: doc['tls'] == 'tls' ? 'tls' : null,
-        sni: doc['sni'] as String?,
-        wsPath: doc['path'] as String?,
+        tag: ps != null && ps.isNotEmpty ? ps : '$address:$port',
+        address: address,
+        port: port,
+        uuid: uuid,
+        security:
+            optionalString('scy') ?? optionalString('security') ?? 'auto',
+        alterId: alterId,
+        network: network,
+        tls: doc0['tls'] == 'tls' ? 'tls' : null,
+        sni: optionalString('sni'),
+        wsPath: path,
+        transport: transport,
       ),
     ];
   }
@@ -799,8 +901,8 @@ class TrojanUriParser {
       TrojanEndpoint(
         tag: tag,
         address: uri.host,
-        port: uri.port == 0 ? 443 : uri.port,
-        password: uri.userInfo,
+        port: sharePort(uri) == 0 ? 443 : sharePort(uri),
+        password: decodedUserInfo(uri),
         sni: query['sni'] ?? query['peer'],
         network: query['type'],
         allowInsecure: boolOf(query['allowInsecure']),
@@ -837,8 +939,8 @@ class Hysteria2UriParser {
       Hysteria2Endpoint(
         tag: tag,
         address: uri.host,
-        port: uri.port == 0 ? 443 : uri.port,
-        auth: uri.userInfo,
+        port: sharePort(uri) == 0 ? 443 : sharePort(uri),
+        auth: decodedUserInfo(uri),
         sni: query['sni'],
         obfsPassword: query['obfs-password'],
         ports: mport,
@@ -862,14 +964,15 @@ class TuicUriParser {
     final tag = uri.fragment.isNotEmpty
         ? Uri.decodeComponent(uri.fragment)
         : '${uri.host}:${uri.port}';
-    final split = uri.userInfo.indexOf(':');
+    final userInfo = decodedUserInfo(uri);
+    final split = userInfo.indexOf(':');
     return <NormalizedEndpoint>[
       TuicEndpoint(
         tag: tag,
         address: uri.host,
-        port: uri.port == 0 ? 443 : uri.port,
-        uuid: split < 0 ? uri.userInfo : uri.userInfo.substring(0, split),
-        password: split < 0 ? '' : uri.userInfo.substring(split + 1),
+        port: sharePort(uri) == 0 ? 443 : sharePort(uri),
+        uuid: split < 0 ? userInfo : userInfo.substring(0, split),
+        password: split < 0 ? '' : userInfo.substring(split + 1),
         congestionControl: query['congestion_control'],
         alpn: (query['alpn'] ?? 'h3').split(','),
         sni: query['sni'],

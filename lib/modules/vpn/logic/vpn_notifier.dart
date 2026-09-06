@@ -7,7 +7,7 @@ import '../../onboarding/wizard.dart';
 
 /// UI-facing VPN state. Mirrors [TunnelState] plus the connected tag.
 class VpnState {
-  const VpnState(this.phase, this.tag, this.blockReason);
+  const VpnState(this.phase, this.tag, this.blockReason, [this.blockDetail]);
 
   factory VpnState.disconnected() =>
       const VpnState(TunnelState.disconnected, null, null);
@@ -17,22 +17,29 @@ class VpnState {
       VpnState(TunnelState.connected, tag, null);
   factory VpnState.disconnecting() =>
       const VpnState(TunnelState.disconnecting, null, null);
-  factory VpnState.blocked(TunnelBlockReason reason) =>
-      VpnState(TunnelState.blocked, null, reason);
+  factory VpnState.blocked(
+    TunnelBlockReason reason, [
+    String? detail,
+  ]) => VpnState(TunnelState.blocked, null, reason, detail);
 
   final TunnelState phase;
   final String? tag;
   final TunnelBlockReason? blockReason;
+
+  /// Engine/exception text behind [blockReason] (audit W2.7 — the FATAL
+  /// reason used to be swallowed; six enum labels were the whole taxonomy).
+  final String? blockDetail;
 
   @override
   bool operator ==(Object other) =>
       other is VpnState &&
       other.phase == phase &&
       other.tag == tag &&
-      other.blockReason == blockReason;
+      other.blockReason == blockReason &&
+      other.blockDetail == blockDetail;
 
   @override
-  int get hashCode => Object.hash(phase, tag, blockReason);
+  int get hashCode => Object.hash(phase, tag, blockReason, blockDetail);
 }
 
 /// Provides the app's [Tunnel]. Overridden in tests with fakes.
@@ -90,6 +97,7 @@ class VpnNotifier extends Notifier<VpnState> {
         TunnelState.reconnecting => VpnState.connecting(),
         TunnelState.blocked => VpnState.blocked(
           tunnel.blockReason ?? TunnelBlockReason.establishFailed,
+          tunnel.blockDetail,
         ),
       };
     });

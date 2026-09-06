@@ -1,0 +1,21 @@
+{
+  "id": "b971025d3",
+  "name": "Full test suite gate run",
+  "command": "cd E:/code/Qanat-VPN && C:/tools/flutter/bin/flutter.bat test --no-pub --reporter expanded > /tmp/gate-test-run.log 2>&1; echo \"EXIT_CODE=$?\" >> /tmp/gate-test-run.log; tail -5 /tmp/gate-test-run.log",
+  "description": "Full flutter test suite gate run for engine-parity audit",
+  "status": "failed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\b971025d3.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788608945251,
+  "endTime": 1788608946142,
+  "exitCode": 64,
+  "signal": null,
+  "pid": 15708,
+  "bytesWritten": 129,
+  "isAgent": false,
+  "error": "Exited with code 64",
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true,
+  "timeoutSeconds": 1800
+}

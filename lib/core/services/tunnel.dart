@@ -203,6 +203,11 @@ class Tunnel {
   /// Last reason the tunnel went blocked, null when not blocked.
   TunnelBlockReason? blockReason;
 
+  /// Engine/exception detail behind the last [blockReason] — the FATAL log
+  /// line or thrown error text (audit W2.7). Null when not blocked or when
+  /// no detail was captured.
+  String? blockDetail;
+
   TunnelState get state => _state;
 
   Stream<TunnelState> get status => _status.stream;
@@ -254,12 +259,15 @@ class Tunnel {
       );
       if (!granted) {
         publishMetrics();
-        await _block(TunnelBlockReason.vpnPermissionDenied);
+        await _block(
+          TunnelBlockReason.vpnPermissionDenied,
+          'VPN permission dialog was denied',
+        );
         return;
       }
-    } on Object {
+    } on Object catch (e) {
       publishMetrics();
-      await _block(TunnelBlockReason.establishFailed);
+      await _block(TunnelBlockReason.establishFailed, e);
       return;
     }
     if (_stale(epoch)) {
@@ -291,16 +299,19 @@ class Tunnel {
       );
       if (airplane) {
         publishMetrics();
-        await _block(TunnelBlockReason.airplaneMode);
+        await _block(
+          TunnelBlockReason.airplaneMode,
+          'airplane mode is on — connect refused',
+        );
         return;
       }
-    } on Object {
+    } on Object catch (e) {
       if (_stale(epoch)) {
         publishMetrics();
         return;
       }
       publishMetrics();
-      await _block(TunnelBlockReason.establishFailed);
+      await _block(TunnelBlockReason.establishFailed, e);
       return;
     }
     if (_stale(epoch)) {
@@ -315,13 +326,13 @@ class Tunnel {
         'foreground',
         () => foreground.start().timeout(timeouts.foregroundStart),
       );
-    } on Object {
+    } on Object catch (e) {
       if (_stale(epoch)) {
         publishMetrics();
         return;
       }
       publishMetrics();
-      await _block(TunnelBlockReason.establishFailed);
+      await _block(TunnelBlockReason.establishFailed, e);
       return;
     }
     if (_stale(epoch)) {
@@ -336,13 +347,13 @@ class Tunnel {
         'config',
         () => configSource.resolve(tag).timeout(timeouts.resolve),
       );
-    } on Object {
+    } on Object catch (e) {
       if (_stale(epoch)) {
         publishMetrics();
         return;
       }
       publishMetrics();
-      await _block(TunnelBlockReason.establishFailed);
+      await _block(TunnelBlockReason.establishFailed, e);
       return;
     }
     if (_stale(epoch)) {
@@ -357,7 +368,10 @@ class Tunnel {
       });
       if (torDown) {
         publishMetrics();
-        await _block(TunnelBlockReason.torDown);
+        await _block(
+          TunnelBlockReason.torDown,
+          'tor socks sidecar unreachable on 127.0.0.1:9050',
+        );
         return;
       }
     } on Object {
@@ -366,7 +380,10 @@ class Tunnel {
         return;
       }
       publishMetrics();
-      await _block(TunnelBlockReason.torDown);
+      await _block(
+          TunnelBlockReason.torDown,
+          'tor socks sidecar unreachable on 127.0.0.1:9050',
+        );
       return;
     }
     if (_stale(epoch)) {
@@ -382,18 +399,21 @@ class Tunnel {
     } else {
       try {
         fd = await _timed(phases, 'establish', platform.establish);
-      } on Object {
+      } on Object catch (e) {
         if (_stale(epoch)) {
           publishMetrics();
           return;
         }
         publishMetrics();
-        await _block(TunnelBlockReason.establishFailed);
+        await _block(TunnelBlockReason.establishFailed, e);
         return;
       }
       if (fd == null) {
         publishMetrics();
-        await _block(TunnelBlockReason.establishFailed);
+        await _block(
+          TunnelBlockReason.establishFailed,
+          'platform returned no tun fd',
+        );
         return;
       }
       if (_stale(epoch)) {
@@ -409,7 +429,7 @@ class Tunnel {
         await _timed(phases, 'protect', () async {
           platform.protect(protectFd);
         });
-      } on Object {
+      } on Object catch (e) {
         platform.closeFd(fd);
         _fd = null;
         if (_stale(epoch)) {
@@ -417,7 +437,7 @@ class Tunnel {
           return;
         }
         publishMetrics();
-        await _block(TunnelBlockReason.establishFailed);
+        await _block(TunnelBlockReason.establishFailed, e);
         return;
       }
     }
@@ -429,7 +449,7 @@ class Tunnel {
         'box',
         () => box.start(config).timeout(timeouts.boxStart),
       );
-    } on Object {
+    } on Object catch (e) {
       if (fd != null) {
         platform.closeFd(fd);
         _fd = null;
@@ -439,7 +459,7 @@ class Tunnel {
         return;
       }
       publishMetrics();
-      await _block(TunnelBlockReason.boxStartFailed);
+      await _block(TunnelBlockReason.boxStartFailed, e);
       return;
     }
     if (_state == TunnelState.blocked) {
@@ -483,7 +503,7 @@ class Tunnel {
         'firewall',
         () => firewall.enforce().timeout(timeouts.firewallEnforce),
       );
-    } on Object {
+    } on Object catch (e) {
       if (fd != null) {
         platform.closeFd(fd);
         _fd = null;
@@ -498,7 +518,7 @@ class Tunnel {
         return;
       }
       publishMetrics();
-      await _block(TunnelBlockReason.boxStartFailed);
+      await _block(TunnelBlockReason.boxStartFailed, e);
       return;
     }
     if (_stale(epoch)) {
@@ -525,8 +545,8 @@ class Tunnel {
     _setState(TunnelState.disconnecting);
     try {
       await box.stop().timeout(timeouts.boxStop);
-    } on Object {
-      await _block(TunnelBlockReason.boxCrashed);
+    } on Object catch (e) {
+      await _block(TunnelBlockReason.boxCrashed, e);
       return;
     }
     final fd = _fd;
@@ -551,8 +571,12 @@ class Tunnel {
     _setState(TunnelState.disconnected);
   }
 
-  Future<void> _block(TunnelBlockReason reason) async {
+  Future<void> _block(TunnelBlockReason reason, [Object? detail]) async {
     blockReason = reason;
+    // Audit W2.7: six one-line enum labels were the entire connect-failure
+    // taxonomy — the engine's FATAL/exception text was discarded. The real
+    // detail now rides along for the diagnostics screen and banner.
+    blockDetail = detail?.toString();
     try {
       await firewall.enforce().timeout(timeouts.firewallEnforce);
     } on Object {
@@ -581,7 +605,7 @@ class Tunnel {
       return;
     }
     if (_state == TunnelState.connected) {
-      _block(TunnelBlockReason.boxCrashed);
+      _block(TunnelBlockReason.boxCrashed, event.error);
       return;
     }
     // A FATAL between box.start and connected (log-watcher `crashed`
@@ -591,7 +615,7 @@ class Tunnel {
     // async _block below owns the final state.
     if (_state == TunnelState.connecting) {
       _epoch++;
-      _block(TunnelBlockReason.boxCrashed);
+      _block(TunnelBlockReason.boxCrashed, event.error);
     }
   }
 

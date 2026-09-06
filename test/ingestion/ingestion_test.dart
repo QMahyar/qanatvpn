@@ -591,5 +591,159 @@ Endpoint = 2.2.2.2:51820
         throwsFormatException,
       );
     });
+
+    // Audit W2.6 regression cluster: one malformed node must never abort
+    // the whole import, and credential/host fields previously dropped or
+    // corrupted must survive parsing.
+    group('W2.6 hardening', () {
+      test('malformed vmess field throws FormatException, not TypeError', () {
+        // add present but id is an int (wrong type) — a blind `as String`
+        // threw TypeError which escaped parseShareLines and killed the
+        // entire import.
+        final doc = <String, dynamic>{
+          'add': 'jp.example.com',
+          'port': 8443,
+          'id': 12345, // wrong type
+        };
+        expect(
+          () => adapter.parseAndNormalize(
+            raw('vmess://${base64.encode(utf8.encode(jsonEncode(doc)))}'),
+          ),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e is! TypeError,
+              'not a TypeError',
+              isTrue,
+            ),
+          ),
+        );
+      });
+
+      test('missing vmess add/id throw FormatException', () {
+        final noAdd = base64.encode(
+          utf8.encode(jsonEncode(<String, dynamic>{'id': 'x', 'port': 1})),
+        );
+        final noId = base64.encode(
+          utf8.encode(jsonEncode(<String, dynamic>{'add': 'h', 'port': 1})),
+        );
+        expect(
+          () => adapter.parseAndNormalize(raw('vmess://$noAdd')),
+          throwsFormatException,
+        );
+        expect(
+          () => adapter.parseAndNormalize(raw('vmess://$noId')),
+          throwsFormatException,
+        );
+      });
+
+      test('good line survives a TypeError-shaped bad sibling line', () {
+        final good = base64Url.encode(
+          utf8.encode(
+            jsonEncode(<String, dynamic>{
+              'add': 'ok.example.com',
+              'port': 443,
+              'id': 'uuid-1',
+            }),
+          ),
+        );
+        final badDoc = <String, dynamic>{
+          'add': <String>['not', 'a', 'string'], // list where string expected
+          'port': 443,
+          'id': 'uuid-2',
+        };
+        final endpoints = adapter.parseShareLines(<String>[
+          'vmess://$good',
+          'vmess://${base64Url.encode(utf8.encode(jsonEncode(badDoc)))}',
+        ]);
+        expect(endpoints, hasLength(1));
+        expect((endpoints.single as VmessEndpoint).address, 'ok.example.com');
+      });
+
+      test('vmess ws Host header (v2rayN host key) is preserved', () {
+        final doc = base64.encode(
+          utf8.encode(
+            jsonEncode(<String, dynamic>{
+              'add': 'jp.example.com',
+              'port': 443,
+              'id': 'b831381d-6324-4d53-ad4f-8cda48b30811',
+              'net': 'ws',
+              'path': '/ws',
+              'host': 'cdn.example.com',
+              'tls': 'tls',
+            }),
+          ),
+        );
+        final e =
+            adapter.parseAndNormalize(raw('vmess://$doc')).single
+                as VmessEndpoint;
+        expect(e.transport, isNotNull);
+        expect(e.transport!.host, 'cdn.example.com');
+        expect(e.transport!.path, '/ws');
+      });
+
+      test('percent-encoded trojan password is decoded', () {
+        // password with '@' encoded: p%40ss → p@ss
+        final e =
+            adapter.parseAndNormalize(
+                  raw('trojan://p%40ss@trojan.example.com:443#enc'),
+                )
+                .single as TrojanEndpoint;
+        expect(e.password, 'p@ss');
+      });
+
+      test('percent-encoded hysteria2 auth is decoded', () {
+        final e =
+            adapter.parseAndNormalize(
+                  raw('hysteria2://au%2Fth@h.example.com:443#h'),
+                )
+                .single as Hysteria2Endpoint;
+        expect(e.auth, 'au/th');
+      });
+
+      test('percent-encoded tuic uuid:password is decoded', () {
+        final e =
+            adapter.parseAndNormalize(
+                  raw('tuic://u%40id:pw%3Ass@t.example.com:443#t'),
+                )
+                .single as TuicEndpoint;
+        expect(e.uuid, 'u@id');
+        expect(e.password, 'pw:ss');
+      });
+
+      test('out-of-range share-link port throws FormatException', () {
+        expect(
+          () => adapter.parseAndNormalize(
+            raw('trojan://pw@h.example.com:99999#x'),
+          ),
+          throwsA(anyOf(isA<FormatException>(), isA<RangeError>())),
+        );
+      });
+
+      test('clash hysteria2 scalar obfs form does not abort the import', () {
+        const yaml = '''
+proxies:
+  - name: hy-scalar
+    type: hysteria2
+    server: hy.example.com
+    port: 443
+    password: letmein
+    obfs: salamander
+  - name: hy-map
+    type: hysteria2
+    server: hy2.example.com
+    port: 443
+    password: letmein
+    obfs:
+      type: salamander
+      password: peekaboo
+''';
+        final endpoints = adapter.parseAndNormalize(raw(yaml));
+        expect(endpoints, hasLength(2));
+        final scalar = endpoints[0] as Hysteria2Endpoint;
+        final map = endpoints[1] as Hysteria2Endpoint;
+        expect(scalar.tag, 'hy-scalar');
+        expect(map.obfsPassword, 'peekaboo');
+      });
+    });
   });
 }

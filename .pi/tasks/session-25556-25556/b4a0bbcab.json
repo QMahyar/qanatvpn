@@ -1,0 +1,21 @@
+{
+  "id": "b4a0bbcab",
+  "name": "coverage run",
+  "command": "C:/tools/flutter/bin/flutter.bat test --coverage --no-pub --reporter compact 2>&1 | tail -40",
+  "description": "Run full test suite with lcov coverage collection",
+  "status": "failed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\b4a0bbcab.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788609538341,
+  "endTime": 1788609538389,
+  "exitCode": 255,
+  "signal": null,
+  "pid": 19176,
+  "bytesWritten": 0,
+  "isAgent": false,
+  "error": "Exited with code 255",
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true,
+  "timeoutSeconds": 900
+}

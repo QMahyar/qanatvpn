@@ -166,6 +166,21 @@ class StateTile extends StatelessWidget {
                     color: theme.colorScheme.error,
                   ),
                 ),
+              if (vpn.blockDetail != null)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(top: 4),
+                  child: Text(
+                    // Engine FATAL/exception text (audit W2.7) — clamped
+                    // so a long engine dump cannot blow the tile layout.
+                    vpn.blockDetail!,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

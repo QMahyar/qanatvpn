@@ -1,0 +1,19 @@
+{
+  "id": "b92e1dc49",
+  "name": "coverage run 3",
+  "command": "set PATH=/c/tools/flutter/bin:$PATH && cd E:/code/Qanat-VPN && flutter test --coverage 2>&1 | tail -20",
+  "status": "failed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\b92e1dc49.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788601064667,
+  "endTime": 1788601064706,
+  "exitCode": 255,
+  "signal": null,
+  "pid": 6300,
+  "bytesWritten": 0,
+  "isAgent": false,
+  "error": "Exited with code 255",
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true
+}

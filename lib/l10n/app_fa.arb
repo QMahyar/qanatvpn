@@ -18,6 +18,8 @@
   "bypass": "دور زدن",
   "finish": "پایان",
   "wizardStepOf": "مرحله {step} از 3",
+  "wizardSkip": "رد کردن راه‌اندازی",
+  "@wizardSkip": {},
   "updatesIdle": "هنوز بررسی نشده. برنامه روزانه در پس‌زمینه بررسی می‌کند.",
   "updatesUpToDate": "به‌روز است (v{version})",
   "updatesCheckNow": "بررسی الان",

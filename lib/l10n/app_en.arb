@@ -19,6 +19,8 @@
   "finish": "Finish",
   "wizardStepOf": "Step {step} of 3",
   "@wizardStepOf": { "placeholders": { "step": { "type": "int" } } },
+  "wizardSkip": "Skip setup",
+  "@wizardSkip": {},
   "updatesIdle": "No check yet. The app checks daily in the background.",
   "updatesUpToDate": "Up to date (v{version})",
   "@updatesUpToDate": { "placeholders": { "version": { "type": "String" } } },

@@ -1,0 +1,21 @@
+{
+  "id": "b9e9353fb",
+  "name": "coverage run 3",
+  "command": "MSYS2_ARG_CONV_EXCL=\"*\" cmd //c \"C:\\tools\\flutter\\bin\\flutter.bat test --coverage --no-pub --reporter compact > coverage-run.log 2>&1 & echo EXIT=%ERRORLEVEL% >> coverage-run.log\"",
+  "description": "Flutter coverage run through cmd to avoid MSYS arg mangling",
+  "status": "failed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\b9e9353fb.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788610433177,
+  "endTime": 1788610433227,
+  "exitCode": 1,
+  "signal": null,
+  "pid": 3512,
+  "bytesWritten": 110,
+  "isAgent": false,
+  "error": "Exited with code 1",
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true,
+  "timeoutSeconds": 900
+}

@@ -64,6 +64,9 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
+  String get wizardSkip => 'رد کردن راه‌اندازی';
+
+  @override
   String get updatesIdle =>
       'هنوز بررسی نشده. برنامه روزانه در پس‌زمینه بررسی می‌کند.';
 

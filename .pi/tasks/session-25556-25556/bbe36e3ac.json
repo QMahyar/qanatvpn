@@ -1,0 +1,20 @@
+{
+  "id": "bbe36e3ac",
+  "name": "verify test count",
+  "command": "cd E:/code/Qanat-VPN && C:/tools/flutter/bin/flutter.bat test --no-pub 2>&1 | tail -5",
+  "description": "Run full flutter test suite to verify 302-test claim",
+  "status": "failed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\bbe36e3ac.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788598141216,
+  "endTime": 1788598141263,
+  "exitCode": 255,
+  "signal": null,
+  "pid": 7188,
+  "bytesWritten": 0,
+  "isAgent": false,
+  "error": "Exited with code 255",
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true
+}

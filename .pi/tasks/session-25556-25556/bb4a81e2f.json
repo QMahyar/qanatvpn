@@ -1,0 +1,20 @@
+{
+  "id": "bb4a81e2f",
+  "name": "coverage run 4",
+  "command": "cmd //c \"C:\\\\Users\\\\qmahyar\\\\AppData\\\\Local\\\\Temp\\\\covrun.bat\"",
+  "description": "Run flutter coverage via temp batch script",
+  "status": "completed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\bb4a81e2f.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788613157383,
+  "endTime": 1788613157442,
+  "exitCode": 0,
+  "signal": null,
+  "pid": 20236,
+  "bytesWritten": 114,
+  "isAgent": false,
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true,
+  "timeoutSeconds": 900
+}

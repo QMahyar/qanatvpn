@@ -9,6 +9,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../routing/groups_controller.dart';
 import '../../routing/rules_controller.dart';
 import '../../vpn/amnezia/awg_profile_screen.dart';
+import '../../vpn/logic/selected_endpoint.dart';
 import 'endpoints_controller.dart';
 import 'ingestion/ingestion_adapter.dart'
     show
@@ -83,38 +84,92 @@ class EndpointsScreen extends ConsumerWidget {
               )
             else
               Expanded(
-                child: Semantics(
-                  liveRegion: true,
-                  label: '${state.endpoints.length} ${l10n.endpointsTitle}',
-                  child: ListView.builder(
-                    itemCount: state.endpoints.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final StoredEndpoint stored = state.endpoints[index];
-                      return Card(
-                        child: ListTile(
-                          leading: Icon(_iconFor(stored)),
-                          title: Text(stored.label),
-                          subtitle: Text(
-                            '${_protocolName(stored)} · ${stored.sourceUrl ?? 'manual'}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: Semantics(
-                            button: true,
-                            label: '${l10n.endpointsDelete} ${stored.label}',
-                            child: IconButton(
-                              tooltip:
-                                  '${l10n.endpointsDelete} ${stored.label}',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => ref
-                                  .read(endpointsControllerProvider.notifier)
-                                  .delete(index),
+                child: Builder(
+                  builder: (BuildContext context) {
+                    final SelectedEndpoint selected = ref.watch(
+                      selectedEndpointProvider,
+                    );
+                    return Semantics(
+                      liveRegion: true,
+                      label: '${state.endpoints.length} ${l10n.endpointsTitle}',
+                      child: ListView.builder(
+                        itemCount: state.endpoints.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final StoredEndpoint stored = state.endpoints[index];
+                          final bool isSelected =
+                              selected.tag == stored.tag &&
+                              selected.source == 'user';
+                          return Card(
+                            // Selected endpoint is visually pinned: the
+                            // next connect uses this tag (audit W2.1).
+                            color: isSelected
+                                ? theme.colorScheme.secondaryContainer
+                                : null,
+                            child: ListTile(
+                              onTap: () => ref
+                                  .read(selectedEndpointProvider.notifier)
+                                  .select(stored.tag),
+                              leading: Icon(_iconFor(stored)),
+                              title: Text(stored.label),
+                              subtitle: Text(
+                                '${_protocolName(stored)} · ${stored.sourceUrl ?? 'manual'}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  if (isSelected)
+                                    Semantics(
+                                      button: true,
+                                      label: 'Selected ${stored.label}',
+                                      child: const Icon(
+                                        Icons.check_circle,
+                                      ),
+                                    )
+                                  else
+                                    Semantics(
+                                      button: true,
+                                      label: 'Select ${stored.label}',
+                                      child: const Icon(
+                                        Icons.radio_button_unchecked,
+                                      ),
+                                    ),
+                                  Semantics(
+                                    button: true,
+                                    label:
+                                        '${l10n.endpointsDelete} ${stored.label}',
+                                    child: IconButton(
+                                      tooltip:
+                                          '${l10n.endpointsDelete} ${stored.label}',
+                                      icon: const Icon(Icons.delete_outline),
+                                      onPressed: () async {
+                                        final String deletedTag = stored.tag;
+                                        await ref
+                                            .read(
+                                              endpointsControllerProvider
+                                                .notifier,
+                                            )
+                                            .delete(index);
+                                        // A dead selection must not keep
+                                        // the warning banner alive.
+                                        await ref
+                                            .read(
+                                              selectedEndpointProvider
+                                                .notifier,
+                                            )
+                                            .clearInvalid(deletedTag);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                          );
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
           ],

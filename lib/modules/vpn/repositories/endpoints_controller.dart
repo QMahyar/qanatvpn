@@ -101,6 +101,11 @@ class EndpointsController extends Notifier<EndpointsState> {
         }
         payload = utf8.decode(response.body, allowMalformed: true);
         origin = maybeUrl.toString();
+      } else {
+        // Pasted imports all shared the literal 'pasted' cache key, so a
+        // second paste of different content returned the first paste's
+        // endpoints for 6h (audit W2.6). Key pastes by content digest.
+        origin = 'pasted:${payload.hashCode}';
       }
 
       // Large clash YAML bundles parse for seconds on the UI isolate;

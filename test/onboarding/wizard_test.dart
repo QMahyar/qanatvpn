@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yourvpn/core/services/tunnel.dart';
+import 'package:yourvpn/modules/onboarding/split_store.dart';
 import 'package:yourvpn/modules/onboarding/wizard.dart';
 
 class _FakePlatformAdapter implements PlatformAdapter {
@@ -49,16 +52,28 @@ class _FakePlatformAdapter implements PlatformAdapter {
 
 void main() {
   late _FakePlatformAdapter platform;
+  late Directory tempDir;
   late ProviderContainer container;
 
-  setUp(() {
+  setUp(() async {
     platform = _FakePlatformAdapter();
+    tempDir = await Directory.systemTemp.createTemp('yourvpn-wizard');
     container = ProviderContainer(
-      overrides: [platformAdapterProvider.overrideWithValue(platform)],
+      overrides: [
+        platformAdapterProvider.overrideWithValue(platform),
+        splitStoreProvider.overrideWithValue(
+          SplitStore(baseDir: tempDir.path),
+        ),
+      ],
     );
   });
 
-  tearDown(() => container.dispose());
+  tearDown(() async {
+    container.dispose();
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
+  });
 
   WizardState state() => container.read(wizardProvider);
 
@@ -126,5 +141,45 @@ void main() {
     await notifier.skipBattery();
     notifier.back();
     expect(state().step, WizardStep.batteryExemption);
+  });
+
+  // Audit W2.3: completion must persist — the wizard re-ran on every cold
+  // start and there was no way past a declined consent dialog.
+  test('skipAll records completion and lands on done', () async {
+    await container.read(wizardProvider.notifier).skipAll();
+
+    expect(state().step, WizardStep.done);
+    final store = SplitStore(baseDir: tempDir.path);
+    expect(store.wizardDone, isTrue);
+    // Skip with no apps = no split decision recorded.
+    expect(store.read(), isNull);
+  });
+
+  test('finish with selection records completion + split choice', () async {
+    final notifier = container.read(wizardProvider.notifier);
+    notifier.toggleApp('org.telegram.messenger');
+    await notifier.finish();
+
+    final store = SplitStore(baseDir: tempDir.path);
+    expect(store.wizardDone, isTrue);
+    expect(store.read()!.packages, <String>{'org.telegram.messenger'});
+  });
+
+  test('a completed wizard starts at done on a fresh container (no re-run)',
+      () async {
+    await container.read(wizardProvider.notifier).skipAll();
+
+    // Simulate the next app launch: new container over the same store dir.
+    final container2 = ProviderContainer(
+      overrides: [
+        platformAdapterProvider.overrideWithValue(platform),
+        splitStoreProvider.overrideWithValue(
+          SplitStore(baseDir: tempDir.path),
+        ),
+      ],
+    );
+    addTearDown(container2.dispose);
+
+    expect(container2.read(wizardProvider).step, WizardStep.done);
   });
 }

@@ -200,6 +200,12 @@ abstract class AppLocalizations {
   /// **'Step {step} of 3'**
   String wizardStepOf(int step);
 
+  /// No description provided for @wizardSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip setup'**
+  String get wizardSkip;
+
   /// No description provided for @updatesIdle.
   ///
   /// In en, this message translates to:

@@ -55,7 +55,17 @@ class WizardState {
 
 class WizardController extends Notifier<WizardState> {
   @override
-  WizardState build() => const WizardState();
+  WizardState build() {
+    // Audit W2.3: the wizard re-ran on every cold start because completion
+    // was never persisted. A previously-finished onboarding skips straight
+    // to done (home shows immediately); the wizard can still be re-opened
+    // from settings once W2.2 lands.
+    final done = ref.read(splitStoreProvider).wizardDone;
+    if (done) {
+      return const WizardState(step: WizardStep.done);
+    }
+    return const WizardState();
+  }
 
   Future<void> checkVpnPermission() async {
     final platform = ref.read(platformAdapterProvider);
@@ -99,7 +109,8 @@ class WizardController extends Notifier<WizardState> {
   }
 
   /// Persists the split decision so every connect applies it via the config
-  /// source; empty selection = no split (whole-device tunnel).
+  /// source; empty selection = no split (whole-device tunnel). Completion
+  /// is always recorded so the wizard does not re-run next launch.
   Future<void> finish() async {
     final store = ref.read(splitStoreProvider);
     if (state.selectedApps.isNotEmpty) {
@@ -108,7 +119,18 @@ class WizardController extends Notifier<WizardState> {
       );
     } else {
       await store.clear();
+      await store.markDone();
     }
+    state = state.copyWith(step: WizardStep.done);
+  }
+
+  /// Skips the rest of onboarding: records completion (whole-device
+  /// tunnel) and lands on home. Audit W2.3 — previously there was no way
+  /// past the wizard without completing every step.
+  Future<void> skipAll() async {
+    final store = ref.read(splitStoreProvider);
+    await store.clear();
+    await store.markDone();
     state = state.copyWith(step: WizardStep.done);
   }
 
@@ -178,6 +200,21 @@ class Wizard extends ConsumerWidget {
                 WizardStep.perAppSplit => _SplitStep(ref: ref, state: state),
                 WizardStep.done => const SizedBox.shrink(),
               },
+              const SizedBox(height: 8),
+              // Audit W2.3: a user who declines the VPN consent dialog was
+              // dead-ended — the app was unreachable without completing the
+              // wizard. Skip is always available and lands on home with a
+              // whole-device-tunnel default.
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: () =>
+                      ref.read(wizardProvider.notifier).skipAll(),
+                  child: Text(
+                    AppLocalizations.of(context)!.wizardSkip,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

@@ -14,6 +14,9 @@ class _StubTunnel implements Tunnel {
   @override
   TunnelBlockReason? blockReason;
 
+  @override
+  String? blockDetail;
+
   TunnelState _state = TunnelState.disconnected;
 
   @override

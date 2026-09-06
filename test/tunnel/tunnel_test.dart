@@ -392,6 +392,45 @@ void main() {
       expect(tunnel.state, TunnelState.blocked);
       expect(tunnel.blockReason, TunnelBlockReason.establishFailed);
     });
+
+    // Audit W2.7: the engine's actual FATAL text must ride along with the
+    // block reason instead of dying in a catch block.
+    test('box start failure captures the engine error detail', () async {
+      final tunnel = buildTunnel(
+        platform: FakePlatformAdapter(),
+        box: FakeBoxAdapter(startThrows: true),
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
+
+      await tunnel.connect('HKG-02');
+
+      expect(tunnel.state, TunnelState.blocked);
+      expect(tunnel.blockDetail, contains('box refused'));
+    });
+
+    test('crash while connected captures the crash event detail', () async {
+      final box = FakeBoxAdapter();
+      final tunnel = buildTunnel(
+        platform: FakePlatformAdapter(),
+        box: box,
+        firewall: FakeFirewallAdapter(),
+        config: FakeConfigSource(),
+      );
+
+      await tunnel.connect('HKG-02');
+      box._events.add(
+        BoxEvent(
+          BoxEventKind.crashed,
+          StateError('FATAL[0000] decode config: bad endpoint'),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(tunnel.state, TunnelState.blocked);
+      expect(tunnel.blockReason, TunnelBlockReason.boxCrashed);
+      expect(tunnel.blockDetail, contains('decode config: bad endpoint'));
+    });
   });
 
   group('Tunnel engine-managed TUN (libbox 1.14 openTun path)', () {

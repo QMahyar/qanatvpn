@@ -122,6 +122,13 @@ class IngestionAdapter {
         endpoints.addAll(_parseOne(line));
       } on FormatException catch (e) {
         failures.add(e);
+      } on TypeError catch (e) {
+        // A type cast inside a parser (malformed JSON/YAML shapes) is a
+        // per-line failure, not an import abort — the repo contract is
+        // 'malformed lines fail individually' (audit W2.6).
+        failures.add(FormatException('bad field type: $e'));
+      } on RangeError catch (e) {
+        failures.add(FormatException('out-of-range value: $e'));
       }
     }
     if (endpoints.isEmpty && failures.isNotEmpty) {

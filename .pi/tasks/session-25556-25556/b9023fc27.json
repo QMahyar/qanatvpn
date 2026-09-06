@@ -1,0 +1,19 @@
+{
+  "id": "b9023fc27",
+  "name": "verify test count",
+  "command": "cd E:/code/Qanat-VPN && \"C:/tools/flutter/bin/flutter.bat\" test --no-pub 2>&1 | tail -5",
+  "status": "failed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\b9023fc27.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788607844690,
+  "endTime": 1788607844764,
+  "exitCode": 255,
+  "signal": null,
+  "pid": 20576,
+  "bytesWritten": 95,
+  "isAgent": false,
+  "error": "Exited with code 255",
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true
+}

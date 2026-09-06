@@ -1,0 +1,21 @@
+{
+  "id": "bba7ac0f4",
+  "name": "flutter test verify count",
+  "command": "cd /e/code/Qanat-VPN && C:/tools/flutter/bin/flutter.bat test --no-pub 2>&1 | tail -5",
+  "description": "Run full Flutter test suite to verify AGENTS.md 302-test claim",
+  "status": "failed",
+  "outputPath": ".pi\\tasks\\session-19584-19584\\bba7ac0f4.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788653249871,
+  "endTime": 1788653249906,
+  "exitCode": 1,
+  "signal": null,
+  "pid": 17004,
+  "bytesWritten": 44,
+  "isAgent": false,
+  "error": "Exited with code 1",
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true,
+  "timeoutSeconds": 900
+}

@@ -64,6 +64,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get wizardSkip => 'Skip setup';
+
+  @override
   String get updatesIdle =>
       'No check yet. The app checks daily in the background.';
 

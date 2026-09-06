@@ -1,0 +1,20 @@
+{
+  "id": "bbd37c20f",
+  "name": "Full test suite gate run",
+  "command": "C:/tools/flutter/bin/flutter.bat test --no-pub --reporter expanded",
+  "description": "Full flutter test suite gate run for engine-parity audit",
+  "status": "completed",
+  "outputPath": ".pi\\tasks\\session-25556-25556\\bbd37c20f.output",
+  "cwd": "E:\\code\\Qanat-VPN",
+  "startTime": 1788609003668,
+  "endTime": 1788609020399,
+  "exitCode": 0,
+  "signal": null,
+  "pid": 4232,
+  "bytesWritten": 38760,
+  "isAgent": false,
+  "notified": true,
+  "notifyOnCompletion": true,
+  "triggerOnCompletion": true,
+  "timeoutSeconds": 1800
+}
