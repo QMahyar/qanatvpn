@@ -1,4 +1,4 @@
-# Handoff — YOURVPN — mother-audit W2 core product landed (352 tests): selection, settings, wizard, reconnect, ingestion, failure detail (60 sec)
+# Handoff — YOURVPN — mother-audit WEEK 2 COMPLETE (365 tests, commit dea776f): all 7 W2 items shipped (60 sec)
 
 ## W2 shipped (commits a0cbed1, this one)
 
@@ -16,8 +16,15 @@
 - **W1 shipped** (`8ba372e`): LICENSE+THIRD_PARTY · plainFetch UA (GitHub 403 hole) · Windows exe resolution (bundle-root first — released app can now spawn engine) · app_paths.dart path_provider + ~/.yourvpn migration (Android store writes work) · UpdateVerifier sha256 fail-closed install (12 tests; CI emits sibling .sha256; latest.json carries sha256; Android installs via FileProvider from verified blob) · real README. 326 tests green, analyze clean.
 - v1.0 state below: 302→326 tests, engine truths unchanged.
 
+## W2 also shipped (see todo.md for details; commits a0cbed1..dea776f)
+
+- W2.1 selection · W2.2 settings+auto-connect · W2.3 wizard persistence ·
+  W2.4 auto-reconnect · W2.5 subscriptions ETag-24h · W2.6 ingestion hardening ·
+  W2.7 failure detail. Tests 302 -> 365.
+
 ## Next (value order)
 
+0. **W1.7 CI proof** — `gh workflow run build-android.yml/gh-pages.yml --ref master` (needs YOUR admin token; local gh got HTTP 403 on dispatch) → verify 3 APKs land on a re-cut v0.1.1 release + `latest.json` live on Pages. Then set the 4 signing secrets.
 1. **W1.7 CI proof** — `gh workflow run build-android.yml/gh-pages.yml --ref master` (needs YOUR admin token; local gh got HTTP 403 on dispatch) → verify 3 APKs land on a re-cut v0.1.1 release + `latest.json` live on Pages. Then set the 4 signing secrets.
 2. **W2 core product** (todo.md): endpoint tap-to-select, settings screen, wizard persistence, auto-reconnect, subscription ETag-24h model, ingestion hardening, engine-failure detail.
 3. **W3 security**: kill-switch reality, key redaction in logs, secrets at rest, HTTPS-only subs, FLAG_SECURE, backup AAD.
