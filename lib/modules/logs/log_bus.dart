@@ -26,12 +26,51 @@ class LogBus {
   /// Consecutive duplicates collapsed so far (diagnostics, tests).
   int droppedRepeats = 0;
 
+  /// Redactions applied so far (diagnostics, tests) — audit W3.2.
+  int redactions = 0;
+
   Stream<EngineLogLine> get stream => _controller.stream;
 
   List<EngineLogLine> get lines => List<EngineLogLine>.unmodifiable(_buffer);
 
+  /// Strips secret-shaped material from engine lines before they enter the
+  /// buffer (audit W3.2: a misconfigured WG/AWG endpoint FATAL echoes the
+  /// private key in hex, forwarded verbatim to the on-screen log).
+  ///
+  /// Patterns, in order:
+  /// 1. JSON/flag fields whose name carries key/password/secret/psk/token —
+  ///    the value is replaced regardless of encoding;
+  /// 2. standalone WG key shapes (44-char base64 with trailing `=`, 64-hex).
+  static final List<RegExp> _secretPatterns = <RegExp>[
+    // Tolerates JSON quoting around the separator (key":"value) and the
+    // value (key": "value) as well as flag style (key=value).
+    RegExp(
+      r'([A-Za-z0-9_\-]*(?:private[_-]?key|password|secret|psk|token)'
+      r'[A-Za-z0-9_\-]*"?\s*[:=]\s*"?)[A-Za-z0-9+/=_\-]{8,}',
+      caseSensitive: false,
+    ),
+    RegExp(r'[A-Za-z0-9+/]{42,43}='),
+    RegExp(r'\b[0-9a-fA-F]{64}\b'),
+  ];
+
+  static const String _redactedMarker = '[REDACTED]';
+
+  String _redactSecrets(String message) {
+    var out = message;
+    for (final pattern in _secretPatterns) {
+      out = out.replaceAllMapped(pattern, (Match m) {
+        final prefix = m.groupCount >= 1 ? (m.group(1) ?? '') : '';
+        return '$prefix$_redactedMarker';
+      });
+    }
+    if (out != message) {
+      redactions++;
+    }
+    return out;
+  }
+
   void add(EngineLogLine line) {
-    var message = line.message;
+    var message = _redactSecrets(line.message);
     if (message.length > maxLineLength) {
       message = message.substring(0, maxLineLength);
     }

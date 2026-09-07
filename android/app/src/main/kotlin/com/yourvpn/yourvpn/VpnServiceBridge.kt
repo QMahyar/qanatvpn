@@ -136,6 +136,19 @@ object VpnServiceBridge {
                     ForegroundService.stop(activity)
                     result.success(null)
                 }
+                "setFlagSecure" -> {
+                    // Audit W3.5: screens that display WG/AWG private keys
+                    // or backup passwords must not appear in screenshots
+                    // or the app switcher.
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    val window = activity.window
+                    if (enabled) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }

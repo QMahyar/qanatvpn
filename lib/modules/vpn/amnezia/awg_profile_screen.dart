@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/flag_secure.dart';
 import '../../../utils/amnezia_values.dart';
 import '../repositories/endpoints_controller.dart';
 import '../repositories/ingestion/normalized_endpoint.dart';
@@ -30,7 +31,16 @@ class _AwgProfileSheetState extends ConsumerState<AwgProfileSheet> {
   String _presetLabel = 'Balanced';
 
   @override
+  void initState() {
+    super.initState();
+    // The private key is typed/displayed in this sheet: screenshots and the
+    // app switcher must not capture it (audit W3.5).
+    FlagSecure.enable();
+  }
+
+  @override
   void dispose() {
+    FlagSecure.disable();
     _tag.dispose();
     _privateKey.dispose();
     _peerKey.dispose();

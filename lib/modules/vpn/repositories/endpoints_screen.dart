@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/backup/backup_service.dart';
+import '../../../core/services/flag_secure.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../routing/groups_controller.dart';
 import '../../routing/rules_controller.dart';
@@ -292,6 +294,10 @@ class EndpointsScreen extends ConsumerWidget {
 
   Future<String?> _promptPassword(BuildContext context, String title) {
     final controller = TextEditingController();
+    // Audit W3.5: the password field must not appear in screenshots or the
+    // app switcher for the dialog's lifetime. The future completes when the
+    // dialog pops, so disable fires right after — including on cancel.
+    unawaited(FlagSecure.enable());
     return showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -316,7 +322,7 @@ class EndpointsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(FlagSecure.disable);
   }
 }
 

@@ -94,8 +94,18 @@ class EndpointsController extends Notifier<EndpointsState> {
       String payload = trimmed;
       var origin = 'pasted';
       final Uri? maybeUrl = Uri.tryParse(trimmed);
+      // Audit W3.4: subscription fetch is HTTPS-only — cleartext http://
+      // exposes WG private keys and server credentials on-path.
       if (maybeUrl != null &&
-          (maybeUrl.scheme == 'http' || maybeUrl.scheme == 'https') &&
+          maybeUrl.scheme == 'http' &&
+          maybeUrl.host.isNotEmpty &&
+          !trimmed.contains('\n')) {
+        throw const UrlFetchException(
+          'insecure subscription URL refused — use https://',
+        );
+      }
+      if (maybeUrl != null &&
+          maybeUrl.scheme == 'https' &&
           maybeUrl.host.isNotEmpty &&
           !trimmed.contains('\n')) {
         final response = await plainFetch(maybeUrl, const <String, String>{

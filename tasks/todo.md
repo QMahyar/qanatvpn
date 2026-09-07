@@ -119,12 +119,12 @@ it closes (F# = index into salvage-joined.json for traceability).
 
 ## Phase W3 — Security hardening (weeks 3-4)
 
-- [ ] W3.1 Kill-switch reality — WFP/iptables lockdown is a no-op validator (F-I ×2, F-high#15)
+- [x] W3.1 Kill-switch reality — WFP/iptables lockdown is a no-op validator (F-I ×2, F-high#15)
   - Acceptance: Windows: engine-managed tun with strict_route + auto_route confirmed in
     generated config + post-stop block via WFP (netsh wfp or sing-box rules engine-side);
     Android: always-on VPN setting guide + lockdown mode doc; engine death → block event.
   - Verify: leak-test script extended with engine-death scenario that can FAIL.
-- [ ] W3.2 Key redaction — FATAL messages echo private keys into logs (F-I/log)
+- [x] W3.2 Key redaction — FATAL messages echo private keys into logs (F-I/log)
   - Acceptance: LogBus redaction layer strips key-shaped hex/base64 + `private_key` values;
     applies to engine lines + config dumps.
   - Verify: unit test with a real FATAL line containing key material.
@@ -133,11 +133,11 @@ it closes (F# = index into salvage-joined.json for traceability).
     credential-bearing fields (private keys, passwords, uuid, psk); Windows temp config file
     gets restrictive ACL + delete-on-crash best effort + zeroed after start.
   - Verify: store tests via in-memory secure storage fake; Windows file-permission probe.
-- [ ] W3.4 HTTPS-only subscription fetches (F-L) + 403-without-ratelimit no longer treated as
+- [x] W3.4 HTTPS-only subscription fetches (F-L) + 403-without-ratelimit no longer treated as
   "no update" (F-high#36) — distinct error surfaces.
-- [ ] W3.5 FLAG_SECURE on key-displaying screens (F-high#6,#13) — awg profile editor + backup
+- [x] W3.5 FLAG_SECURE on key-displaying screens (F-high#6,#13) — awg profile editor + backup
   password entry; MainActivity sets FLAG_SECURE for those routes via MethodChannel toggle.
-- [ ] W3.6 Backup envelope AAD (F-high#8) — bind version+tag-count+salt into AES-GCM AAD;
+- [x] W3.6 Backup envelope AAD (F-high#8) — bind version+tag-count+salt into AES-GCM AAD;
   wrong-format imports rejected before decrypt.
 - [ ] W3.7 Tag-push protection guidance + release workflow hardening (F-high#11) — document
   branch protection; release job requires tag built from master CI (already) + add

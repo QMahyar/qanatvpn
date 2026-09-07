@@ -121,4 +121,53 @@ void main() {
       );
     });
   });
+
+  group('log secret redaction (W3.2)', () {
+    test('JSON private_key field is redacted', () {
+      final bus = LogBus();
+      bus.add(
+        EngineLogLine.parse(
+          'FATAL[0000] decode config at endpoints[0]: '
+          '{"private_key":"8B1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8="}',
+        ),
+      );
+      expect(bus.lines.last.message, contains('[REDACTED]'));
+      expect(bus.lines.last.message, isNot(contains('8B1a2b3c')));
+    });
+
+    test('hex key after key: is redacted (sing-box FATAL echo)', () {
+      final bus = LogBus();
+      bus.add(
+        EngineLogLine.parse(
+          'FATAL: load private_key: 64hex'
+          'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+        ),
+      );
+      expect(bus.lines.last.message, contains('[REDACTED]'));
+      expect(
+        bus.lines.last.message,
+        isNot(contains('a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90')),
+      );
+    });
+
+    test('standalone 44-char base64 WG key shape is redacted', () {
+      final bus = LogBus();
+      bus.add(
+        EngineLogLine.parse(
+          'WARN handshake failed peer-key=6Nrx0p1xVcBZ0kCjhSxJvL0p3a7cWQnPZ0n+qUeWc1E=',
+        ),
+      );
+      expect(bus.lines.last.message, contains('[REDACTED]'));
+      expect(bus.lines.last.message, isNot(contains('6Nrx0p1xVcBZ0kCjhSxJvL0p3a7cWQnPZ0n+qUeWc1E=')));
+    });
+
+    test('normal log lines pass through untouched', () {
+      final bus = LogBus();
+      bus.add(EngineLogLine.parse('INFO[0000] inbound/tun started at tun0'));
+      bus.add(EngineLogLine.parse('INFO[0001] outbound/wireguard connected'));
+      expect(bus.lines[0].message, 'inbound/tun started at tun0');
+      expect(bus.lines[1].message, 'outbound/wireguard connected');
+      expect(bus.redactions, 0);
+    });
+  });
 }

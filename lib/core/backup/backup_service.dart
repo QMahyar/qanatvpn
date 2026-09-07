@@ -193,7 +193,23 @@ class BackupService {
       List<int>.generate(16, (_) => _random.nextInt(256)),
     );
     final key = await _deriveKey(password, salt);
-    final box = await AesGcm.with256bits().encrypt(bytes, secretKey: key);
+    // Audit W3.6: the envelope header (magic/version/KDF params) is now
+    // bound into the AEAD as associated data — a tampered header (e.g.
+    // swapped version or salt) fails authentication instead of decrypting
+    // into garbage or downgrading the KDF.
+    final aad = _aadFromParams(
+      magic: magic,
+      version: version,
+      kdfMemoryKiB: kdfMemoryKiB,
+      kdfIterations: kdfIterations,
+      kdfParallelism: kdfParallelism,
+      salt: salt,
+    );
+    final box = await AesGcm.with256bits().encrypt(
+      bytes,
+      secretKey: key,
+      aad: aad,
+    );
     return <String, dynamic>{
       'magic': magic,
       'version': version,
@@ -209,6 +225,22 @@ class BackupService {
       'mac': base64Encode(box.mac.bytes),
       'ciphertext': base64Encode(box.cipherText),
     };
+  }
+
+  /// Associated-data bytes binding every unauthenticated envelope field:
+  /// magic, version, and the full KDF parameter set + salt.
+  List<int> _aadFromParams({
+    required String magic,
+    required int version,
+    required int kdfMemoryKiB,
+    required int kdfIterations,
+    required int kdfParallelism,
+    required Uint8List salt,
+  }) {
+    return utf8.encode(
+      '$magic|$version|argon2id|$kdfMemoryKiB|$kdfIterations|'
+      '$kdfParallelism|${base64Encode(salt)}',
+    );
   }
 
   Future<List<int>> _decryptEnvelope(List<int> raw, String password) async {
@@ -227,7 +259,8 @@ class BackupService {
       );
     }
     final kdf = envelope['kdf'] as Map<String, dynamic>;
-    final key = await _deriveKey(password, base64Decode(kdf['salt'] as String));
+    final saltBytes = base64Decode(kdf['salt'] as String);
+    final key = await _deriveKey(password, saltBytes);
     try {
       return await AesGcm.with256bits().decrypt(
         SecretBox(
@@ -236,6 +269,14 @@ class BackupService {
           mac: Mac(base64Decode(envelope['mac'] as String)),
         ),
         secretKey: key,
+        aad: _aadFromParams(
+          magic: magic,
+          version: version,
+          kdfMemoryKiB: kdf['memoryKiB'] as int,
+          kdfIterations: kdf['iterations'] as int,
+          kdfParallelism: kdf['parallelism'] as int,
+          salt: saltBytes,
+        ),
       );
     } on SecretBoxAuthenticationError {
       rethrow;

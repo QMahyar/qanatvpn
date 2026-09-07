@@ -8,6 +8,7 @@ import '../../onboarding/split_store.dart';
 import '../../routing/policy_store.dart';
 import '../../routing/routing_compiler.dart';
 import '../../routing/routing_policy.dart';
+import '../../sec/firewall.dart';
 import 'endpoint_store.dart';
 import '../../routing/rule_store.dart';
 import '../../vpn/amnezia/awg_config.dart' show wireGuardEndpointToJson;
@@ -329,15 +330,79 @@ class ProfileConfigSource implements ConfigSource {
 
   Future<Map<String, dynamic>> _load() async {
     final hook = loadForTest;
+    final Map<String, dynamic> loaded;
     if (hook != null) {
-      return hook();
+      loaded = await hook();
+    } else {
+      final String raw = await rootBundle.loadString(assetPath);
+      final dynamic decoded = json.decode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        throw StateError('profile at $assetPath is not a JSON object');
+      }
+      loaded = decoded;
     }
-    final String raw = await rootBundle.loadString(assetPath);
-    final dynamic decoded = json.decode(raw);
-    if (decoded is! Map<String, dynamic>) {
-      throw StateError('profile at $assetPath is not a JSON object');
-    }
-    return decoded;
+    // Applied to the test hook path too: every resolved profile carries
+    // the kill-switch guarantees (audit W3.1).
+    return _withKillSwitchGuarantees(loaded);
+  }
+
+  /// Audit W3.1: the vendored profile shipped hijack-dns only — no IPv6
+  /// block, no LAN block — so a configured engine could leak past the
+  /// kill-switch the moment IPv6 or a LAN route existed. Every loaded
+  /// profile is patched to carry the firewall guarantees ahead of any
+  /// user rules (same baseRules() the assembler emits for generated
+  /// configs). Uses 1.14-native `action: reject` (same convention the
+  /// routing compiler emits for BLOCK), probed against the real engine.
+  static Map<String, dynamic> _withKillSwitchGuarantees(
+    Map<String, dynamic> profile,
+  ) {
+    const hijack = <String, dynamic>{'action': 'hijack-dns'};
+    const v6Block = <String, dynamic>{
+      'ip_version': 6,
+      'action': 'reject',
+    };
+    const lanBlock = <String, dynamic>{
+      'ip_cidr': <String>['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+      'action': 'reject',
+    };
+    final patched = <String, dynamic>{...profile};
+    final route = <String, dynamic>{
+      ...(profile['route'] as Map<String, dynamic>? ?? const <String, dynamic>{}),
+    };
+    final existing =
+        (route['rules'] as List<dynamic>? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+    final rules = <Map<String, dynamic>>[
+      // hijack-dns stays first (validateOrdering contract).
+      hijack,
+      // v6 block unless the profile already carries one (ip_version 6 or
+      // a ::/0 reject/BLOCK).
+      if (!existing.any(
+        (r) =>
+            r['ip_version'] == 6 ||
+            (r['ip_cidr'] as List<dynamic>? ?? const <dynamic>[])
+                .contains('::/0'),
+      ))
+        v6Block,
+      // LAN block unless already present.
+      if (!existing.any(
+        (r) => ((r['ip_cidr'] as List<dynamic>? ?? const <dynamic>[])
+                .toSet())
+            .containsAll(
+              const <String>{
+                '10.0.0.0/8',
+                '172.16.0.0/12',
+                '192.168.0.0/16',
+              },
+            ),
+      ))
+        lanBlock,
+      ...existing.where((r) => r['action'] != 'hijack-dns'),
+    ];
+    route['rules'] = rules;
+    patched['route'] = route;
+    return patched;
   }
 }
 

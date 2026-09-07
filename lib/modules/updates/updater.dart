@@ -73,11 +73,16 @@ class UpdateFetcher {
       Uri.parse('https://api.github.com/repos/$repository/releases/latest'),
       const <String, String>{'Accept': 'application/vnd.github+json'},
     );
-    if (response.statusCode == 403 &&
-        response.headers['x-ratelimit-remaining'] == '0') {
-      throw GitHubRateLimitException(
-        resetAt: _parseReset(response.headers['x-ratelimit-reset']),
-      );
+    if (response.statusCode == 403) {
+      if (response.headers['x-ratelimit-remaining'] == '0') {
+        throw GitHubRateLimitException(
+          resetAt: _parseReset(response.headers['x-ratelimit-reset']),
+        );
+      }
+      // Audit W3.4: a plain 403 (blocked, forbidden, bad token) previously
+      // fell through to the no-asset path and the controller read it as
+      // 'no update'. Surface it honestly.
+      throw const HttpException('GitHub returned 403 for the release API');
     }
     if (response.statusCode == 429) {
       throw RateLimitException(

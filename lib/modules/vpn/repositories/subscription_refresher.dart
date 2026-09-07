@@ -40,10 +40,17 @@ class SubscriptionRefresher {
 
   Future<RefreshOutcome> refresh(Subscription subscription) async {
     final uri = Uri.tryParse(subscription.url);
-    if (uri == null ||
-        (uri.scheme != 'https' && uri.scheme != 'http') ||
-        uri.host.isEmpty) {
+    if (uri == null || uri.host.isEmpty) {
       return RefreshFailed('not a fetchable URL: ${subscription.url}');
+    }
+    // Audit W3.4: credentials-bearing subscription bodies never travel in
+    // cleartext. Loopback stays http for tests/dev.
+    final isLoopback =
+        uri.host == '127.0.0.1' || uri.host == 'localhost' || uri.host == '::1';
+    if (uri.scheme != 'https' && !(isLoopback && uri.scheme == 'http')) {
+      return const RefreshFailed(
+        'insecure subscription URL refused — use https://',
+      );
     }
     try {
       final headers = <String, String>{

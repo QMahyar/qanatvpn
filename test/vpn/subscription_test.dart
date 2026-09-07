@@ -135,6 +135,29 @@ void main() {
       expect(outcome, isA<RefreshFailed>());
     });
 
+    test('cleartext http URL refused (W3.4), loopback allowed', () async {
+      // Public http://: credentials-bearing body must not travel cleartext.
+      final refused = await SubscriptionRefresher().refresh(
+        const Subscription(url: 'http://sub.example.com/x', name: 't'),
+      );
+      expect(refused, isA<RefreshFailed>());
+      expect((refused as RefreshFailed).message, contains('https'));
+
+      // Loopback stays allowed for tests/dev (scheme check passes; the
+      // server 404s, which is a RefreshFailed but not an https refusal).
+      server.listen((request) async {
+        request.response.statusCode = 404;
+        await request.response.close();
+      });
+      final ok = await SubscriptionRefresher().refresh(
+        Subscription(url: 'http://127.0.0.1:$port/sub', name: 't'),
+      );
+      expect(
+        (ok as RefreshFailed).message,
+        isNot(contains('https')),
+      );
+    });
+
     test('connection refused is RefreshFailed, not a thrown error', () async {
       final outcome = await SubscriptionRefresher().refresh(
         const Subscription(url: 'http://127.0.0.1:1/sub', name: 't'),
@@ -175,7 +198,7 @@ void main() {
     });
 
     test('304 refresh keeps endpoints and persists the cursor', () async {
-      await subscriptionStore.upsert('http://x/y', etag: '"v1"');
+      await subscriptionStore.upsert('https://sub.example.com/y', etag: '"v1"');
       await endpointStore.save(<StoredEndpoint>[trojan('existing')]);
 
       final ok = await subscriptionsRefreshWithStores(
@@ -197,7 +220,7 @@ void main() {
     });
 
     test('200 refresh merges new nodes into the endpoint store', () async {
-      await subscriptionStore.upsert('http://x/y', etag: '"v1"');
+      await subscriptionStore.upsert('https://sub.example.com/y', etag: '"v1"');
 
       final ok = await subscriptionsRefreshWithStores(
         subscriptionStore: subscriptionStore,
@@ -216,7 +239,7 @@ void main() {
       final endpoints = endpointStore.read();
       expect(endpoints, hasLength(1));
       expect(endpoints.single.tag, 'fresh-node');
-      expect(endpoints.single.sourceUrl, 'http://x/y');
+      expect(endpoints.single.sourceUrl, 'https://sub.example.com/y');
       // ETag cursor advanced.
       expect(subscriptionStore.read().single.etag, '"v2"');
     });

@@ -61,6 +61,36 @@ void main() {
     label: tag,
   );
 
+  // Audit W3.1: loaded profiles must carry the firewall guarantees ahead
+  // of any rules — the vendored profile shipped without a v6/LAN block.
+  test('resolved config carries kill-switch rules ahead of user rules', () async {
+    final s = source();
+    final store = EndpointStore(baseDir: dir.path);
+    await store.save(<StoredEndpoint>[trojan('t-1')]);
+
+    final config = await s.resolve('t-1');
+    final rules = config.json['route']['rules'] as List<dynamic>;
+    // hijack-dns first...
+    expect((rules.first as Map<String, dynamic>)['action'], 'hijack-dns');
+    // ...v6 block present (ip_version 6 reject — engine-probed form)...
+    expect(
+      rules.any(
+        (r) => (r as Map<String, dynamic>)['ip_version'] == 6 &&
+            r['action'] == 'reject',
+      ),
+      isTrue,
+    );
+    // ...LAN blocks present...
+    expect(
+      rules.any(
+        (r) => ((r as Map<String, dynamic>)['ip_cidr'] as List<dynamic>?)
+                ?.contains('192.168.0.0/16') ==
+            true,
+      ),
+      isTrue,
+    );
+  });
+
   test('same inputs twice → second resolve is a cache hit', () async {
     final s = source();
     await EndpointStore(

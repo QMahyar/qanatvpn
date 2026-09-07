@@ -230,6 +230,29 @@ void main() {
     },
   );
 
+  test('tampered envelope header fails authentication (W3.6 AAD)', () async {
+    final service = BackupService();
+    final raw = await service.exportBytes('pw-test');
+    final doc = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
+    // Tamper with the KDF params (iteration downgrade): the AAD binding
+    // must fail authentication, not decrypt into garbage.
+    doc['kdf']['iterations'] = 1;
+    final tampered = jsonEncode(doc);
+
+    final dir = await Directory.systemTemp.createTemp('yourvpn-aad');
+    addTearDown(() => dir.delete(recursive: true));
+    final path = '${dir.path}/tampered.qnv';
+    await File(path).writeAsString(tampered);
+
+    await expectLater(
+      service.import(path, 'pw-test'),
+      throwsA(anyOf(
+        isA<SecretBoxAuthenticationError>(),
+        isA<BackupFormatException>(),
+      )),
+    );
+  });
+
   test('empty password rejected at export', () async {
     await expectLater(
       service.export('${dir.path}/b.qnv', ''),

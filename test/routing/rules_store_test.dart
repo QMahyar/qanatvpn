@@ -99,7 +99,13 @@ void main() {
       final rules =
           (config.json['route'] as Map<String, dynamic>)['rules']
               as List<dynamic>;
-      expect(rules, hasLength(3)); // profile's own rules only
+      // Profile's own 3 rules + injected kill-switch guarantees (hijack
+      // deduped; v6 + LAN blocks added) — audit W3.1.
+      expect(rules, hasLength(5));
+      expect(
+        (rules.first as Map<String, dynamic>)['action'],
+        'hijack-dns',
+      );
     });
   });
 
