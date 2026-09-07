@@ -9,6 +9,8 @@ import '../modules/logs/logs_screen.dart' as logs;
 import '../modules/onboarding/wizard.dart';
 import '../modules/routing/groups_screen.dart' as groups;
 import '../modules/routing/rules_screen.dart' as rules;
+import '../modules/settings/settings_controller.dart';
+import '../modules/settings/settings_screen.dart';
 import '../modules/updates/updates_screen.dart';
 import '../modules/vpn/repositories/endpoints_screen.dart';
 import '../modules/vpn/screens/home.dart';
@@ -68,6 +70,11 @@ final GoRouter appRouter = GoRouter(
           builder: (BuildContext context, GoRouterState state) =>
               const UpdatesScreen(),
         ),
+        GoRoute(
+          path: '/settings',
+          builder: (BuildContext context, GoRouterState state) =>
+              const SettingsScreen(),
+        ),
       ],
     ),
   ],
@@ -80,6 +87,8 @@ class YourVpnApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'YOURVPN',
+      themeMode: ref.watch(effectiveThemeModeProvider),
+      locale: ref.watch(effectiveLocaleProvider),
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF245C4F)),
@@ -133,6 +142,16 @@ class AppShell extends ConsumerWidget {
     final String location = GoRouterState.of(context).uri.path;
     final WizardState wizard = ref.watch(wizardProvider);
     return Scaffold(
+      appBar: AppBar(
+        // Settings entry point (audit W2.2): gear on every screen.
+        actions: <Widget>[
+          IconButton(
+            tooltip: AppLocalizations.of(context)!.settingsTitle,
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.go('/settings'),
+          ),
+        ],
+      ),
       body: wizard.step == WizardStep.done
           ? child
           : Center(

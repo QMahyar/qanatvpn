@@ -67,6 +67,48 @@ class AppLocalizationsFa extends AppLocalizations {
   String get wizardSkip => 'رد کردن راه‌اندازی';
 
   @override
+  String get settingsTitle => 'تنظیمات';
+
+  @override
+  String get settingsAppearance => 'ظاهر';
+
+  @override
+  String get settingsTheme => 'زمینه';
+
+  @override
+  String get settingsThemeSystem => 'سیستم';
+
+  @override
+  String get settingsThemeLight => 'روشن';
+
+  @override
+  String get settingsThemeDark => 'تاریک';
+
+  @override
+  String get settingsLanguage => 'زبان';
+
+  @override
+  String get settingsLanguageSystem => 'سیستم';
+
+  @override
+  String get settingsLanguageSystemShort => 'خودکار';
+
+  @override
+  String get settingsConnection => 'اتصال';
+
+  @override
+  String get settingsAutoConnect => 'اتصال خودکار';
+
+  @override
+  String get settingsAutoConnectSub => 'متصل شدن به آخرین سرور هنگام اجرا';
+
+  @override
+  String get settingsReconnect => 'اتصال مجدد خودکار';
+
+  @override
+  String get settingsReconnectSub => 'تلاش مجدد بعد از قطع ی اتصال (5 تلاش)';
+
+  @override
   String get updatesIdle =>
       'هنوز بررسی نشده. برنامه روزانه در پس‌زمینه بررسی می‌کند.';
 

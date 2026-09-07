@@ -1,4 +1,14 @@
-# Handoff — YOURVPN — mother-audit W1 landed (commit 8ba372e, 326 tests): LICENSE+THIRD_PARTY, UA fix, Windows exe fix, Android store paths, sha256-verified updates, README (60 sec)
+# Handoff — YOURVPN — mother-audit W2 core product landed (352 tests): selection, settings, wizard, reconnect, ingestion, failure detail (60 sec)
+
+## W2 shipped (commits a0cbed1, this one)
+
+- **W2.1 selection**: persisted tap-to-select (SelectionStore + writable SelectedEndpointNotifier); selected tile highlighted; clearInvalid on delete. 5 tests.
+- **W2.2 settings**: SettingsScreen + route + app-bar gear; theme/language/auto-connect/reconnect persist immediately (SettingsStore); effectiveThemeMode/Locale providers wired into MaterialApp; auto-connect on launch (UncontrolledProviderScope + postFrame hook). 5 tests.
+- **W2.3 wizard**: completion persisted (wizardDone marker); cold start skips done wizard; skip button ends the consent dead-end. 3 tests.
+- **W2.4 reconnect**: crash-while-connected -> reconnecting state (UI shows it + crash detail), exp backoff 1-16s cap 5, exhaustion -> blocked 'gave up after 5', user disconnect cancels. 3 tests.
+- **W2.6 ingestion**: per-line TypeError/RangeError isolation; vmess typed fields + ws Host preserved; percent-decoded userinfo (trojan/hy2/tuic/vless); port range validation; pasted-import cache keyed by content hash. 9 tests.
+- **W2.7 failure detail**: every _block carries engine/exception text; home tile shows it clamped; reconnecting detail visible.
+
 
 ## Repo state
 

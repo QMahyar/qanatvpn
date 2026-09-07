@@ -88,7 +88,7 @@ it closes (F# = index into salvage-joined.json for traceability).
   - Acceptance: tap tile = select + persist; selected tile highlighted; connect uses selection;
     selection survives restart; deleting selected endpoint clears selection safely.
   - Verify: widget tests (select→persist→connect tag), existing suite green.
-- [ ] W2.2 Settings screen — zero settings surface exists (F-F: no route/entry point anywhere)
+- [x] W2.2 Settings screen — zero settings surface exists (F-F: no route/entry point anywhere)
   - Acceptance: settings module + route; minimum: theme mode, language (EN/FA), auto-connect on
     launch, notification toggle, log level; wired to persisted store.
   - Verify: widget tests; l10n keys both locales.

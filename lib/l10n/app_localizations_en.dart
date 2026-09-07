@@ -67,6 +67,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wizardSkip => 'Skip setup';
 
   @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsAppearance => 'Appearance';
+
+  @override
+  String get settingsTheme => 'Theme';
+
+  @override
+  String get settingsThemeSystem => 'System';
+
+  @override
+  String get settingsThemeLight => 'Light';
+
+  @override
+  String get settingsThemeDark => 'Dark';
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get settingsLanguageSystem => 'System';
+
+  @override
+  String get settingsLanguageSystemShort => 'Auto';
+
+  @override
+  String get settingsConnection => 'Connection';
+
+  @override
+  String get settingsAutoConnect => 'Auto-connect';
+
+  @override
+  String get settingsAutoConnectSub => 'Connect the last endpoint on launch';
+
+  @override
+  String get settingsReconnect => 'Auto-reconnect';
+
+  @override
+  String get settingsReconnectSub =>
+      'Retry after connection drops (5 attempts)';
+
+  @override
   String get updatesIdle =>
       'No check yet. The app checks daily in the background.';
 

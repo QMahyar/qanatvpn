@@ -206,6 +206,90 @@ abstract class AppLocalizations {
   /// **'Skip setup'**
   String get wizardSkip;
 
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsAppearance;
+
+  /// No description provided for @settingsTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsTheme;
+
+  /// No description provided for @settingsThemeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get settingsThemeSystem;
+
+  /// No description provided for @settingsThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsThemeLight;
+
+  /// No description provided for @settingsThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsThemeDark;
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get settingsLanguage;
+
+  /// No description provided for @settingsLanguageSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get settingsLanguageSystem;
+
+  /// No description provided for @settingsLanguageSystemShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get settingsLanguageSystemShort;
+
+  /// No description provided for @settingsConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get settingsConnection;
+
+  /// No description provided for @settingsAutoConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-connect'**
+  String get settingsAutoConnect;
+
+  /// No description provided for @settingsAutoConnectSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect the last endpoint on launch'**
+  String get settingsAutoConnectSub;
+
+  /// No description provided for @settingsReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-reconnect'**
+  String get settingsReconnect;
+
+  /// No description provided for @settingsReconnectSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry after connection drops (5 attempts)'**
+  String get settingsReconnectSub;
+
   /// No description provided for @updatesIdle.
   ///
   /// In en, this message translates to:

@@ -19,10 +19,12 @@ import 'modules/logs/log_bus.dart';
 import 'modules/geo/geo_asset.dart';
 import 'modules/routing/policy_store.dart';
 import 'modules/routing/rule_store.dart';
+import 'modules/settings/settings_controller.dart';
 import 'modules/updates/updater.dart';
 import 'modules/onboarding/split_store.dart';
 import 'modules/onboarding/wizard.dart';
 import 'modules/sec/firewall.dart';
+import 'modules/vpn/logic/selected_endpoint.dart';
 import 'modules/vpn/logic/vpn_notifier.dart';
 import 'modules/vpn/repositories/endpoint_store.dart';
 import 'modules/vpn/repositories/profile_config_source.dart';
@@ -73,30 +75,55 @@ Future<void> main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(_deferredStartup());
   });
+  final ProviderContainer container = ProviderContainer(
+    overrides: [
+      platformAdapterProvider.overrideWithValue(platform),
+      foregroundAdapterProvider.overrideWithValue(
+        MethodChannelForegroundAdapter(),
+      ),
+      boxAdapterProvider.overrideWithValue(box),
+      logBusProvider.overrideWithValue(sharedLogBus),
+      firewallAdapterProvider.overrideWithValue(PolicyFirewallAdapter()),
+      torAdapterProvider.overrideWithValue(LocalSocksTorAdapter()),
+      configSourceProvider.overrideWithValue(
+        ProfileConfigSource(
+          splitStore: const SplitStore(),
+          endpointStore: const EndpointStore(),
+          policyStore: const PolicyStore(),
+          ruleStore: const RuleStore(),
+        ),
+      ),
+      tunnelProvider.overrideWith((ref) => ref.watch(tunnelAssemblyProvider)),
+    ],
+  );
   runApp(
-    ProviderScope(
-      overrides: [
-        platformAdapterProvider.overrideWithValue(platform),
-        foregroundAdapterProvider.overrideWithValue(
-          MethodChannelForegroundAdapter(),
-        ),
-        boxAdapterProvider.overrideWithValue(box),
-        logBusProvider.overrideWithValue(sharedLogBus),
-        firewallAdapterProvider.overrideWithValue(PolicyFirewallAdapter()),
-        torAdapterProvider.overrideWithValue(LocalSocksTorAdapter()),
-        configSourceProvider.overrideWithValue(
-          ProfileConfigSource(
-            splitStore: const SplitStore(),
-            endpointStore: const EndpointStore(),
-            policyStore: const PolicyStore(),
-            ruleStore: const RuleStore(),
-          ),
-        ),
-        tunnelProvider.overrideWith((ref) => ref.watch(tunnelAssemblyProvider)),
-      ],
+    UncontrolledProviderScope(
+      container: container,
       child: const YourVpnApp(),
     ),
   );
+  // Auto-connect (settings W2.2) after the first frame: reads the
+  // persisted setting + selection through the same container the UI uses.
+  // Best-effort — a failure here just leaves the manual connect path.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_autoConnectIfConfigured(container));
+  });
+}
+
+Future<void> _autoConnectIfConfigured(ProviderContainer container) async {
+  try {
+    if (!container.read(settingsProvider).autoConnect) {
+      return;
+    }
+    final tunnel = container.read(tunnelProvider);
+    if (tunnel.state != TunnelState.disconnected) {
+      return;
+    }
+    final tag = container.read(selectedEndpointProvider).tag;
+    await container.read(vpnNotifierProvider.notifier).connect(tag);
+  } on Object {
+    // Auto-connect is opportunistic; the home screen owns the retry UX.
+  }
 }
 
 PlatformAdapter _platformAdapter() {
