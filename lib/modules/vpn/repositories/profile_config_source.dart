@@ -8,7 +8,6 @@ import '../../onboarding/split_store.dart';
 import '../../routing/policy_store.dart';
 import '../../routing/routing_compiler.dart';
 import '../../routing/routing_policy.dart';
-import '../../sec/firewall.dart';
 import 'endpoint_store.dart';
 import '../../routing/rule_store.dart';
 import '../../vpn/amnezia/awg_config.dart' show wireGuardEndpointToJson;
