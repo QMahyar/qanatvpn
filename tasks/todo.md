@@ -101,7 +101,7 @@ it closes (F# = index into salvage-joined.json for traceability).
   - Acceptance: on network-change/crash events → reconnect with exp backoff (cap 5);
     user-initiated disconnect cancels; state visible in UI.
   - Verify: tunnel tests with fake adapters (crash→reconnect→connected; manual stop cancels).
-- [ ] W2.5 Subscription model — one-shot imports, ETag-24h goal lock broken (F-D ×10 dupes)
+- [x] W2.5 Subscription model — one-shot imports, ETag-24h goal lock broken (F-D ×10 dupes)
   - Acceptance: `Subscription{url,name,etag,lastRefresh}` store; import registers sub; 24h
     workmanager job refreshes with If-None-Match; 304 = no-op; user-info headers parsed
     (traffic/expire) shown on endpoints screen; per-sub endpoint grouping.

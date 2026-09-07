@@ -76,6 +76,11 @@ class EndpointsScreen extends ConsumerWidget {
                 ),
               ),
             const SizedBox(height: 8),
+            // Managed subscriptions (audit W2.5): URL imports register here
+            // and refresh daily with If-None-Match. Shows last refresh +
+            // remove.
+            const _SubscriptionsBar(),
+            const SizedBox(height: 8),
             if (state.endpoints.isEmpty)
               Expanded(
                 child: Center(
@@ -309,6 +314,54 @@ class EndpointsScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context).pop(controller.text),
             child: const Text('OK'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Managed subscription list: one line per URL with its last refresh time
+/// and a remove action (audit W2.5).
+class _SubscriptionsBar extends ConsumerWidget {
+  const _SubscriptionsBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subscriptions = ref.watch(
+      subscriptionStoreProvider,
+    ).read();
+    if (subscriptions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          for (final sub in subscriptions)
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.rss_feed),
+              title: Text(
+                sub.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                sub.lastRefresh == null
+                    ? 'pending first refresh'
+                    : 'updated ${sub.lastRefresh!.toIso8601String().substring(0, 16)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: IconButton(
+                tooltip: 'Remove subscription',
+                icon: const Icon(Icons.link_off),
+                onPressed: () async {
+                  await ref.read(subscriptionStoreProvider).remove(sub.url);
+                  ref.invalidate(subscriptionStoreProvider);
+                },
+              ),
+            ),
         ],
       ),
     );

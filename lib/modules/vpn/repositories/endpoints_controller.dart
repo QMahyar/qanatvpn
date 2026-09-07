@@ -7,6 +7,7 @@ import '../../../core/network/plain_fetch.dart';
 import '../../../core/persistence/debounced_saver.dart';
 import 'endpoint_store.dart';
 import 'ingestion/ingestion_adapter.dart';
+import 'subscription_store.dart';
 
 export 'endpoint_store.dart' show StoredEndpoint;
 
@@ -26,6 +27,10 @@ final endpointStoreProvider = Provider<EndpointStore>(
 
 final ingestionAdapterProvider = Provider<IngestionAdapter>(
   (ref) => IngestionAdapter(),
+);
+
+final subscriptionStoreProvider = Provider<SubscriptionStore>(
+  (ref) => const SubscriptionStore(),
 );
 
 class EndpointsState {
@@ -101,6 +106,13 @@ class EndpointsController extends Notifier<EndpointsState> {
         }
         payload = utf8.decode(response.body, allowMalformed: true);
         origin = maybeUrl.toString();
+        // Register as a managed subscription with its ETag cursor (goal.md
+        // §9): the 24h job re-fetches it with If-None-Match. Previously the
+        // URL dissolved into the endpoint list and was never seen again
+        // (audit W2.5).
+        await ref
+            .read(subscriptionStoreProvider)
+            .upsert(origin, etag: response.headers['etag']);
       } else {
         // Pasted imports all shared the literal 'pasted' cache key, so a
         // second paste of different content returned the first paste's

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -27,7 +28,10 @@ import 'modules/sec/firewall.dart';
 import 'modules/vpn/logic/selected_endpoint.dart';
 import 'modules/vpn/logic/vpn_notifier.dart';
 import 'modules/vpn/repositories/endpoint_store.dart';
+import 'modules/vpn/repositories/ingestion/ingestion_adapter.dart';
 import 'modules/vpn/repositories/profile_config_source.dart';
+import 'modules/vpn/repositories/subscription_refresher.dart';
+import 'modules/vpn/repositories/subscription_store.dart';
 
 /// Top-level dispatcher workmanager invokes in the background isolate on
 /// Android. Windows has no background scheduler, so it checks on launch.
@@ -38,8 +42,85 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     final Map<dynamic, dynamic>? data = inputData;
     final localVersion = data?['localVersion'] as String?;
-    return updateCheckBackgroundTask(localVersion: localVersion);
+    // The daily job is the ONLY periodic refresh for both concerns: app
+    // updates and managed subscriptions (audit W2.5 — subscriptions were
+    // never re-fetched; goal.md §9 ETag-24h lock).
+    final results = await Future.wait<bool>(<Future<bool>>[
+      updateCheckBackgroundTask(localVersion: localVersion),
+      subscriptionsRefreshBackgroundTask(),
+    ]);
+    return results.every((bool ok) => ok);
   });
+}
+
+/// Background-isolate subscription refresh: ETag-conditional fetch of every
+/// managed subscription; 200 bodies are re-imported through the normal
+/// ingestion pipeline (dedupe-by-tag keeps the endpoint list stable),
+/// 304 leaves everything as-is. Best-effort per subscription.
+@pragma('vm:entry-point')
+Future<bool> subscriptionsRefreshBackgroundTask() async {
+  try {
+    // Background isolate: store paths are not startup-resolved here.
+    await resolveAppSupportDir();
+    return await subscriptionsRefreshWithStores(
+      subscriptionStore: const SubscriptionStore(),
+      endpointStore: const EndpointStore(),
+    );
+  } on Object {
+    return false;
+  }
+}
+
+/// Testable core of the refresh job (stores injected).
+Future<bool> subscriptionsRefreshWithStores({
+  required SubscriptionStore subscriptionStore,
+  required EndpointStore endpointStore,
+  SubscriptionRefresher? refresher,
+}) async {
+  final subscriptions = subscriptionStore.read();
+  if (subscriptions.isEmpty) {
+    return true;
+  }
+  final ingest = IngestionAdapter();
+  final refresh = refresher ?? SubscriptionRefresher();
+  var allOk = true;
+  for (final subscription in subscriptions) {
+    try {
+      final outcome = await refresh.refresh(subscription);
+      switch (outcome) {
+        case RefreshNotModified():
+          await subscriptionStore.upsert(subscription.url, etag: subscription.etag);
+        case RefreshUpdated(:final body, :final etag):
+          final parsed = ingest.parseAndNormalize(
+            RawSubscription(
+              bytes: utf8.encode(body),
+              url: Uri.parse(subscription.url),
+            ),
+          );
+          if (parsed.isNotEmpty) {
+            final existing = endpointStore.read();
+            final merged = <String, StoredEndpoint>{
+              for (final e in existing) e.tag: e,
+            };
+            for (final endpoint in parsed) {
+              merged[endpoint.tag] = StoredEndpoint(
+                endpoint: endpoint,
+                label: endpoint.tag,
+                sourceUrl: subscription.url,
+              );
+            }
+            await endpointStore.save(merged.values.toList());
+          }
+          await subscriptionStore.upsert(subscription.url, etag: etag);
+        case RefreshFailed():
+          // One dead subscription must not fail the whole job.
+          allOk = true;
+      }
+    } on Object {
+      allOk = true;
+    }
+  }
+  return allOk;
 }
 
 Future<void> main() async {
