@@ -45,7 +45,7 @@ jobs:
 
       - name: Install pinned NDK + platform
         run: |
-          sdkmanager --install "ndk;28.2.13676358" "platforms;android-37" "build-tools;37.0.0" >/dev/null
+          sdkmanager --install "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0" >/dev/null
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
 
@@ -135,6 +135,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
+        # Dispatch runs have no tag: skip entirely (latest.json is a
+        # release-time artifact, single producer on v* pushes).
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
           set -euo pipefail
           deadline=$((SECONDS + 2400))
