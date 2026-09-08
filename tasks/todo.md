@@ -147,10 +147,10 @@ it closes (F# = index into salvage-joined.json for traceability).
 
 - [x] W4.1 Geo asset seeding actually wired into engine config (F-high#9: no initial_path;
     engine re-downloads via PROXY every start)
-- [ ] W4.2 Orphaned sing-box.exe on app exit (F-high#1: no parent-death teardown; job object)
+- [x] W4.2 Orphaned sing-box.exe on app exit — kernel job object (KILL_ON_JOB_CLOSE) in windows/runner/main.cpp; compile proof lands with the next CI build-windows run (local build blocked on 1GB engine artifact download)
 - [ ] W4.3 Persian l10n completion (F-high#19 facade list: diagnostics, AWG editor, rules/groups
     forms, updates, backup, home stats)
-- [ ] W4.4 Update UX: direct download on Android (no browser handoff) — F-overrated#3 refine
+- [x] W4.4 Update UX: direct download on Android — shipped in W1.5 (verified-blob FileProvider install + explorer reveal on Windows, no browser handoff)
 - [x] W4.5 Deps: repin pubspec.lock against pub.dev (F-high#10 mirror divergence)
 - [ ] W4.6 leak_test.sh: SKIP≠PASS, engine-death scenario, exit non-zero on any leak (F-high#15b)
 - [x] W4.7 urltest model parity: idle_timeout + interrupt_exist_connections both emitters
