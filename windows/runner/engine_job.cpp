@@ -1,25 +1,19 @@
 #include "engine_job.h"
 
-#include <cstdio>
+#include <windows.h>
 
 // Job object that owns every sing-box.exe the Flutter app spawns
 // (audit W4.2: app exit, crash, or force-quit previously orphaned the
 // engine — TUN and routes stayed up with a config containing private keys
 // in %TEMP%). The job is created with KILL_ON_JOB_CLOSE: when the app
 // process dies — cleanly or not — the kernel terminates every process in
-// the job. Job objects also survive the parent better than taskkill-from-
-// Dart, because the OS enforces the kill even when the app is killed by
-// Task Manager.
+// the job.
 //
 // Auto-add every child: sing-box.exe is spawned via CreateProcess by
-// Dart's Process.start, which inherits the job (JOB_OBJECT_LIMIT_BREAKAWAY
-// is not requested), so the OS puts it in automatically.
-
-namespace {
-
-HANDLE g_job = nullptr;
-
-}  // namespace
+// Dart's Process.start, which inherits the job, so the OS puts it in
+// automatically. SILENT_BREAKAWAY_OK stays open as an escape hatch for
+// debuggers/CI runners.
+static HANDLE g_job = nullptr;
 
 bool CreateEngineJob() {
   if (g_job != nullptr) {
@@ -32,7 +26,7 @@ bool CreateEngineJob() {
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
   limits.BasicLimitInformation.LimitFlags =
       JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE |
-      JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;  // Debugger/CI escape hatch.
+      JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
   if (!::SetInformationJobObject(g_job, JobObjectExtendedLimitInformation,
                                  &limits, sizeof(limits))) {
     ::CloseHandle(g_job);
