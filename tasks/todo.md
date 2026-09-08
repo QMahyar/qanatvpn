@@ -151,7 +151,7 @@ it closes (F# = index into salvage-joined.json for traceability).
 - [ ] W4.3 Persian l10n completion (F-high#19 facade list: diagnostics, AWG editor, rules/groups
     forms, updates, backup, home stats)
 - [ ] W4.4 Update UX: direct download on Android (no browser handoff) — F-overrated#3 refine
-- [ ] W4.5 Deps: repin pubspec.lock against pub.dev (F-high#10 mirror divergence)
+- [x] W4.5 Deps: repin pubspec.lock against pub.dev (F-high#10 mirror divergence)
 - [ ] W4.6 leak_test.sh: SKIP≠PASS, engine-death scenario, exit non-zero on any leak (F-high#15b)
 - [x] W4.7 urltest model parity: idle_timeout + interrupt_exist_connections both emitters
   (handoff leftover)
