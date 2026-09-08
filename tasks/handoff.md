@@ -1,4 +1,29 @@
-# Handoff — YOURVPN — mother-audit WEEK 2 COMPLETE (365 tests, commit dea776f): all 7 W2 items shipped (60 sec)
+# Handoff — YOURVPN — mother-audit W3+W4 shipped (372 tests, commit d6f0a14): security + engine-parity batch (60 sec)
+
+## W3+W4 shipped (commits 70ab0ed..d6f0a14; tests 365 -> 372)
+
+- W3.2 log redaction (key/password/psk patterns -> [REDACTED]) · W3.4 HTTPS-only
+  subs + honest 403 · W3.5 FLAG_SECURE (AWG sheet + backup dialogs) ·
+  W3.6 backup AAD (header tamper -> auth failure) · W3.1 engine-side kill-switch
+  rules injected into every profile (ip_version-6 + LAN reject, hijack first,
+  probed on real sing-box check).
+- W4.1 LOCAL geo rule-set entries (engine no longer downloads via PROXY at start;
+  real-check probed) · W4.7 urltest idle_timeout + interrupt_exist_connections in
+  model + both emitters · W4.5 pubspec.lock repinned to pub.dev (151 pkgs) ·
+  W4.2 kernel job object owns sing-box.exe (windows/runner/engine_job.cpp;
+  compile proof at next CI build) · W4.3 l10n part 1 (diagnostics + endpoints/
+  backup EN+FA).
+- Pushes now need `git -c http.version=HTTP/1.1 push` on this network (plain
+  push stalls on upload).
+
+## W3/W4 still open
+
+- W3.3 secrets at rest (Keystore/DPAPI via flutter_secure_storage — dep present,
+  store migration is the lift) · W3.7 branch protection + release environment.
+- W4.3 part 2 (AWG editor + home stats strings) · W4.6 leak_test.sh hardening ·
+  W4.8 Windows per-app split doc/emit · W4.9 diagnostics self-test flow ·
+  W4.10 CI matrix pass · W4.2 compile proof via CI.
+
 
 ## W2 shipped (commits a0cbed1, this one)
 
