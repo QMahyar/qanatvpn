@@ -206,6 +206,174 @@ abstract class AppLocalizations {
   /// **'Skip setup'**
   String get wizardSkip;
 
+  /// No description provided for @diagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get diagnosticsTitle;
+
+  /// No description provided for @diagnosticsRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get diagnosticsRefresh;
+
+  /// No description provided for @diagnosticsDnsHijack.
+  ///
+  /// In en, this message translates to:
+  /// **'DNS hijack'**
+  String get diagnosticsDnsHijack;
+
+  /// No description provided for @diagnosticsHijackOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnel resolver answering (FakeIP pool)'**
+  String get diagnosticsHijackOk;
+
+  /// No description provided for @diagnosticsHijackLeak.
+  ///
+  /// In en, this message translates to:
+  /// **'ISP resolver answering — tunnel likely down'**
+  String get diagnosticsHijackLeak;
+
+  /// No description provided for @diagnosticsPing.
+  ///
+  /// In en, this message translates to:
+  /// **'Ping (TCP 1.1.1.1:443)'**
+  String get diagnosticsPing;
+
+  /// No description provided for @diagnosticsUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'unreachable'**
+  String get diagnosticsUnreachable;
+
+  /// No description provided for @diagnosticsStability.
+  ///
+  /// In en, this message translates to:
+  /// **'Stability window'**
+  String get diagnosticsStability;
+
+  /// No description provided for @diagnosticsStabilityValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{stability}% of last probes OK'**
+  String diagnosticsStabilityValue(int stability);
+
+  /// No description provided for @diagnosticsScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Health score'**
+  String get diagnosticsScore;
+
+  /// No description provided for @diagnosticsNoProbes.
+  ///
+  /// In en, this message translates to:
+  /// **'No probes yet — refresh to run the suite'**
+  String get diagnosticsNoProbes;
+
+  /// No description provided for @endpointsExportBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Export encrypted backup'**
+  String get endpointsExportBackup;
+
+  /// No description provided for @endpointsImportBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Import encrypted backup'**
+  String get endpointsImportBackup;
+
+  /// No description provided for @endpointsBackupPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get endpointsBackupPassword;
+
+  /// No description provided for @endpointsCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get endpointsCancel;
+
+  /// No description provided for @endpointsOk.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get endpointsOk;
+
+  /// No description provided for @endpointsExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export backup'**
+  String get endpointsExportTitle;
+
+  /// No description provided for @endpointsImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import backup'**
+  String get endpointsImportTitle;
+
+  /// No description provided for @endpointsBackupWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup written ({bytes} bytes)'**
+  String endpointsBackupWritten(int bytes);
+
+  /// No description provided for @endpointsExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String endpointsExportFailed(String error);
+
+  /// No description provided for @endpointsImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: {error}'**
+  String endpointsImportFailed(String error);
+
+  /// No description provided for @endpointsNoReadablePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Picked file has no readable path'**
+  String get endpointsNoReadablePath;
+
+  /// No description provided for @endpointsRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {endpoints} endpoints, {groups} groups, {rules} rules'**
+  String endpointsRestored(int endpoints, int groups, int rules);
+
+  /// No description provided for @endpointsSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select {label}'**
+  String endpointsSelect(String label);
+
+  /// No description provided for @endpointsSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected {label}'**
+  String endpointsSelected(String label);
+
+  /// No description provided for @endpointsRemoveSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove subscription'**
+  String get endpointsRemoveSubscription;
+
+  /// No description provided for @endpointsSubPending.
+  ///
+  /// In en, this message translates to:
+  /// **'pending first refresh'**
+  String get endpointsSubPending;
+
+  /// No description provided for @endpointsSubUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'updated {time}'**
+  String endpointsSubUpdated(String time);
+
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
@@ -667,18 +835,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'‹repeated {count} times›'**
   String logsRepeat(int count);
-
-  /// No description provided for @diagnosticsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Diagnostics'**
-  String get diagnosticsTitle;
-
-  /// No description provided for @diagnosticsRefresh.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh'**
-  String get diagnosticsRefresh;
 
   /// No description provided for @updatesTitle.
   ///

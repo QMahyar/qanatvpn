@@ -2,6 +2,7 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include "engine_job.h"
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -16,6 +17,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+  // Own sing-box.exe children in a kernel job object: when this process
+  // dies — clean exit, crash, or force-kill — the OS terminates the engine
+  // too (audit W4.2: it previously survived as an orphan, keeping the TUN
+  // up with a key-bearing config in %TEMP%).
+  CreateEngineJob();
 
   flutter::DartProject project(L"data");
 

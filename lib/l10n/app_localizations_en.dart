@@ -67,6 +67,107 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wizardSkip => 'Skip setup';
 
   @override
+  String get diagnosticsTitle => 'Diagnostics';
+
+  @override
+  String get diagnosticsRefresh => 'Refresh';
+
+  @override
+  String get diagnosticsDnsHijack => 'DNS hijack';
+
+  @override
+  String get diagnosticsHijackOk => 'Tunnel resolver answering (FakeIP pool)';
+
+  @override
+  String get diagnosticsHijackLeak =>
+      'ISP resolver answering — tunnel likely down';
+
+  @override
+  String get diagnosticsPing => 'Ping (TCP 1.1.1.1:443)';
+
+  @override
+  String get diagnosticsUnreachable => 'unreachable';
+
+  @override
+  String get diagnosticsStability => 'Stability window';
+
+  @override
+  String diagnosticsStabilityValue(int stability) {
+    return '$stability% of last probes OK';
+  }
+
+  @override
+  String get diagnosticsScore => 'Health score';
+
+  @override
+  String get diagnosticsNoProbes => 'No probes yet — refresh to run the suite';
+
+  @override
+  String get endpointsExportBackup => 'Export encrypted backup';
+
+  @override
+  String get endpointsImportBackup => 'Import encrypted backup';
+
+  @override
+  String get endpointsBackupPassword => 'Password';
+
+  @override
+  String get endpointsCancel => 'Cancel';
+
+  @override
+  String get endpointsOk => 'OK';
+
+  @override
+  String get endpointsExportTitle => 'Export backup';
+
+  @override
+  String get endpointsImportTitle => 'Import backup';
+
+  @override
+  String endpointsBackupWritten(int bytes) {
+    return 'Backup written ($bytes bytes)';
+  }
+
+  @override
+  String endpointsExportFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
+  String endpointsImportFailed(String error) {
+    return 'Import failed: $error';
+  }
+
+  @override
+  String get endpointsNoReadablePath => 'Picked file has no readable path';
+
+  @override
+  String endpointsRestored(int endpoints, int groups, int rules) {
+    return 'Restored $endpoints endpoints, $groups groups, $rules rules';
+  }
+
+  @override
+  String endpointsSelect(String label) {
+    return 'Select $label';
+  }
+
+  @override
+  String endpointsSelected(String label) {
+    return 'Selected $label';
+  }
+
+  @override
+  String get endpointsRemoveSubscription => 'Remove subscription';
+
+  @override
+  String get endpointsSubPending => 'pending first refresh';
+
+  @override
+  String endpointsSubUpdated(String time) {
+    return 'updated $time';
+  }
+
+  @override
   String get settingsTitle => 'Settings';
 
   @override
@@ -310,12 +411,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String logsRepeat(int count) {
     return '‹repeated $count times›';
   }
-
-  @override
-  String get diagnosticsTitle => 'Diagnostics';
-
-  @override
-  String get diagnosticsRefresh => 'Refresh';
 
   @override
   String get updatesTitle => 'Updates';

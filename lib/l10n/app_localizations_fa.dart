@@ -67,6 +67,109 @@ class AppLocalizationsFa extends AppLocalizations {
   String get wizardSkip => 'رد کردن راه‌اندازی';
 
   @override
+  String get diagnosticsTitle => 'عیب‌یابی';
+
+  @override
+  String get diagnosticsRefresh => 'به‌روزرسانی';
+
+  @override
+  String get diagnosticsDnsHijack => 'دزدیی DNS';
+
+  @override
+  String get diagnosticsHijackOk => 'محلل تونل پاسخ می‌دهد (استخر FakeIP)';
+
+  @override
+  String get diagnosticsHijackLeak =>
+      'محلل ISP پاسخ می‌دهد — تونل احتمالاً پایین است';
+
+  @override
+  String get diagnosticsPing => 'پینگ (TCP 1.1.1.1:443)';
+
+  @override
+  String get diagnosticsUnreachable => 'غیرقابل‌دسترس';
+
+  @override
+  String get diagnosticsStability => 'پنجره پایداری';
+
+  @override
+  String diagnosticsStabilityValue(int stability) {
+    return '$stability٪ از پروب‌های اخیر سالم';
+  }
+
+  @override
+  String get diagnosticsScore => 'امتیاز سلامت';
+
+  @override
+  String get diagnosticsNoProbes =>
+      'هنوز پروبی نیست — بازخوانی برای اجرای مجموعه';
+
+  @override
+  String get endpointsExportBackup => 'خروجی پشتیبان رمزگذاری‌شده';
+
+  @override
+  String get endpointsImportBackup => 'ورود پشتیبان رمزگذاری‌شده';
+
+  @override
+  String get endpointsBackupPassword => 'گذرواژه';
+
+  @override
+  String get endpointsCancel => 'لغو';
+
+  @override
+  String get endpointsOk => 'تأیید';
+
+  @override
+  String get endpointsExportTitle => 'خروجی پشتیبان';
+
+  @override
+  String get endpointsImportTitle => 'ورود پشتیبان';
+
+  @override
+  String endpointsBackupWritten(int bytes) {
+    return 'پشتیبان نوشته شد ($bytes بایت)';
+  }
+
+  @override
+  String endpointsExportFailed(String error) {
+    return 'خروجی ناموفق: $error';
+  }
+
+  @override
+  String endpointsImportFailed(String error) {
+    return 'ورود ناموفق: $error';
+  }
+
+  @override
+  String get endpointsNoReadablePath =>
+      'فایل انتخاب‌شده مسیر قابل خواندن ندارد';
+
+  @override
+  String endpointsRestored(int endpoints, int groups, int rules) {
+    return '$endpoints سرور، $groups گروه، $rules قانون بازگردانی شد';
+  }
+
+  @override
+  String endpointsSelect(String label) {
+    return 'انتخاب $label';
+  }
+
+  @override
+  String endpointsSelected(String label) {
+    return 'انتخاب‌شده: $label';
+  }
+
+  @override
+  String get endpointsRemoveSubscription => 'حذف اشتراک';
+
+  @override
+  String get endpointsSubPending => 'در انتظار اولین بازخوانی';
+
+  @override
+  String endpointsSubUpdated(String time) {
+    return 'به‌روزرسانی: $time';
+  }
+
+  @override
   String get settingsTitle => 'تنظیمات';
 
   @override
@@ -310,12 +413,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String logsRepeat(int count) {
     return '‹$count بار تکرار شد›';
   }
-
-  @override
-  String get diagnosticsTitle => 'عیب‌یابی';
-
-  @override
-  String get diagnosticsRefresh => 'به‌روزرسانی';
 
   @override
   String get updatesTitle => 'به‌روزرسانی‌ها';

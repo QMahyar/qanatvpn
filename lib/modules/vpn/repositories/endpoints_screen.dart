@@ -50,12 +50,12 @@ class EndpointsScreen extends ConsumerWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Export encrypted backup',
+                  tooltip: l10n.endpointsExportBackup,
                   onPressed: () => _exportBackup(context),
                   icon: const Icon(Icons.backup_outlined),
                 ),
                 IconButton(
-                  tooltip: 'Import encrypted backup',
+                  tooltip: l10n.endpointsImportBackup,
                   onPressed: () => _importBackup(context, ref),
                   icon: const Icon(Icons.restore_outlined),
                 ),
@@ -129,7 +129,9 @@ class EndpointsScreen extends ConsumerWidget {
                                   if (isSelected)
                                     Semantics(
                                       button: true,
-                                      label: 'Selected ${stored.label}',
+                                      label: l10n.endpointsSelected(
+                                        stored.label,
+                                      ),
                                       child: const Icon(
                                         Icons.check_circle,
                                       ),
@@ -137,7 +139,9 @@ class EndpointsScreen extends ConsumerWidget {
                                   else
                                     Semantics(
                                       button: true,
-                                      label: 'Select ${stored.label}',
+                                      label: l10n.endpointsSelect(
+                                        stored.label,
+                                      ),
                                       child: const Icon(
                                         Icons.radio_button_unchecked,
                                       ),
@@ -206,8 +210,9 @@ class EndpointsScreen extends ConsumerWidget {
   };
 
   Future<void> _exportBackup(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
-    final password = await _promptPassword(context, 'Export backup');
+    final password = await _promptPassword(context, l10n.endpointsExportTitle);
     if (password == null || password.isEmpty || !context.mounted) {
       return;
     }
@@ -223,15 +228,23 @@ class EndpointsScreen extends ConsumerWidget {
       );
       if (target != null) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Backup written (${bytes.length} bytes)')),
+          SnackBar(
+            content: Text(
+              l10n.endpointsBackupWritten(bytes.length),
+            ),
+          ),
         );
       }
     } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text('Export failed: $error')));
+      messenger.showSnackBar(SnackBar(
+            content: Text(l10n.endpointsExportFailed(error.toString())),
+          ),
+        );
     }
   }
 
   Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
     final List<PlatformFile> picked;
     try {
@@ -241,7 +254,10 @@ class EndpointsScreen extends ConsumerWidget {
         allowedExtensions: const <String>['qnv'],
       );
     } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text('Import failed: $error')));
+      messenger.showSnackBar(SnackBar(
+            content: Text(l10n.endpointsImportFailed(error.toString())),
+          ),
+        );
       return;
     }
     if (picked.isEmpty) {
@@ -251,14 +267,16 @@ class EndpointsScreen extends ConsumerWidget {
     final path = picked.first.path;
     if (path == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Picked file has no readable path')),
+        SnackBar(
+          content: Text(l10n.endpointsNoReadablePath),
+        ),
       );
       return;
     }
     if (!context.mounted) {
       return;
     }
-    final password = await _promptPassword(context, 'Import backup');
+    final password = await _promptPassword(context, l10n.endpointsImportTitle);
     if (password == null || password.isEmpty) {
       return;
     }
@@ -282,18 +300,25 @@ class EndpointsScreen extends ConsumerWidget {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'Restored ${summary.endpoints} endpoints, '
-            '${summary.groups} groups, ${summary.rules} rules',
+            l10n.endpointsRestored(
+              summary.endpoints,
+              summary.groups,
+              summary.rules,
+            ),
           ),
         ),
       );
     } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text('Import failed: $error')));
+      messenger.showSnackBar(SnackBar(
+            content: Text(l10n.endpointsImportFailed(error.toString())),
+          ),
+        );
     }
   }
 
   Future<String?> _promptPassword(BuildContext context, String title) {
     final controller = TextEditingController();
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     // Audit W3.5: the password field must not appear in screenshots or the
     // app switcher for the dialog's lifetime. The future completes when the
     // dialog pops, so disable fires right after — including on cancel.
@@ -306,19 +331,19 @@ class EndpointsScreen extends ConsumerWidget {
           controller: controller,
           obscureText: true,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l10n.endpointsBackupPassword,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.endpointsCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('OK'),
+            child: Text(l10n.endpointsOk),
           ),
         ],
       ),
@@ -339,6 +364,7 @@ class _SubscriptionsBar extends ConsumerWidget {
     if (subscriptions.isEmpty) {
       return const SizedBox.shrink();
     }
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,13 +380,15 @@ class _SubscriptionsBar extends ConsumerWidget {
               ),
               subtitle: Text(
                 sub.lastRefresh == null
-                    ? 'pending first refresh'
-                    : 'updated ${sub.lastRefresh!.toIso8601String().substring(0, 16)}',
+                    ? l10n.endpointsSubPending
+                    : l10n.endpointsSubUpdated(
+                  sub.lastRefresh!.toIso8601String().substring(0, 16),
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: IconButton(
-                tooltip: 'Remove subscription',
+                tooltip: l10n.endpointsRemoveSubscription,
                 icon: const Icon(Icons.link_off),
                 onPressed: () async {
                   await ref.read(subscriptionStoreProvider).remove(sub.url);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import 'diagnostics_controller.dart';
 import 'health.dart';
 
@@ -13,6 +15,7 @@ class DiagnosticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final HealthReport? report = ref.watch(diagnosticsControllerProvider);
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
       child: Padding(
@@ -24,12 +27,12 @@ class DiagnosticsScreen extends ConsumerWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'Diagnostics',
+                    l10n.diagnosticsTitle,
                     style: theme.textTheme.headlineSmall,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Refresh',
+                  tooltip: l10n.diagnosticsRefresh,
                   onPressed: () => ref
                       .read(diagnosticsControllerProvider.notifier)
                       .refreshNow(),
@@ -48,24 +51,26 @@ class DiagnosticsScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     _ProbeTile(
                       icon: Icons.dns,
-                      title: 'DNS hijack',
+                      title: l10n.diagnosticsDnsHijack,
                       subtitle: report.hijacked
-                          ? 'Tunnel resolver answering (FakeIP pool)'
-                          : 'ISP resolver answering — tunnel likely down',
+                          ? l10n.diagnosticsHijackOk
+                          : l10n.diagnosticsHijackLeak,
                       good: report.hijacked,
                     ),
                     _ProbeTile(
                       icon: Icons.speed,
-                      title: 'Ping (TCP 1.1.1.1:443)',
+                      title: l10n.diagnosticsPing,
                       subtitle: report.pingMs == null
-                          ? 'unreachable'
+                          ? l10n.diagnosticsUnreachable
                           : '${report.pingMs} ms',
                       good: report.pingMs != null,
                     ),
                     _ProbeTile(
                       icon: Icons.query_stats,
-                      title: 'Stability window',
-                      subtitle: '${report.stability}% of last probes OK',
+                      title: l10n.diagnosticsStability,
+                      subtitle: l10n.diagnosticsStabilityValue(
+                        report.stability,
+                      ),
                       good: report.stability >= 80,
                     ),
                   ],
