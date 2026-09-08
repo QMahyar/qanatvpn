@@ -78,6 +78,17 @@ GeoAsset geoFor(Directory dir) {
   );
 }
 
+/// Startup seeding (audit W4.1): local rule-set entries point at on-disk
+/// copies, so every assembler test must ensure() before building — the same
+/// contract main() runs before the engine can start.
+Future<GeoAsset> geoSeededFor(Directory dir) async {
+  final geo = geoFor(dir);
+  for (final tag in GeoAsset.registry.keys) {
+    await geo.ensure(tag);
+  }
+  return geo;
+}
+
 void main() {
   late Directory dir;
   setUp(() => dir = tempDir());
@@ -385,11 +396,13 @@ void main() {
       expect(tor['version'], '5');
     });
 
-    test('assembler injects detour into TOR-CHAIN endpoint (real check)', () {
+    test(
+      'assembler injects detour into TOR-CHAIN endpoint (real check)',
+      () async {
       if (!singBoxAvailable) {
         markTestSkipped('needs windows/sing-box.exe');
       }
-      final geo = geoFor(dir);
+      final geo = await geoSeededFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
         endpointJson: awgEndpointJson.replaceFirst(
@@ -426,11 +439,13 @@ void main() {
   });
 
   group('3-tier assembly → sing-box check', () {
-    test('auto urltest → selector → endpoint config passes real sing-box', () {
+    test(
+      'auto urltest → selector → endpoint config passes real sing-box',
+      () async {
       if (!singBoxAvailable) {
         markTestSkipped('needs windows/sing-box.exe');
       }
-      final geo = geoFor(dir);
+      final geo = await geoSeededFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
         endpointJson: awgEndpointJson,
@@ -487,7 +502,7 @@ void main() {
         if (!singBoxAvailable) {
           markTestSkipped('needs windows/sing-box.exe');
         }
-        final geo = geoFor(dir);
+        final geo = await geoSeededFor(dir);
         final assembler = ConfigAssembler(geoAsset: geo);
         final config = assembler.build(
           endpointJson: awgEndpointJson,
@@ -509,11 +524,11 @@ void main() {
       },
     );
 
-    test('rule_set entries reference compiled tags only', () {
+    test('rule_set entries reference compiled tags only', () async {
       if (!singBoxAvailable) {
         markTestSkipped('needs windows/sing-box.exe');
       }
-      final geo = geoFor(dir);
+      final geo = await geoSeededFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
         endpointJson: awgEndpointJson,
@@ -528,10 +543,10 @@ void main() {
         containsAll(<String>['geosite-cn', 'geoip-cn']),
       );
       for (final entry in ruleSet) {
-        expect(entry['type'], 'remote');
+        // W4.1: local entries referencing the seeded on-disk rule-set.
+        expect(entry['type'], 'local');
         expect(entry['format'], 'binary');
-        expect(entry['download_detour'], 'PROXY');
-        expect(entry['update_interval'], '24h');
+        expect(entry['path'], isNotEmpty);
       }
     });
   });

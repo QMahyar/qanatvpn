@@ -105,6 +105,13 @@ class RoutingCompiler {
           if (group.url != null) 'url': group.url,
           if (interval != null) 'interval': _formatDuration(interval),
           if (group.tolerance != null) 'tolerance': group.tolerance,
+          // Audit W4.7: urltest accepts idle_timeout +
+          // interrupt_exist_connections on the 1.14 fork (probed); the
+          // model previously lacked them.
+          if (group.idleTimeout != null && group.idleTimeout != Duration.zero)
+            'idle_timeout': _formatDuration(group.idleTimeout!),
+          if (group.interruptExistConnections)
+            'interrupt_exist_connections': true,
         });
       } else {
         final defaultMember = group.defaultMember;

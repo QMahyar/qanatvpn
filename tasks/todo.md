@@ -145,7 +145,7 @@ it closes (F# = index into salvage-joined.json for traceability).
 
 ## Phase W4 — Engine parity + i18n (weeks 4-6)
 
-- [ ] W4.1 Geo asset seeding actually wired into engine config (F-high#9: no initial_path;
+- [x] W4.1 Geo asset seeding actually wired into engine config (F-high#9: no initial_path;
     engine re-downloads via PROXY every start)
 - [ ] W4.2 Orphaned sing-box.exe on app exit (F-high#1: no parent-death teardown; job object)
 - [ ] W4.3 Persian l10n completion (F-high#19 facade list: diagnostics, AWG editor, rules/groups
@@ -153,7 +153,7 @@ it closes (F# = index into salvage-joined.json for traceability).
 - [ ] W4.4 Update UX: direct download on Android (no browser handoff) — F-overrated#3 refine
 - [ ] W4.5 Deps: repin pubspec.lock against pub.dev (F-high#10 mirror divergence)
 - [ ] W4.6 leak_test.sh: SKIP≠PASS, engine-death scenario, exit non-zero on any leak (F-high#15b)
-- [ ] W4.7 urltest model parity: idle_timeout + interrupt_exist_connections both emitters
+- [x] W4.7 urltest model parity: idle_timeout + interrupt_exist_connections both emitters
   (handoff leftover)
 - [ ] W4.8 Windows per-app split: document as routing-editor scope or emit
     include/exclude into config (F-high#37)

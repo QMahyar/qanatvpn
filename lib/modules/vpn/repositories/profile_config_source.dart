@@ -308,6 +308,11 @@ class ProfileConfigSource implements ConfigSource {
           if (group.interval != null && group.interval! > Duration.zero)
             'interval': _formatDuration(group.interval!),
           if (group.tolerance != null) 'tolerance': group.tolerance,
+          // Audit W4.7: urltest parity with the compiler emitter.
+          if (group.idleTimeout != null && group.idleTimeout != Duration.zero)
+            'idle_timeout': _formatDuration(group.idleTimeout!),
+          if (group.interruptExistConnections)
+            'interrupt_exist_connections': true,
         }
       : <String, dynamic>{
           'type': 'selector',

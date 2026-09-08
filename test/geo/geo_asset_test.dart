@@ -136,11 +136,13 @@ void main() {
       final entries = geo.ruleSetEntries();
       expect(entries, hasLength(2));
       final entry = entries.first;
-      expect(entry['type'], 'remote');
+      // Audit W4.1: local entries pointing at the seeded cache file — the
+      // engine no longer downloads through PROXY at every start.
+      expect(entry['type'], 'local');
       expect(entry['format'], 'binary');
-      expect(entry['download_detour'], 'PROXY');
-      expect(entry['update_interval'], '24h');
-      expect((entry['url'] as String).startsWith('https://'), isTrue);
+      expect(entry['path'], contains('geosite-cn.srs'));
+      expect(entry.containsKey('download_detour'), isFalse);
+      expect(entry.containsKey('url'), isFalse);
     });
   });
 

@@ -76,7 +76,11 @@ void main() {
     if (!File(singBoxExe).existsSync()) {
       markTestSkipped('needs windows/sing-box.exe');
     }
+    // W4.1: seed the local rule-set files the same way startup does.
     final geo = geoFor(dir);
+    for (final tag in GeoAsset.registry.keys) {
+      await geo.ensure(tag);
+    }
     final assembler = ConfigAssembler(geoAsset: geo);
     final config = assembler.build(
       endpointJson:

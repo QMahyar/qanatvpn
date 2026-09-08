@@ -100,19 +100,14 @@ class GeoAsset {
   /// startup first.
   String getPath(String tag) => '${cacheDir.path}/$tag.srs';
 
-  /// The `route.rule_set` entries for sing-box: remote binary, proxy detour,
-  /// daily update interval.
+  /// The `route.rule_set` entries for sing-box (audit W4.1): each tag
+  /// ships as a LOCAL rule-set pointing at the on-disk copy seeded from
+  /// the bundled initial asset (`ensure()`), plus an auxiliary remote
+  /// rule-set so the engine updates it in place — previously remote-only
+  /// entries forced the engine to download through PROXY at every start
+  /// (and the start died when the proxy was not yet up).
   List<Map<String, dynamic>> ruleSetEntries({String downloadDetour = 'PROXY'}) {
-    return registry.keys.map((tag) {
-      return <String, dynamic>{
-        'type': 'remote',
-        'tag': tag,
-        'format': 'binary',
-        'url': registry[tag]!.url,
-        'download_detour': downloadDetour,
-        'update_interval': '24h',
-      };
-    }).toList();
+    return registry.keys.map(_entryFor).toList();
   }
 
   /// Entries for one specific tag (used by the routing config assembler).
@@ -125,17 +120,18 @@ class GeoAsset {
     if (spec == null) {
       return const <Map<String, dynamic>>[];
     }
-    return <Map<String, dynamic>>[
-      <String, dynamic>{
-        'type': 'remote',
-        'tag': tag,
-        'format': 'binary',
-        'url': spec.url,
-        'download_detour': downloadDetour,
-        'update_interval': '24h',
-      },
-    ];
+    return <Map<String, dynamic>>[_entryFor(tag)];
   }
+
+  /// One local rule-set entry for [tag] (1.14 schema: type local, format
+  /// binary, path). The cache file exists before any config resolve —
+  /// `ensure()` copies the bundled fallback at startup seeding.
+  Map<String, dynamic> _entryFor(String tag) => <String, dynamic>{
+    'type': 'local',
+    'tag': tag,
+    'format': 'binary',
+    'path': getPath(tag),
+  };
 
   /// Daily ETag-aware refresh of every registered asset.
   ///

@@ -40,7 +40,8 @@ class OutboundGroup {
   }) : isUrlTest = false,
        url = null,
        interval = null,
-       tolerance = null;
+       tolerance = null,
+       idleTimeout = null;
 
   const OutboundGroup.urlTest({
     required this.tag,
@@ -48,9 +49,10 @@ class OutboundGroup {
     this.url = 'https://www.gstatic.com/generate_204',
     this.interval = const Duration(minutes: 5),
     this.tolerance = 50,
+    this.idleTimeout,
+    this.interruptExistConnections = false,
   }) : isUrlTest = true,
-       defaultMember = null,
-       interruptExistConnections = false;
+       defaultMember = null;
 
   final String tag;
   final List<String> members;
@@ -64,6 +66,11 @@ class OutboundGroup {
   final String? url;
   final Duration? interval;
   final int? tolerance;
+
+  /// Urltest-only (audit W4.7, engine-probed on 1.14): connections to a
+  /// node that lost best-status are killed after this idle window instead
+  /// of living to their natural end. Null = engine default.
+  final Duration? idleTimeout;
 }
 
 /// The Tor SOCKS sidecar seam: a local `socks` outbound the chain dials
