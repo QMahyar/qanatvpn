@@ -43,3 +43,4 @@ doc/api/
 # agent session scratch
 .pi/
 thirdparty_rows.json
+latest.json
