@@ -4,6 +4,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to mirror latest.json from (defaults to the triggering ref)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -22,7 +27,10 @@ jobs:
       - name: Stage site
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          # Tag push: the tag itself. Master dispatch: pass the release tag
+          # via the input (the github-pages environment protection rules
+          # reject tag-name refs — probe v0.1.1).
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           mkdir -p site
           cp docs/site/index.html site/
