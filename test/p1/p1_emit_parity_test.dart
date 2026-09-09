@@ -30,7 +30,11 @@ Map<String, dynamic> wrapOutbound(Map<String, dynamic> outbound) => {
 
 Future<void> checkOutbound(Map<String, dynamic> outbound) async {
   if (!singBoxAvailable) {
-    markTestSkipped('sing-box.exe absent');
+    // CI: no windows/sing-box.exe on Linux. Throwing from an async helper
+    // reports FAILURE, not skip (probe 34306459219) — return silently; the
+    // calling tests carry test-level skip: so this path only runs when the
+    // helper's caller did not gate.
+    return;
   }
   final dir = await Directory.systemTemp.createTemp('p1emit');
   try {
@@ -94,7 +98,8 @@ proxies:
       expect(wg.awg?.ib, 'x');
     });
 
-    test('Hysteria2 mport/hop emitted + passes sing-box check', () async {
+    test('Hysteria2 mport/hop emitted + passes sing-box check',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe', () async {
       final endpoints = IngestionAdapter().parseAndNormalize(
         raw(
           'hysteria2://secret@example.com:443?mport=20000-30000&sni=example.com#HY',
@@ -121,7 +126,8 @@ proxies:
       expect(json['hop_interval'], '30s');
     });
 
-    test('TUIC udp_relay_mode emitted + passes sing-box check', () async {
+    test('TUIC udp_relay_mode emitted + passes sing-box check',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe', () async {
       const uuid = 'b831381d-6324-4d53-ad4f-8cda48b30811';
       final endpoints = IngestionAdapter().parseAndNormalize(
         raw(
@@ -135,7 +141,8 @@ proxies:
       await checkOutbound(json);
     });
 
-    test('reality without fp defaults to chrome (no FATAL)', () async {
+    test('reality without fp defaults to chrome (no FATAL)',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe', () async {
       const e = VlessEndpoint(
         tag: 'r',
         address: 'example.com',

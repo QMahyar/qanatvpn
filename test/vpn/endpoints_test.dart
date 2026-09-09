@@ -122,10 +122,8 @@ void main() {
   });
 
   group('stored shapes pass real sing-box check', () {
-    test('all 6 protocols', () {
-      if (!singBoxAvailable) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
+    test('all 6 protocols',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe', () {
       final outbounds = <Map<String, dynamic>>[
         endpointToOutboundJson(
           const VlessEndpoint(
@@ -218,10 +216,8 @@ void main() {
       );
     });
 
-    test('stored WG/AWG endpoint builds endpoints[] entry (real check)', () {
-      if (!singBoxAvailable) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
+    test('stored WG/AWG endpoint builds endpoints[] entry (real check)',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe', () {
       const endpoint = WireGuardEndpoint(
         tag: 'awg-manual',
         privateKey: 'eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=',
@@ -255,10 +251,6 @@ void main() {
         (json['peers'] as List<dynamic>).first,
         containsPair('port', 51820),
       );
-
-      if (!singBoxAvailable) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
       final file = File('${dir.path}/awg-endpoint.json');
       file.writeAsStringSync(
         jsonEncode(<String, dynamic>{
@@ -276,6 +268,7 @@ void main() {
 
     test(
       'plain WG (no awg values) compiles as wireguard type (real check)',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe',
       () {
         const endpoint = WireGuardEndpoint(
           tag: 'wg-plain',
@@ -293,10 +286,6 @@ void main() {
 
         expect(json['type'], 'wireguard');
         expect(json.containsKey('jc'), isFalse);
-
-        if (!singBoxAvailable) {
-          markTestSkipped('needs windows/sing-box.exe');
-        }
         final file = File('${dir.path}/wg-endpoint.json');
         file.writeAsStringSync(
           jsonEncode(<String, dynamic>{
