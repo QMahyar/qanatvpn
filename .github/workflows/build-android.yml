@@ -115,12 +115,25 @@ jobs:
           done
 
       - name: Release android assets
+        # Dispatch runs have no tag: upload as run artifacts. v* tag pushes
+        # publish to the release proper (and feed latest.json).
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/app/outputs/flutter-apk/qanatvpn_*.apk
             build/app/outputs/flutter-apk/qanatvpn_*.apk.sha256
           generate_release_notes: true
+
+      - name: Upload APKs as run artifact (dispatch builds)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: |
+            build/app/outputs/flutter-apk/qanatvpn_*.apk
+            build/app/outputs/flutter-apk/qanatvpn_*.apk.sha256
+          retention-days: 14
 
   # Single producer of latest.json: waits until BOTH platform jobs have
   # attached their assets, then builds the merged platform map from the
