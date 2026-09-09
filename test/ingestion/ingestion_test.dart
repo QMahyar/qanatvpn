@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/ingestion_adapter.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/ingestion_adapter.dart';
 
 RawSubscription raw(String source, {Uri? url}) => RawSubscription(
   bytes: utf8.encode(source),

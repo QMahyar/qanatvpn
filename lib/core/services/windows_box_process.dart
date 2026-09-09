@@ -67,7 +67,7 @@ class WindowsBoxProcessAdapter implements BoxAdapter {
     // builder). Documented: Windows split ships with the routing editor.
     final json = jsonEncode(config.json);
     final file = File(
-      '${Directory.systemTemp.path}/yourvpn_box_${DateTime.now().millisecondsSinceEpoch}.json',
+      '${Directory.systemTemp.path}/qanatvpn_box_${DateTime.now().millisecondsSinceEpoch}.json',
     );
     await file.parent.create(recursive: true);
     await file.writeAsString(json);

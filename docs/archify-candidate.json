@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "YOURVPN \u2014 Flutter+Go VPN (All Protocols, WG+AWG Star, 1 TUN)",
+    "title": "QANATVPN \u2014 Flutter+Go VPN (All Protocols, WG+AWG Star, 1 TUN)",
     "quality_profile": "showcase",
     "viewBox": [
       950,

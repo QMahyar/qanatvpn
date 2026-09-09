@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/onboarding/split_store.dart';
-import 'package:yourvpn/modules/routing/policy_store.dart';
-import 'package:yourvpn/modules/routing/rule_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
-import 'package:yourvpn/modules/vpn/repositories/profile_config_source.dart';
+import 'package:qanatvpn/modules/onboarding/split_store.dart';
+import 'package:qanatvpn/modules/routing/policy_store.dart';
+import 'package:qanatvpn/modules/routing/rule_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
+import 'package:qanatvpn/modules/vpn/repositories/profile_config_source.dart';
 
 /// Config rebuild caching: identical inputs hit the merge cache, changed
 /// inputs miss, caller mutation cannot pollute the cache, and concurrent
@@ -17,7 +17,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-cfgcache');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-cfgcache');
   });
 
   tearDown(() async {

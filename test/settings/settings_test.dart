@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/l10n/app_localizations.dart';
-import 'package:yourvpn/modules/settings/settings_controller.dart';
-import 'package:yourvpn/modules/settings/settings_screen.dart';
+import 'package:qanatvpn/l10n/app_localizations.dart';
+import 'package:qanatvpn/modules/settings/settings_controller.dart';
+import 'package:qanatvpn/modules/settings/settings_screen.dart';
 
 Widget _wrap(Widget child, Directory dir) {
   return ProviderScope(
@@ -36,7 +36,7 @@ void main() {
   late ProviderContainer container;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-settings');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-settings');
     container = ProviderContainer(
       overrides: [
         settingsStoreProvider.overrideWithValue(

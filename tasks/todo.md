@@ -17,12 +17,12 @@ it closes (F# = index into salvage-joined.json for traceability).
   - Acceptance: `LICENSE` = verbatim AGPL-3.0 text; `THIRD_PARTY.md` lists Flutter/Dart packages
     (pubspec.lock) + Go deps (sing-box/awg fork, gomobile, wireguard-go) with licenses + pinned
     SHAs; README links both.
-  - Verify: `gh api repos/QMahyar/yourvpn --jq .license.spdx_id` → AGPL-3.0 after push.
+  - Verify: `gh api repos/QMahyar/qanatvpn --jq .license.spdx_id` → AGPL-3.0 after push.
   - Files: `LICENSE`, `THIRD_PARTY.md`
 
 - [x] W1.2 plainFetch User-Agent — GitHub API 403s every updater request without UA
   - Findings: F-M (plainFetch sends no UA; live probe no-UA→403 UA→200), silent mirror fallback
-  - Acceptance: plainFetch injects `User-Agent: yourvpn/<ver> (+https://github.com/QMahyar/yourvpn)`
+  - Acceptance: plainFetch injects `User-Agent: qanatvpn/<ver> (+https://github.com/QMahyar/qanatvpn)`
     unless caller set one; no other header semantics change.
   - Verify: unit test — fetch without UA header contains default UA; caller UA preserved.
   - Files: `lib/core/network/plain_fetch.dart`, `test/core/plain_fetch_test.dart`
@@ -42,7 +42,7 @@ it closes (F# = index into salvage-joined.json for traceability).
   - Acceptance: `lib/core/persistence/app_paths.dart`: `AppPaths.resolve()` → path_provider
     `getApplicationSupportDirectory` on Android/Windows, env-var chain on desktop tests;
     resolved once at startup, injected as `baseDir` into every store (default ctor keeps
-    env-chain so existing unit tests stay valid); migration: if legacy `~/.yourvpn` exists on
+    env-chain so existing unit tests stay valid); migration: if legacy `~/.qanatvpn` exists on
     desktop, copy files once to new dir.
   - Verify: unit tests for resolve() per-platform via overrides; store round-trip with
     injected baseDir; analyze clean.
@@ -74,7 +74,7 @@ it closes (F# = index into salvage-joined.json for traceability).
   - Findings: F-N (build-android failed 5/5 on old runs; fix landed in 30577ce post-tag),
     F-P (gh-pages run failed → site+latest.json 404)
   - Acceptance: workflow_dispatch run of build-android produces 3 APKs; gh-pages re-run deploys
-    site; latest.json reachable at `https://qmahyar.github.io/yourvpn/latest.json`; release
+    site; latest.json reachable at `https://qmahyar.github.io/qanatvpn/latest.json`; release
     re-cut (v0.1.1) carries APKs + windows zip + latest.json.
   - Verify: `gh run list` green ×2; `curl latest.json` 200; `gh release view v0.1.1` assets ≥5.
   - Files: none (ops only; maybe yml touch-ups)

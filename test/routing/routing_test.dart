@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:yourvpn/core/network/http_cache.dart';
-import 'package:yourvpn/modules/geo/geo_asset.dart';
-import 'package:yourvpn/modules/routing/config_assembler.dart';
-import 'package:yourvpn/modules/routing/routing_compiler.dart';
-import 'package:yourvpn/modules/routing/routing_policy.dart';
+import 'package:qanatvpn/core/network/http_cache.dart';
+import 'package:qanatvpn/modules/geo/geo_asset.dart';
+import 'package:qanatvpn/modules/routing/config_assembler.dart';
+import 'package:qanatvpn/modules/routing/routing_compiler.dart';
+import 'package:qanatvpn/modules/routing/routing_policy.dart';
 
 final String singBoxExe = p.join(
   Directory.current.path,

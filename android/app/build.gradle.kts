@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.yourvpn.yourvpn"
+    namespace = "com.qanatvpn.app"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
 
@@ -15,7 +15,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.yourvpn.yourvpn"
+        applicationId = "com.qanatvpn.app"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION

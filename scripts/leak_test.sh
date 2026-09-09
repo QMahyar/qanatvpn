@@ -4,7 +4,7 @@
 # Every scenario prints PASS/FAIL; any FAIL must block a release tag.
 set -u
 
-VPN_IF="${VPN_IF:-yourvpn-tun}"   # tun interface name as engine reports it
+VPN_IF="${VPN_IF:-qanatvpn-tun}"   # tun interface name as engine reports it
 PHYS_IF="${PHYS_IF:-wlan0}"       # physical uplink
 DNS_VPN="${DNS_VPN:-172.19.0.1}"  # tunnel resolver
 TARGET="${TARGET:-1.1.1.1}"

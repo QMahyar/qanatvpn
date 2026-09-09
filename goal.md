@@ -31,7 +31,7 @@ Android + Windows first — Flutter single Dart codebase + Go libbox via gomobil
 **Pure Flutter+Go via gomobile (original, no external engine mentions in docs):**
 
 - **UI:** Flutter 3.47.2, Dart, **material_3_expressive** (45 M3E, `motor` spring, like Slipnet Compose M3 in Flutter).
-- **Core (internal, not in README):** Go `amnezia-box` fork (`hoaxisr/amnezia-box` 82★, `with_awg` tag, `type: awg`, FakeIP fix) + `XTLS/Xray-core` 26.x, built `go build -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_awg"` → `gomobile bind -tags with_awg -androidapi 24 -javapkg com.yourvpn.libbox` → `android/app/libs/libbox.aar`. This is **internal implementation**, README/docs describe as "original core" without naming forks.
+- **Core (internal, not in README):** Go `amnezia-box` fork (`hoaxisr/amnezia-box` 82★, `with_awg` tag, `type: awg`, FakeIP fix) + `XTLS/Xray-core` 26.x, built `go build -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_awg"` → `gomobile bind -tags with_awg -androidapi 24 -javapkg com.qanatvpn.libbox` → `android/app/libs/libbox.aar`. This is **internal implementation**, README/docs describe as "original core" without naming forks.
 - **VPN abstraction (original):** Your own Flutter `MethodChannel` `vpn_service` (not `vpnclient_engine_flutter` to avoid Extended GPL attribution) — Dart `VpnService` wrapper directly calling Go libbox `Libbox.setup()` → TUN fd via `VpnService.Builder` + `protect(fd)` + `Service.startForeground()` + `isIgnoringBatteryOptimizations`. Source-driven from `developer.android.com` VpnService docs, not from other VPN projects.
 - **Source-driven best practices:** Build from official docs only — `docs.flutter.dev` (i18n/RTL), `sing-box.sagernet.org` (route.rules/rule_set), `developer.android.com` (VpnService/Doze), `pub.dev` (material_3_expressive, cue, drift), `go.dev` (gomobile). No copy-paste from other VPNs.
 
@@ -93,7 +93,7 @@ AGPL, zero telemetry, encrypted secrets, max firewall WFP/iptables/pf + in-tunne
 
 ## 13. Distribution & Updates — FROZEN DAILY PLATFORM-AWARE
 
-**Daily 24h + ETag + initial_path + CacheFile + 6h stale-while-revalidate + platform/version aware** via `api.github.com/repos/<you>/yourvpn/releases/latest`, semver, asset filter `android-arm64`/`windows-x64`, `FileProvider`, `workmanager`. **Play policy:** VpnService declaration `Device security`/`Network-related tools`, encryption doc, 90s disclosure video (internal, self-contained). **CI:** 3 jobs parallel (Android libbox+APK split, Win zip, Linux), `subosito/flutter-action@v2` 3.47.2 + Go 1.25 + NDK 28 + JDK 17 + gomobile.
+**Daily 24h + ETag + initial_path + CacheFile + 6h stale-while-revalidate + platform/version aware** via `api.github.com/repos/<you>/qanatvpn/releases/latest`, semver, asset filter `android-arm64`/`windows-x64`, `FileProvider`, `workmanager`. **Play policy:** VpnService declaration `Device security`/`Network-related tools`, encryption doc, 90s disclosure video (internal, self-contained). **CI:** 3 jobs parallel (Android libbox+APK split, Win zip, Linux), `subosito/flutter-action@v2` 3.47.2 + Go 1.25 + NDK 28 + JDK 17 + gomobile.
 
 ---
 

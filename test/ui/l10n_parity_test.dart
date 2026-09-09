@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/l10n/app_localizations.dart';
+import 'package:qanatvpn/l10n/app_localizations.dart';
 
 /// EN/FA parity: every non-metadata key in app_en.arb exists in app_fa.arb
 /// with a non-empty, non-English value, and every getter resolves at runtime

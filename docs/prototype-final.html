@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>YOURVPN — Final Prototype — Blended Bento Specimen × Grid Hum (THROWAWAY)</title>
+<title>QANATVPN — Final Prototype — Blended Bento Specimen × Grid Hum (THROWAWAY)</title>
 <!-- Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 -->
 <!-- Design plan: Audience = privacy users in censored regions + power users tuning 30 fields. Use = one-tap connect + fine-tune routing. Tone = editorial trustworthy with playful delight. Tokens: paper oklch(98% .01 84) warm, ink oklch(16% .03 38), accent terracotta oklch(55% .17 38), accent2 teal oklch(58% .11 180), accent3 pear oklch(78% .14 140), success oklch(60% .14 145), warn oklch(75% .15 70). Fonts: display Fraunces 700 (high-contrast serif), body Inter 400/600, mono JetBrains Mono 400. Layout: Bento Grid home (asymmetric 12→6→1), timeline spine for diagnostics, document ledger for rules. Signature: tunnel prism — live packet obfuscation visual (Jc/Jmin/H1/I1 as moving bars) + character eye blink on connect. -->
 <style>
@@ -118,7 +118,7 @@
 </head>
 <body>
 <div class="topbar">
-  <div class="brand"><i>◐</i> yourvpn <small>• throwaway prototype — blended bento speciment × grid hum</small></div>
+  <div class="brand"><i>◐</i> qanatvpn <small>• throwaway prototype — blended bento speciment × grid hum</small></div>
   <div class="top-actions">
     <button class="btn ghost" onclick="toggleWizard()">Onboarding wizard</button>
     <button class="btn" onclick="openSheet('servers')">Servers</button>
@@ -144,7 +144,7 @@
     <section class="hero" id="hero">
       <div>
         <h1>Signal through <span>noise.</span> One tap, 30 fields when you need them.</h1>
-        <p>Yourvpn is an original Flutter and Go client. It uses one tun, strict routing, and max firewall so your traffic stays inside the tunnel. Power users get every field. New users get one button. No external branding in docs.</p>
+        <p>QanatVPN is an original Flutter and Go client. It uses one tun, strict routing, and max firewall so your traffic stays inside the tunnel. Power users get every field. New users get one button. No external branding in docs.</p>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn primary" onclick="togglePower()">Connect now</button>
           <button class="btn" onclick="show('rules',document.querySelector('.rail .nav-link:nth-child(3)'))">Open 30-field editor</button>
@@ -311,7 +311,7 @@
     <!-- PROFILES -->
     <section id="profiles" class="page" style="display:none">
       <h2>Profiles • subscriptions</h2>
-      <p class="meta">All formats: Clash YAML, sing-box JSON, vmess/vless/ss/trojan/socks/http, hysteria2/tuic/wg INI, SIP008. ETag 24h, 6h cache,QR/ZIP deeplink yourvpn://</p>
+      <p class="meta">All formats: Clash YAML, sing-box JSON, vmess/vless/ss/trojan/socks/http, hysteria2/tuic/wg INI, SIP008. ETag 24h, 6h cache,QR/ZIP deeplink qanatvpn://</p>
       <div class="tile" style="margin-top:10px">
         <table>
           <thead><tr><th>Sub</th><th>Format</th><th>Outbounds</th><th>Update</th><th>Action</th></tr></thead>
@@ -348,8 +348,8 @@
 <div class="glass" id="wizard" onclick="if(event.target===this)closeWizard()">
   <div class="modal" style="max-width:460px">
     <div style="display:flex;gap:8px;margin-bottom:10px"><span class="pill ok">Step <span id="wizStepN">1</span>/3</span><span class="pill" id="wizTitle">VPN permission</span></div>
-    <div id="wiz1"><h3>Allow VPN connection</h3><p class="meta">Android will show a system dialog: “yourvpn wants to set up a VPN connection.” This creates one tun for all traffic. No external app needed.</p><div style="height:90px;background:var(--color-paper-2);border-radius:12px;display:grid;place-items:center;margin:12px 0;border:1px solid var(--color-border)"><span style="font-size:12px;color:var(--color-muted)">System dialog preview • VpnService</span></div><button class="btn primary" style="width:100%" onclick="wizNext()">Allow • Continue</button></div>
-    <div id="wiz2" style="display:none"><h3>Keep VPN alive in background</h3><p class="meta">Android Doze can pause the tunnel. Allow “Don’t optimize” for yourvpn. This is an acceptable use for VPN and network tools and keeps the foreground service alive. You can change it later in Settings.</p><div style="height:90px;background:var(--color-paper-2);border-radius:12px;display:grid;place-items:center;margin:12px 0;border:1px solid var(--color-border)"><span style="font-size:12px;color:var(--color-muted)">isIgnoringBatteryOptimizations() → requestIgnoreBatteryOptimization()</span></div><button class="btn primary" style="width:100%" onclick="wizNext()">Don’t optimize • Continue</button></div>
+    <div id="wiz1"><h3>Allow VPN connection</h3><p class="meta">Android will show a system dialog: “qanatvpn wants to set up a VPN connection.” This creates one tun for all traffic. No external app needed.</p><div style="height:90px;background:var(--color-paper-2);border-radius:12px;display:grid;place-items:center;margin:12px 0;border:1px solid var(--color-border)"><span style="font-size:12px;color:var(--color-muted)">System dialog preview • VpnService</span></div><button class="btn primary" style="width:100%" onclick="wizNext()">Allow • Continue</button></div>
+    <div id="wiz2" style="display:none"><h3>Keep VPN alive in background</h3><p class="meta">Android Doze can pause the tunnel. Allow “Don’t optimize” for qanatvpn. This is an acceptable use for VPN and network tools and keeps the foreground service alive. You can change it later in Settings.</p><div style="height:90px;background:var(--color-paper-2);border-radius:12px;display:grid;place-items:center;margin:12px 0;border:1px solid var(--color-border)"><span style="font-size:12px;color:var(--color-muted)">isIgnoringBatteryOptimizations() → requestIgnoreBatteryOptimization()</span></div><button class="btn primary" style="width:100%" onclick="wizNext()">Don’t optimize • Continue</button></div>
     <div id="wiz3" style="display:none"><h3>Who uses the VPN</h3><p class="meta">Choose allowlist (only these apps) or bypass (these apps skip VPN). Like Slipnet per-app. You can change later.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0"><button class="push active" id="wizAllow" onclick="wizMode('allow')">Only selected apps</button><button class="push shift" id="wizBypass" onclick="wizMode('bypass')">Bypass selected</button></div>
       <div style="max-height:140px;overflow:auto;border:1px solid var(--color-border);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;font-size:12px">

@@ -3,12 +3,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/network/http_cache.dart';
-import 'package:yourvpn/main.dart' show subscriptionsRefreshWithStores;
-import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
-import 'package:yourvpn/modules/vpn/repositories/subscription_refresher.dart';
-import 'package:yourvpn/modules/vpn/repositories/subscription_store.dart';
+import 'package:qanatvpn/core/network/http_cache.dart';
+import 'package:qanatvpn/main.dart' show subscriptionsRefreshWithStores;
+import 'package:qanatvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
+import 'package:qanatvpn/modules/vpn/repositories/subscription_refresher.dart';
+import 'package:qanatvpn/modules/vpn/repositories/subscription_store.dart';
 
 /// Audit W2.5 / goal.md §9: managed subscriptions with ETag-24h refresh.
 /// URLs were one-shot imports that never refreshed before.
@@ -17,7 +17,7 @@ void main() {
     late Directory dir;
 
     setUp(() async {
-      dir = await Directory.systemTemp.createTemp('yourvpn-substore');
+      dir = await Directory.systemTemp.createTemp('qanatvpn-substore');
     });
 
     tearDown(() async {
@@ -172,7 +172,7 @@ void main() {
     late SubscriptionStore subscriptionStore;
 
     setUp(() async {
-      dir = await Directory.systemTemp.createTemp('yourvpn-subtask');
+      dir = await Directory.systemTemp.createTemp('qanatvpn-subtask');
       endpointStore = EndpointStore(baseDir: dir.path);
       subscriptionStore = SubscriptionStore(baseDir: dir.path);
     });

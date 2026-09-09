@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/startup/app_startup.dart';
+import 'package:qanatvpn/core/startup/app_startup.dart';
 
 void main() {
   group('PhaseTimer', () {

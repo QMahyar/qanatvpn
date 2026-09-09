@@ -80,13 +80,13 @@ final GoRouter appRouter = GoRouter(
   ],
 );
 
-class YourVpnApp extends ConsumerWidget {
-  const YourVpnApp({super.key});
+class QanatVpnApp extends ConsumerWidget {
+  const QanatVpnApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'YOURVPN',
+      title: 'QanatVPN',
       themeMode: ref.watch(effectiveThemeModeProvider),
       locale: ref.watch(effectiveLocaleProvider),
       theme: ThemeData(

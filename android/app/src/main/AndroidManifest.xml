@@ -10,7 +10,7 @@
     <!-- In-app update installs: verified APK opened through the package installer (audit W1.5). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
-        android:label="yourvpn"
+        android:label="QanatVPN"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -51,7 +51,7 @@
                 android:resource="@xml/file_paths"/>
         </provider>
         <service
-            android:name=".YourVpnService"
+            android:name=".QanatVpnService"
             android:exported="false"
             android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>

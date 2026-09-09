@@ -1,14 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/persistence/atomic_write.dart';
-import 'package:yourvpn/core/persistence/debounced_saver.dart';
+import 'package:qanatvpn/core/persistence/atomic_write.dart';
+import 'package:qanatvpn/core/persistence/debounced_saver.dart';
 
 void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-persist');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-persist');
   });
 
   tearDown(() async {

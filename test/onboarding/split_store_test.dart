@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/onboarding/split_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/profile_config_source.dart';
+import 'package:qanatvpn/modules/onboarding/split_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/profile_config_source.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -10,7 +10,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-split');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-split');
   });
 
   tearDown(() async {

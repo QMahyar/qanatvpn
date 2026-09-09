@@ -180,7 +180,7 @@ Future<void> main() async {
   runApp(
     UncontrolledProviderScope(
       container: container,
-      child: const YourVpnApp(),
+      child: const QanatVpnApp(),
     ),
   );
   // Auto-connect (settings W2.2) after the first frame: reads the
@@ -240,7 +240,7 @@ Future<void> _registerDailyUpdateCheck() async {
       // localVersion and restart comparison stays conservative.
     }
     await Workmanager().registerPeriodicTask(
-      'yourvpn-updates',
+      'qanatvpn-updates',
       'updatesDaily',
       frequency: const Duration(hours: 24),
       constraints: Constraints(networkType: NetworkType.connected),
@@ -263,14 +263,14 @@ Future<void> _seedGeoAssets() async {
         Platform.environment['USERPROFILE'] ??
         Directory.systemTemp.path;
     final geo = GeoAsset(
-      cacheDir: Directory('$home/.yourvpn/geo'),
+      cacheDir: Directory('$home/.qanatvpn/geo'),
       initialDir: Directory(GeoAsset.initialAssetDir),
       // Disk-backed so ETag revalidation survives restarts — without it the
       // daily refresh re-downloads from raw.githubusercontent on every
       // launch, re-exposing the 60/hr unauthenticated rate limit.
       http: HttpCache(
         fetch: plainFetch,
-        cacheDir: Directory('$home/.yourvpn/geo/http'),
+        cacheDir: Directory('$home/.qanatvpn/geo/http'),
       ),
     );
     for (final tag in GeoAsset.registry.keys) {
@@ -300,7 +300,7 @@ Future<void> _seedGeoAssets() async {
 /// Platform note: a true OS-level fail-closed filter (device-wide block-all
 /// except the tunnel, surviving engine death) needs native code that does not
 /// exist yet on either platform — Android `VpnService` `setBlocking(true)` +
-/// `addRoute(0.0.0.0/0)` lockdown in `YourVpnService`, Windows WFP rules in
+/// `addRoute(0.0.0.0/0)` lockdown in `QanatVpnService`, Windows WFP rules in
 /// the runner. Until those land, the engine rule ordering below is the
 /// kill-switch; see `scripts/leak_test.sh` scenario coverage.
 class PolicyFirewallAdapter implements FirewallAdapter {

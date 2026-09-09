@@ -90,6 +90,6 @@ class SettingsStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/settings.json'
-        : '${defaultBaseDirSync()}/.yourvpn/settings.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/settings.json',
   );
 }

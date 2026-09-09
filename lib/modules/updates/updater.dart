@@ -49,7 +49,7 @@ int _semverKey(String version) {
 /// Fetches the latest GitHub release, filters assets per platform, and maps
 /// the `latest.json` platform schema (flutter_server_box / RecomBox style).
 class UpdateFetcher {
-  UpdateFetcher({required Fetch fetchImpl, this.repository = 'QMahyar/yourvpn'})
+  UpdateFetcher({required Fetch fetchImpl, this.repository = 'QMahyar/qanatvpn'})
     : _fetch = fetchImpl;
 
   final Fetch _fetch;
@@ -182,7 +182,7 @@ class UpdateSource {
   /// Production default for [mirrorUrl]: the gh-pages mirror written by the
   /// release pipeline (single producer). Tests pass their own or none.
   static const String defaultMirrorUrl =
-      'https://qmahyar.github.io/yourvpn/latest.json';
+      'https://qmahyar.github.io/qanatvpn/latest.json';
 
   final Fetch fetchImpl;
 
@@ -335,7 +335,7 @@ class UpdateStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/last_update_check.json'
-        : '${defaultBaseDirSync()}/.yourvpn/last_update_check.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/last_update_check.json',
   );
 }
 

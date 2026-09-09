@@ -87,7 +87,7 @@ All salvaged findings and verifier verdicts are in `tasks/salvage-joined-2026-09
 ### L. plainFetch sends no User-Agent
 **File**: `lib/core/network/plain_fetch.dart`
 **Issue**: GitHub API rejects requests without User-Agent with 403. All update checks silently fail; fallback to mirror.
-**Fix**: Add `User-Agent: yourvpn/VERSION` header.
+**Fix**: Add `User-Agent: qanatvpn/VERSION` header.
 
 ### M. HTTP subscription URLs leak credentials
 **File**: `lib/modules/vpn/repositories/endpoints_controller.dart`
@@ -109,7 +109,7 @@ All salvaged findings and verifier verdicts are in `tasks/salvage-joined-2026-09
 
 ### P. gh-pages never deployed — latest.json 404
 **File**: `.github/workflows/gh-pages.yml`
-**Issue**: Pages workflow failed. `qmahyar.github.io/yourvpn/latest.json` returns 404. In-app updater mirror fallback is dead.
+**Issue**: Pages workflow failed. `qmahyar.github.io/qanatvpn/latest.json` returns 404. In-app updater mirror fallback is dead.
 **Fix**: Fix the workflow; generate and push latest.json with correct platform map.
 
 ### Q. Release v0.1.0 has zero Android APKs

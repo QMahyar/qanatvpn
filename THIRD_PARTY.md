@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-YOURVPN depends on the following third-party software. This file lists them
+QANATVPN depends on the following third-party software. This file lists them
 with their versions and licenses as required by their respective terms.
 Version pins live in `pubspec.lock` and the `go/amnezia-box` submodule.
 

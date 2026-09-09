@@ -30,7 +30,7 @@ class PolicyStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/policy.json'
-        : '${defaultBaseDirSync()}/.yourvpn/policy.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/policy.json',
   );
 }
 

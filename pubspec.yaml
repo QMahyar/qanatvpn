@@ -1,5 +1,5 @@
-name: yourvpn
-description: YOURVPN — Flutter+Go VPN (All Protocols, WG+AWG priority first)
+name: qanatvpn
+description: QANATVPN — Flutter+Go VPN (All Protocols, WG+AWG priority first)
 publish_to: "none"
 version: 1.0.0+1
 

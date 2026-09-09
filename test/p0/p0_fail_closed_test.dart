@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/network/http_cache.dart';
-import 'package:yourvpn/modules/dns/dns_config.dart';
-import 'package:yourvpn/modules/geo/geo_asset.dart';
-import 'package:yourvpn/modules/routing/config_assembler.dart';
-import 'package:yourvpn/modules/routing/routing_compiler.dart';
-import 'package:yourvpn/modules/routing/routing_policy.dart';
-import 'package:yourvpn/modules/sec/firewall.dart';
+import 'package:qanatvpn/core/network/http_cache.dart';
+import 'package:qanatvpn/modules/dns/dns_config.dart';
+import 'package:qanatvpn/modules/geo/geo_asset.dart';
+import 'package:qanatvpn/modules/routing/config_assembler.dart';
+import 'package:qanatvpn/modules/routing/routing_compiler.dart';
+import 'package:qanatvpn/modules/routing/routing_policy.dart';
+import 'package:qanatvpn/modules/sec/firewall.dart';
 
 GeoAsset _geo(Directory dir) => GeoAsset(
   cacheDir: Directory('${dir.path}/cache'),

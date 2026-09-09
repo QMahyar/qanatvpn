@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/logs/log_bus.dart';
+import 'package:qanatvpn/modules/logs/log_bus.dart';
 
 void main() {
   group('EngineLogLine.parse', () {

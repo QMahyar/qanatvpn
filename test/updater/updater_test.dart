@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/network/http_cache.dart';
-import 'package:yourvpn/modules/updates/updater.dart';
+import 'package:qanatvpn/core/network/http_cache.dart';
+import 'package:qanatvpn/modules/updates/updater.dart';
 
 CachedResponse response(
   int statusCode, {
@@ -26,11 +26,11 @@ Map<String, dynamic> releaseDoc({List<Map<String, dynamic>>? assets}) =>
           assets ??
           <Map<String, dynamic>>[
             <String, dynamic>{
-              'name': 'yourvpn_v1.2.3_arm64-v8a.apk',
+              'name': 'qanatvpn_v1.2.3_arm64-v8a.apk',
               'browser_download_url': 'https://github.com/x/arm64.apk',
             },
             <String, dynamic>{
-              'name': 'yourvpn_v1.2.3_windows-x64.zip',
+              'name': 'qanatvpn_v1.2.3_windows-x64.zip',
               'browser_download_url': 'https://github.com/x/win.zip',
             },
           ],
@@ -171,7 +171,7 @@ void main() {
           urls.add(url);
           return response(200, body: releaseDoc());
         },
-        mirrorUrl: 'https://example.github.io/yourvpn/latest.json',
+        mirrorUrl: 'https://example.github.io/qanatvpn/latest.json',
       );
 
       final info = await source.latestFor('android-arm64');
@@ -203,7 +203,7 @@ void main() {
             },
           );
         },
-        mirrorUrl: 'https://example.github.io/yourvpn/latest.json',
+        mirrorUrl: 'https://example.github.io/qanatvpn/latest.json',
       );
 
       final info = await source.latestFor('android-arm64');
@@ -234,7 +234,7 @@ void main() {
           }
           return response(404);
         },
-        mirrorUrl: 'https://example.github.io/yourvpn/latest.json',
+        mirrorUrl: 'https://example.github.io/qanatvpn/latest.json',
       );
 
       await expectLater(
@@ -246,7 +246,7 @@ void main() {
 
   group('UpdateStore', () {
     test('save + read round-trips the update info', () async {
-      final dir = await Directory.systemTemp.createTemp('yourvpn-store');
+      final dir = await Directory.systemTemp.createTemp('qanatvpn-store');
       addTearDown(() => dir.delete(recursive: true));
       final store = UpdateStore(baseDir: dir.path);
       const info = UpdateInfo(
@@ -267,7 +267,7 @@ void main() {
     test('read on empty store → null, never throws', () {
       final store = UpdateStore(
         baseDir: Directory.systemTemp
-            .createTempSync('yourvpn-store-empty')
+            .createTempSync('qanatvpn-store-empty')
             .path,
       );
 

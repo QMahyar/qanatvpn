@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/network/http_cache.dart';
-import 'package:yourvpn/modules/updates/updates_controller.dart';
-import 'package:yourvpn/modules/updates/updater.dart';
+import 'package:qanatvpn/core/network/http_cache.dart';
+import 'package:qanatvpn/modules/updates/updates_controller.dart';
+import 'package:qanatvpn/modules/updates/updater.dart';
 
 CachedResponse response(
   int statusCode, {
@@ -25,7 +25,7 @@ Map<String, dynamic> releaseDoc() => <String, dynamic>{
   'body': 'Bug fixes',
   'assets': <Map<String, dynamic>>[
     <String, dynamic>{
-      'name': 'yourvpn_v1.2.3_arm64-v8a.apk',
+      'name': 'qanatvpn_v1.2.3_arm64-v8a.apk',
       'browser_download_url': 'https://github.com/x/arm64.apk',
     },
   ],
@@ -49,7 +49,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-update-ctrl');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-update-ctrl');
   });
 
   tearDown(() async {

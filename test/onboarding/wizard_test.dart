@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/modules/onboarding/split_store.dart';
-import 'package:yourvpn/modules/onboarding/wizard.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/modules/onboarding/split_store.dart';
+import 'package:qanatvpn/modules/onboarding/wizard.dart';
 
 class _FakePlatformAdapter implements PlatformAdapter {
   bool vpnGranted = false;
@@ -57,7 +57,7 @@ void main() {
 
   setUp(() async {
     platform = _FakePlatformAdapter();
-    tempDir = await Directory.systemTemp.createTemp('yourvpn-wizard');
+    tempDir = await Directory.systemTemp.createTemp('qanatvpn-wizard');
     container = ProviderContainer(
       overrides: [
         platformAdapterProvider.overrideWithValue(platform),

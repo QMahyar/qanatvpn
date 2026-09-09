@@ -1,4 +1,4 @@
-# Handoff — YOURVPN — mother-audit W3+W4 shipped (372 tests, commit d6f0a14): security + engine-parity batch (60 sec)
+# Handoff — QANATVPN — mother-audit W3+W4 shipped (372 tests, commit d6f0a14): security + engine-parity batch (60 sec)
 
 ## W3+W4 shipped (commits 70ab0ed..d6f0a14; tests 365 -> 372)
 
@@ -38,7 +38,7 @@
 ## Repo state
 
 - **Mother audit done** (5 workflows, 117 finders, 1003 findings, 351 confirmed): full report `tasks/mother-audit-2026-09-05.md`, machine-readable `tasks/salvage-joined-2026-09-05.json`, fix queue `tasks/todo.md` (W1 done, W2-W4 open).
-- **W1 shipped** (`8ba372e`): LICENSE+THIRD_PARTY · plainFetch UA (GitHub 403 hole) · Windows exe resolution (bundle-root first — released app can now spawn engine) · app_paths.dart path_provider + ~/.yourvpn migration (Android store writes work) · UpdateVerifier sha256 fail-closed install (12 tests; CI emits sibling .sha256; latest.json carries sha256; Android installs via FileProvider from verified blob) · real README. 326 tests green, analyze clean.
+- **W1 shipped** (`8ba372e`): LICENSE+THIRD_PARTY · plainFetch UA (GitHub 403 hole) · Windows exe resolution (bundle-root first — released app can now spawn engine) · app_paths.dart path_provider + ~/.qanatvpn migration (Android store writes work) · UpdateVerifier sha256 fail-closed install (12 tests; CI emits sibling .sha256; latest.json carries sha256; Android installs via FileProvider from verified blob) · real README. 326 tests green, analyze clean.
 - v1.0 state below: 302→326 tests, engine truths unchanged.
 
 ## W2 also shipped (see todo.md for details; commits a0cbed1..dea776f)
@@ -60,8 +60,8 @@
 ```
 flutter test --no-pub        # 326 pass
 flutter analyze              # No issues
-gh api repos/QMahyar/yourvpn --jq .license.spdx_id   # AGPL-3.0 after GitHub reindex
-curl -s https://qmahyar.github.io/yourvpn/latest.json  # after W1.7 pages run
+gh api repos/QMahyar/qanatvpn --jq .license.spdx_id   # AGPL-3.0 after GitHub reindex
+curl -s https://qmahyar.github.io/qanatvpn/latest.json  # after W1.7 pages run
 ```
 
 ---
@@ -96,7 +96,7 @@ curl -s https://qmahyar.github.io/yourvpn/latest.json  # after W1.7 pages run
 
 ## Next (value order)
 
-1. ~~Push/CI~~ **DONE 2026-09-04**: repo live at `github.com/QMahyar/yourvpn` (public, AGPL). Tag `v0.1.0` pushed; CI fixes landed (`555c223` secrets-in-if parse error, `.gitmodules` was missing while CI runs `submodules: recursive`, Pages enabled via API). Verify latest.json + APKs attached to the release, then site mirror at `https://qmahyar.github.io/yourvpn/`.
+1. ~~Push/CI~~ **DONE 2026-09-04**: repo live at `github.com/QMahyar/qanatvpn` (public, AGPL). Tag `v0.1.0` pushed; CI fixes landed (`555c223` secrets-in-if parse error, `.gitmodules` was missing while CI runs `submodules: recursive`, Pages enabled via API). Verify latest.json + APKs attached to the release, then site mirror at `https://qmahyar.github.io/qanatvpn/`.
 2. **Signing**: release currently debug-signs — set the 4 GitHub secrets (`KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) before any Play/manual distribution; Gradle already reads `key.properties` when present.
 3. **On-device proof**: install → wizard → connect → leak tests (`scripts/leak_test.sh`).
 4. **v1.0 gate leftovers (Dim 11)**: `scripts/compare_capabilities.py` matrix (highest ROI, ~1h), Sentry, AND/OR group editor UI.
@@ -108,6 +108,6 @@ curl -s https://qmahyar.github.io/yourvpn/latest.json  # after W1.7 pages run
 & C:\tools\flutter\bin\flutter.bat test --no-pub        # 302 pass
 & C:\tools\flutter\bin\flutter.bat analyze              # No issues
 windows\sing-box.exe check -c profiles/config.wg-awg.json  # exit 0
-git remote -v                                           # origin -> QMahyar/yourvpn
-gh release view v0.1.0 --repo QMahyar/yourvpn           # APKs + windows zip + latest.json
+git remote -v                                           # origin -> QMahyar/qanatvpn
+gh release view v0.1.0 --repo QMahyar/qanatvpn           # APKs + windows zip + latest.json
 ```

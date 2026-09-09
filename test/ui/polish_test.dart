@@ -1,9 +1,9 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/app/app.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/l10n/app_localizations.dart';
-import 'package:yourvpn/modules/vpn/logic/tunnel_l10n.dart';
+import 'package:qanatvpn/app/app.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/l10n/app_localizations.dart';
+import 'package:qanatvpn/modules/vpn/logic/tunnel_l10n.dart';
 
 AppLocalizations makeL10n(Locale locale) {
   return lookupAppLocalizations(locale);

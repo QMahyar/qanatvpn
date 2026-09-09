@@ -61,11 +61,11 @@ jobs:
           else { $v = $env:SHORT_SHA.Substring(0, 7) }
           $dir = "build/windows/x64/runner/Release"
           Copy-Item windows/sing-box.exe "$dir/sing-box.exe"
-          Compress-Archive -Path "$dir/*" -DestinationPath "yourvpn_v${v}_windows-x64.zip"
-          $hash = (Get-FileHash "yourvpn_v${v}_windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
-          @{ "yourvpn_v${v}_windows-x64.zip" = $hash } | ConvertTo-Json | Set-Content sha256-windows.json
+          Compress-Archive -Path "$dir/*" -DestinationPath "qanatvpn_v${v}_windows-x64.zip"
+          $hash = (Get-FileHash "qanatvpn_v${v}_windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
+          @{ "qanatvpn_v${v}_windows-x64.zip" = $hash } | ConvertTo-Json | Set-Content sha256-windows.json
           # Sibling .sha256 the in-app installer probes (audit W1.5)
-          "$hash  yourvpn_v${v}_windows-x64.zip" | Set-Content "yourvpn_v${v}_windows-x64.zip.sha256"
+          "$hash  qanatvpn_v${v}_windows-x64.zip" | Set-Content "qanatvpn_v${v}_windows-x64.zip.sha256"
 
       - name: Release windows asset
         # Dispatch runs have no tag: upload as a run artifact instead of a
@@ -74,8 +74,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            yourvpn_v*_windows-x64.zip
-            yourvpn_v*_windows-x64.zip.sha256
+            qanatvpn_v*_windows-x64.zip
+            qanatvpn_v*_windows-x64.zip.sha256
             sha256-windows.json
           generate_release_notes: true
 
@@ -85,8 +85,8 @@ jobs:
         with:
           name: windows-x64-zip
           path: |
-            yourvpn_v*_windows-x64.zip
-            yourvpn_v*_windows-x64.zip.sha256
+            qanatvpn_v*_windows-x64.zip
+            qanatvpn_v*_windows-x64.zip.sha256
             sha256-windows.json
           retention-days: 14
         # latest.json is produced by build-android's metadata job (single

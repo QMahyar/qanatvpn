@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/network/plain_fetch.dart';
-import 'package:yourvpn/core/services/desktop_platform_adapter.dart';
+import 'package:qanatvpn/core/network/plain_fetch.dart';
+import 'package:qanatvpn/core/services/desktop_platform_adapter.dart';
 
 /// plainFetch maps status/headers/body and closes the client; the desktop
 /// adapter reports its safe defaults (engine-managed TUN, no app listing).

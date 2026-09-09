@@ -121,6 +121,6 @@ class SplitStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/split_choice.json'
-        : '${defaultBaseDirSync()}/.yourvpn/split_choice.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/split_choice.json',
   );
 }

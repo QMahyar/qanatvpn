@@ -18,7 +18,7 @@ import 'package:path_provider/path_provider.dart';
 /// chain so plain unit tests (no plugin binding) keep working unchanged.
 String? appSupportDirOverride;
 
-/// Legacy layout used by v0.1.0 on desktop: `~/.yourvpn`. Kept as the
+/// Legacy layout used by v0.1.0 on desktop: `~/.qanatvpn`. Kept as the
 /// migration source and as the test fallback — on Android this chain
 /// yields systemTemp, which is why the platform resolver exists.
 String legacyBaseDirSync() {
@@ -28,7 +28,7 @@ String legacyBaseDirSync() {
 }
 
 /// Directory stores write into: the startup-resolved app-support dir when
-/// available, else the legacy `~` chain. The `.yourvpn` leaf is kept under
+/// available, else the legacy `~` chain. The `.qanatvpn` leaf is kept under
 /// both layouts so backup/restore and store code stay layout-agnostic.
 String defaultBaseDirSync() {
   final override = appSupportDirOverride;
@@ -69,7 +69,7 @@ Future<Directory> resolveTempDir() async {
 }
 
 /// One-time migration for desktop installs of v0.1.0 whose stores lived in
-/// `~/.yourvpn`: copies every store file into the new support dir when the
+/// `~/.qanatvpn`: copies every store file into the new support dir when the
 /// destination lacks it. Never deletes the legacy dir (rollback safety).
 /// Android is a no-op (legacy stores never wrote successfully there).
 /// [legacyDir] is a test seam; production passes nothing and migrates the
@@ -78,11 +78,11 @@ Future<int> migrateLegacyDotYourVpn({Directory? legacyDir}) async {
   if (appSupportDirOverride == null) {
     await resolveAppSupportDir();
   }
-  final from = legacyDir ?? Directory('${legacyBaseDirSync()}/.yourvpn');
+  final from = legacyDir ?? Directory('${legacyBaseDirSync()}/.qanatvpn');
   if (!from.existsSync()) {
     return 0;
   }
-  final to = Directory('${defaultBaseDirSync()}/.yourvpn');
+  final to = Directory('${defaultBaseDirSync()}/.qanatvpn');
   var copied = 0;
   try {
     for (final entity in from.listSync()) {

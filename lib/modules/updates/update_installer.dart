@@ -94,7 +94,7 @@ class UpdateVerifier {
       final tempDir = targetDir ?? Directory.systemTemp;
       final file = File(
         '${tempDir.path}${Platform.pathSeparator}'
-        'yourvpn_update_${DateTime.now().millisecondsSinceEpoch}_${url.pathSegments.last}',
+        'qanatvpn_update_${DateTime.now().millisecondsSinceEpoch}_${url.pathSegments.last}',
       );
       final sink = file.openWrite();
       var received = 0;

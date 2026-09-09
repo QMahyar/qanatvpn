@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/core/services/windows_box_process.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/core/services/windows_box_process.dart';
 
 /// Scriptable fake of dart:io Process for lifecycle tests.
 class FakeProcess implements Process {
@@ -62,7 +62,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-winbox');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-winbox');
   });
 
   tearDown(() async {

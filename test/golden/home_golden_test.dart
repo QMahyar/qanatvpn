@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/app/app.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/l10n/app_localizations.dart';
-import 'package:yourvpn/modules/vpn/logic/vpn_notifier.dart';
-import 'package:yourvpn/modules/vpn/screens/home.dart';
+import 'package:qanatvpn/app/app.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/l10n/app_localizations.dart';
+import 'package:qanatvpn/modules/vpn/logic/vpn_notifier.dart';
+import 'package:qanatvpn/modules/vpn/screens/home.dart';
 
 /// 200% text-scale goldens: bento tiles must survive the accessibility
 /// ceiling (1.35 clamp — user-visible). Overflow exceptions are asserted in
@@ -53,7 +53,7 @@ Widget _wrap(TunnelState phase, double textScale, {bool clamp = true}) {
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (BuildContext context, Widget? child) => MediaQuery(
-        // Same clamp the real app applies in YourVpnApp.builder — bypassed
+        // Same clamp the real app applies in QanatVpnApp.builder — bypassed
         // (clamp: false) for pre-clamp 200% goldens, which must prove the
         // raw layout survives, not the clamped output.
         data: MediaQuery.of(context).copyWith(

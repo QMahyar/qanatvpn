@@ -44,6 +44,6 @@ class SelectionStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/selected_tag.json'
-        : '${defaultBaseDirSync()}/.yourvpn/selected_tag.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/selected_tag.json',
   );
 }

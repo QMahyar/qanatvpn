@@ -121,7 +121,7 @@ No change needed for MVP. Just ensure Android signing: generate `upload-keystore
 
 1. **Vendor a fork:** Replace `SagerNet/sing-box` with `hoaxisr/amnezia-box@SHA` (pin) in `go.mod` and CI (`-tags with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_awg` + submodules).
 2. **Isolate Tor:** Do not use sing-box `tor` outbound directly — run `tor` sidecar + SOCKS chaining (`127.0.0.1:9050` detour `tor-socks`).
-3. **Flutter+Go scaffold:** `flutter create . --project-name yourvpn` + `material_3_expressive` + `cue` + `drift` + `MethodChannel` → Go libbox (not Tauri wry/hash routing).
+3. **Flutter+Go scaffold:** `flutter create . --project-name qanatvpn` + `material_3_expressive` + `cue` + `drift` + `MethodChannel` → Go libbox (not Tauri wry/hash routing).
 4. **Defer ECH to v1.1:** Keep Reality + uTLS + Fragment + XHTTP + Amnezia junk as must.
 5. **Scope split:** Define MVP vs v1.1 for extra features (keep "all" as vision, ship slice first — MVP week2 WG/AWG+routing).
 6. **License docs:** AGPL + `THIRD_PARTY.md` with fork SHAs + `src` tarball.

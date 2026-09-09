@@ -1,4 +1,4 @@
-package com.yourvpn.yourvpn
+package com.qanatvpn.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -62,7 +62,7 @@ class ForegroundService : Service() {
             Notification.Builder(this)
         }
         return builder
-            .setContentTitle("YOURVPN")
+            .setContentTitle("QANATVPN")
             .setContentText("Tunnel active")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentIntent(tapIntent)

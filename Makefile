@@ -1,4 +1,4 @@
-# Makefile - YOURVPN per SPEC.md:Commands
+# Makefile - QANATVPN per SPEC.md:Commands
 #
 # Builds libbox aar/dll from the pinned amnezia-box fork.
 # Fork: hoaxisr/amnezia-box @ 1.14.0-rc.1-awgm.15 (SHA 57276220a20679cad762c9644f6abdaf39ab7688)
@@ -18,10 +18,10 @@ TAGS_LEGACY := $(filter-out with_naive_outbound,$(TAGS_MAIN))
 .PHONY: lib_android lib_legacy lib_windows test_libbox
 
 lib_android:
-	cd $(FORK) && gomobile bind -v -o ../../android/app/libs/libbox.aar -target android -androidapi 24 -javapkg=com.yourvpn -libname=box -trimpath -buildvcs=false -ldflags $(LDFLAGS) -tags "$(TAGS_MAIN)" $(PKG)
+	cd $(FORK) && gomobile bind -v -o ../../android/app/libs/libbox.aar -target android -androidapi 24 -javapkg=com.qanatvpn -libname=box -trimpath -buildvcs=false -ldflags $(LDFLAGS) -tags "$(TAGS_MAIN)" $(PKG)
 
 lib_legacy:
-	cd $(FORK) && gomobile bind -v -o ../../android/app/libs/libbox-legacy.aar -target android -androidapi 21 -javapkg=com.yourvpn -libname=box -trimpath -buildvcs=false -ldflags $(LDFLAGS) -tags "$(TAGS_LEGACY)" $(PKG)
+	cd $(FORK) && gomobile bind -v -o ../../android/app/libs/libbox-legacy.aar -target android -androidapi 21 -javapkg=com.qanatvpn -libname=box -trimpath -buildvcs=false -ldflags $(LDFLAGS) -tags "$(TAGS_LEGACY)" $(PKG)
 
 # Windows: sing-box.exe subprocess (upstream has no c-shared dll; libbox is a
 # library package, and the app talks to the box command server / clash API).

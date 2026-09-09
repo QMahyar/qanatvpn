@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:yourvpn/modules/vpn/amnezia/awg_config.dart';
-import 'package:yourvpn/utils/amnezia_values.dart';
+import 'package:qanatvpn/modules/vpn/amnezia/awg_config.dart';
+import 'package:qanatvpn/utils/amnezia_values.dart';
 
 final String singBoxExe = p.join(
   Directory.current.path,

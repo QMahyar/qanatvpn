@@ -1,4 +1,4 @@
-# CONTEXT.md — YOURVPN Domain Glossary
+# CONTEXT.md — QANATVPN Domain Glossary
 
 > Glossary only. No implementation details. Source-driven, self-contained original.
 > Created 2026-08-30 during architecture review (grilling round 1 — 03→01+02→04→05+06, Tunnel tag seam, Routing field validation).

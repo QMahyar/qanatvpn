@@ -221,7 +221,7 @@ class EndpointsScreen extends ConsumerWidget {
       final bytes = await BackupService().exportBytes(password);
       final target = await FilePicker.saveFile(
         dialogTitle: 'Export encrypted backup',
-        fileName: 'yourvpn-backup.qnv',
+        fileName: 'qanatvpn-backup.qnv',
         bytes: Uint8List.fromList(bytes),
         type: FileType.custom,
         allowedExtensions: const <String>['qnv'],

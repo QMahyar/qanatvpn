@@ -112,9 +112,9 @@ IMP: Brief window each connect where traffic flows before kill-switch enforce; o
 REC: Keep as-is only if intentional (documented 'enforce last'); otherwise enforce firewall before box.start so fail-closed has no leak window. At minimum keep the existing box.stop-on-enforce-failure catch (already present) and add a test for it.
 
 [5] Foreground service type wrong for VPN on Android 14+ [high]
-EV: ForegroundService.kt onStartCommand: API 34+ startForeground(NOTIFICATION_ID, n, DATA_SYNC|REMOTE_MESSAGING); YourVpnService.kt onStartCommand returns START_NOT_STICKY and never calls startForeground
+EV: ForegroundService.kt onStartCommand: API 34+ startForeground(NOTIFICATION_ID, n, DATA_SYNC|REMOTE_MESSAGING); QanatVpnService.kt onStartCommand returns START_NOT_STICKY and never calls startForeground
 IMP: Android 14+ may reject the FGS start (wrong type for a VPN; expected SPECIAL_USE/connectedDevice with matching permission) and Doze can kill the non-sticky VpnService mid-tunnel.
-REC: Use FOREGROUND_SERVICE_TYPE_SPECIAL_USE (with FOREGROUND_SERVICE_SPECIAL_USE permission, API 34+) or SHORT_SERVICE, and make YourVpnService sticky or explicitly managed; verify on API 34 device.
+REC: Use FOREGROUND_SERVICE_TYPE_SPECIAL_USE (with FOREGROUND_SERVICE_SPECIAL_USE permission, API 34+) or SHORT_SERVICE, and make QanatVpnService sticky or explicitly managed; verify on API 34 device.
 
 [6] Foreground start failures swallowed; service wait busy-loops [medium]
 EV: channel_adapters.dart MethodChannelForegroundAdapter.start/stop swallow all errors (.onError(_, _){}); BoxEngine.kt SERVICE_WAIT_MS=3000 busy-waits Thread.sleep(50) on box-engine thread
@@ -172,7 +172,7 @@ SUMMARY: Dart test tree is real and well-organized (32 test files across tunnel/
 [1] Capability gate is a no-op stub that always exits 0 [high]
 EV: scripts/compare_capabilities.py prints TODO and calls sys.exit(0) unconditionally
 IMP: SPEC success-criteria-1 gate always passes without checking the 13-VPN matrix; regressions invisible to CI.
-REC: Implement row-by-row compare (parse research/*.md + intent.md matrix) and exit non-zero on any row where yourvpn < best competitor; wire into CI.
+REC: Implement row-by-row compare (parse research/*.md + intent.md matrix) and exit non-zero on any row where qanatvpn < best competitor; wire into CI.
 
 [2] Leak-test script degrades to SKIP-pass and is not CI-runnable [high]
 EV: scripts/leak_test.sh: tcpdump_dnsleak echoes SKIP and returns 0 when tcpdump missing; ss/ping branches echo SKIP; sleep 60 in test 2; handoff Next step 2 still lists it as the on-device gate
@@ -214,12 +214,12 @@ REC:
 SUMMARY: Audited the 8 named areas; found 8 evidence-backed, exploitable issues. The two key-theft paths (plaintext endpoint store with secure-storage unused, Windows temp config leak) and the traffic-before-firewall window are the highest priority; the remaining five (subscription parser TypeError DoS, updater epoch bug starving patches, permissive manifest backup/cleartext defaults, unredacted log bus, floating supply-chain pins) are concrete but lower severity. No theory-only items included; firewall rule ordering, plain_fetch TLS, and tunnel blocked-state handling were checked and held up.
 
 [1] VPN private keys and passwords stored plaintext on disk; flutter_secure_storage declared but never used [high]
-EV: lib/modules/vpn/repositories/endpoint_store.dart: save() jsonEncode(endpoints) to ~/.yourvpn/endpoints.json with no encryption; repo-wide grep for flutter_secure_storage in lib/ returns zero imports/usages (only pubspec.yaml + generated registrant reference it). NormalizedEndpoint includes WireGuard privateKey, presharedKey, ss/trojan passwords.
+EV: lib/modules/vpn/repositories/endpoint_store.dart: save() jsonEncode(endpoints) to ~/.qanatvpn/endpoints.json with no encryption; repo-wide grep for flutter_secure_storage in lib/ returns zero imports/usages (only pubspec.yaml + generated registrant reference it). NormalizedEndpoint includes WireGuard privateKey, presharedKey, ss/trojan passwords.
 IMP: Any other process/user with filesystem read, device backup, or synced home dir recovers long-lived VPN credentials. Renders key theft silent and persistent.
 REC: 
 
 [2] Windows engine config (private key) written to world-readable temp file, leaks on crash [high]
-EV: lib/core/services/windows_box_process.dart start(): File('${Directory.systemTemp.path}/yourvpn_box_${ms}.json') then writeAsString(jsonEncode(config.json)) with default ACLs; _cleanupConfig() runs on spawn-failure and exit/stop paths but a process kill/crash between write and cleanup leaves the key on disk; predictable timestamped name.
+EV: lib/core/services/windows_box_process.dart start(): File('${Directory.systemTemp.path}/qanatvpn_box_${ms}.json') then writeAsString(jsonEncode(config.json)) with default ACLs; _cleanupConfig() runs on spawn-failure and exit/stop paths but a process kill/crash between write and cleanup leaves the key on disk; predictable timestamped name.
 IMP: Private key material recoverable from temp dir by other local users/forensics after crash; predictable names aid scraping.
 REC: 
 
@@ -239,7 +239,7 @@ IMP: After one GitHub 403 rate-limit, the updater backs off effectively forever,
 REC: 
 
 [6] Android manifest leaves allowBackup and cleartext defaults permissive [medium]
-EV: android/app/src/main/AndroidManifest.xml <application> sets label/name/icon only — no android:allowBackup="false", no android:usesCleartextTraffic="false", no networkSecurityConfig; services/activities export flags are correct (MainActivity exported=true, YourVpnService/ForegroundService exported=false with BIND_VPN_SERVICE).
+EV: android/app/src/main/AndroidManifest.xml <application> sets label/name/icon only — no android:allowBackup="false", no android:usesCleartextTraffic="false", no networkSecurityConfig; services/activities export flags are correct (MainActivity exported=true, QanatVpnService/ForegroundService exported=false with BIND_VPN_SERVICE).
 IMP: adb/cloud backup can exfiltrate app-private files including the plaintext endpoints.json credentials; any future http:// URL (mirror, subscription) is permitted to downgrade to cleartext, enabling credential/config interception.
 REC: 
 
@@ -333,7 +333,7 @@ SUMMARY: Updates/subs/geo are well-tested in isolation (403/429/401, ETag/304, s
 [1] Mirror fallback is dead code in production paths [high]
 EV: updates_controller.dart:77-78 constructs UpdateSource(fetchImpl:...) with no mirrorUrl; updater.dart:297 background task likewise omits mirrorUrl. Only tests pass mirrorUrl (updater_test.dart:174,206,237).
 IMP: In production the gh-pages latest.json mirror is never consulted, so the single-producer pipeline (build-android metadata job + gh-pages download from release) provides zero rate-limit resilience despite tests covering it.
-REC: Thread mirrorUrl through a provider (e.g. const default mirror https://<org>.github.io/yourvpn/latest.json) into UpdateController.checkNow and updateCheckBackgroundTask; add a test that the default-constructed controller passes a non-null mirrorUrl.
+REC: Thread mirrorUrl through a provider (e.g. const default mirror https://<org>.github.io/qanatvpn/latest.json) into UpdateController.checkNow and updateCheckBackgroundTask; add a test that the default-constructed controller passes a non-null mirrorUrl.
 
 [2] UpdateFetcher misparses x-ratelimit-reset as relative offset [high]
 EV: updater.dart _parseReset: DateTime.now().add(Duration(seconds: value)) vs http_cache.dart _parseReset: DateTime.fromMillisecondsSinceEpoch(value*1000, isUtc:true). GitHub sends absolute epoch seconds.

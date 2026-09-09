@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/persistence/app_paths.dart';
+import 'package:qanatvpn/core/persistence/app_paths.dart';
 
 /// app_paths: override-based resolution, legacy fallback chain, and the
-/// one-time ~/.yourvpn migration (audit W1.4 — Android had no working
+/// one-time ~/.qanatvpn migration (audit W1.4 — Android had no working
 /// default store path).
 void main() {
   setUp(() {
@@ -17,8 +17,8 @@ void main() {
 
   group('defaultBaseDirSync', () {
     test('returns override when set', () {
-      appSupportDirOverride = '/data/yourvpn-support';
-      expect(defaultBaseDirSync(), '/data/yourvpn-support');
+      appSupportDirOverride = '/data/qanatvpn-support';
+      expect(defaultBaseDirSync(), '/data/qanatvpn-support');
     });
 
     test('falls back to env chain when override unset (desktop parity)', () {
@@ -50,7 +50,7 @@ void main() {
     late Directory legacyHome;
 
     setUp(() async {
-      legacyHome = await Directory.systemTemp.createTemp('yourvpn-mig');
+      legacyHome = await Directory.systemTemp.createTemp('qanatvpn-mig');
     });
 
     tearDown(() async {
@@ -59,7 +59,7 @@ void main() {
     });
 
     test('copies legacy store files into support dir, skips existing', () async {
-      final legacyDot = Directory('${legacyHome.path}/.yourvpn')
+      final legacyDot = Directory('${legacyHome.path}/.qanatvpn')
         ..createSync(recursive: true);
       File('${legacyDot.path}/endpoints.json').writeAsStringSync('["old"]');
       File('${legacyDot.path}/rules.json').writeAsStringSync('{}');
@@ -69,21 +69,21 @@ void main() {
       final copied = await migrateLegacyDotYourVpn(legacyDir: legacyDot);
       expect(copied, 2);
       expect(
-        File('${support.path}/.yourvpn/endpoints.json').readAsStringSync(),
+        File('${support.path}/.qanatvpn/endpoints.json').readAsStringSync(),
         '["old"]',
       );
       expect(
-        File('${support.path}/.yourvpn/rules.json').existsSync(),
+        File('${support.path}/.qanatvpn/rules.json').existsSync(),
         isTrue,
       );
 
       // Second run: nothing new copied, existing files untouched.
-      File('${support.path}/.yourvpn/endpoints.json')
+      File('${support.path}/.qanatvpn/endpoints.json')
           .writeAsStringSync('["new"]');
       final again = await migrateLegacyDotYourVpn(legacyDir: legacyDot);
       expect(again, 0);
       expect(
-        File('${support.path}/.yourvpn/endpoints.json').readAsStringSync(),
+        File('${support.path}/.qanatvpn/endpoints.json').readAsStringSync(),
         '["new"]',
       );
     });

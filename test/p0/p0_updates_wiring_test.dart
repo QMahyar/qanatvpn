@@ -4,10 +4,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/network/http_cache.dart';
-import 'package:yourvpn/modules/geo/geo_asset.dart';
-import 'package:yourvpn/modules/updates/updates_controller.dart';
-import 'package:yourvpn/modules/updates/updater.dart';
+import 'package:qanatvpn/core/network/http_cache.dart';
+import 'package:qanatvpn/modules/geo/geo_asset.dart';
+import 'package:qanatvpn/modules/updates/updates_controller.dart';
+import 'package:qanatvpn/modules/updates/updater.dart';
 
 CachedResponse response(
   int statusCode, {
@@ -26,7 +26,7 @@ Map<String, dynamic> releaseDoc() => <String, dynamic>{
   'body': 'Bug fixes',
   'assets': <Map<String, dynamic>>[
     <String, dynamic>{
-      'name': 'yourvpn_v1.2.3_arm64-v8a.apk',
+      'name': 'qanatvpn_v1.2.3_arm64-v8a.apk',
       'browser_download_url': 'https://github.com/x/arm64.apk',
     },
   ],
@@ -51,7 +51,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-updates-wiring');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-updates-wiring');
   });
 
   tearDown(() async {
@@ -158,12 +158,12 @@ void main() {
     test('defaultMirrorUrl is the gh-pages mirror constant', () {
       expect(
         UpdateSource.defaultMirrorUrl,
-        'https://qmahyar.github.io/yourvpn/latest.json',
+        'https://qmahyar.github.io/qanatvpn/latest.json',
       );
     });
 
     test('background task: localVersion lands in the store envelope', () async {
-      // The task writes via the default UpdateStore (HOME/.yourvpn) —
+      // The task writes via the default UpdateStore (HOME/.qanatvpn) —
       // redirect through the env var the store reads so the write lands in
       // a temp dir we can inspect and discard. No network I/O is asserted
       // here: plainFetch would hit api.github.com, which is not a unit-test

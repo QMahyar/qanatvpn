@@ -237,7 +237,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       );
     }
     // ignore: avoid_print
-    print('--- yourvpn log export (${visible.length} lines) ---');
+    print('--- qanatvpn log export (${visible.length} lines) ---');
     // ignore: avoid_print
     print(buffer.toString());
     if (context.mounted) {

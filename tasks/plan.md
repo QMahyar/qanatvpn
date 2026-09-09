@@ -1,4 +1,4 @@
-# Plan: YOURVPN — From Spec to Ship (All Protocols, WG+AWG Priority First, 6 Deep Modules) — v1.0
+# Plan: QANATVPN — From Spec to Ship (All Protocols, WG+AWG Priority First, 6 Deep Modules) — v1.0
 
 > Source: `SPEC.md` v2.0 + `goal.md` FROZEN FINAL (All protocols, WG/AWG priority first, original self-contained, Flutter+Go+M3E, 1 TUN fork) + `architecture-review-20260830-074725.html` (6 deepening opportunities, grilling Q1-10 locked). This is the gated plan; human reviews before `todo.md` execution.
 
@@ -60,7 +60,7 @@ flowchart TD
 
 **Gated order from grilling Q1 + Q9 + dependencies:**
 
-1. **Phase 0 — Scaffolding (1 day, no code):** `flutter create yourvpn` + `go mod init` + `CONTEXT.md` (done) + `.hallmark/preflight.json` + `analysis_options.yaml` (require `EdgeInsetsDirectional`, require `Semantics`) + `l10n` ARB skeleton + `Makefile.lx` with `with_awg` tag + `submodules/wireguard-go`.
+1. **Phase 0 — Scaffolding (1 day, no code):** `flutter create qanatvpn` + `go mod init` + `CONTEXT.md` (done) + `.hallmark/preflight.json` + `analysis_options.yaml` (require `EdgeInsetsDirectional`, require `Semantics`) + `l10n` ARB skeleton + `Makefile.lx` with `with_awg` tag + `submodules/wireguard-go`.
 2. **Phase 1 — `core` (2 days):** `amnezia-box` fork `awg-1.14-rc1` via `replace` → `gomobile bind` → `libbox.aar` sanity `grep amneziawg` + `libbox-legacy.aar`. Xray stub (week 3).
 3. **Phase 2 — `tunnel` 03 Deep (3 days, top pick):** `Tunnel` deep module + `PlatformAdapter` fake fd + `BoxAdapter` typed + `FirewallAdapter` + `TorAdapter` SOCKS. Sequence `grant→battery→foreground→establish→protect→start→firewall` hidden. **Checkpoint:** `flutter test` with fake adapters, no device.
 4. **Phase 3 — `geo` 05 + `sub` 02 in parallel (2 days):** `GeoAsset` (ensure/refreshAll with 6h cache, initial_path) + `IngestionAdapter` sealed union (7 parsers) with `amnezia_values` presets. **Checkpoint:** `ingestion` unit tests raw `clash YAML / vless:// / wg_ini` → `NormalizedEndpoint` without file IO; `geo` fake http 403/429 → fallback.
@@ -123,7 +123,7 @@ flowchart TD
 | **After Phase 6 (Platform+UI)** | Wizard 3-step (VPN permission → battery → per-app) + bento home 10 tiles + 30-field editor + EN/FA RTL `EdgeInsetsDirectional` + `Semantics` + `ReduceMotion` at 200% scale, no `overflow-x` at 320/375/414/768. `M3EMaterialApp` spring. | `flutter test test/l10n/` golden + manual 4-width check |
 | **After Phase 7 (Health+Diag)** | `Health.snapshot()` hierarchical Logs→Ping→Stats with fake `DnsProber` + `Pinger` + Rust `guard()` → correct score without network. `drift` retention test. | `flutter test test/health/` |
 | **After Phase 8 (Updates+Sec)** | Daily `workmanager` ETag 24h + 6h cache + `x-ratelimit-reset`/`retry-after` (sesori) + `latest.json` platform filter + 7 leak tests (reboot/sleep/handoff/DoH/QUIC/IPv6/split) all show VPN IP/DNS only via `tcpdump` + `dnsleaktest.com`. `WFP` max firewall enforced. | `flutter test test/updater/` + on-device `ipleak.net` + `tcpdump` |
-| **After Phase 9 (Release+Website+Upstream+Tracking)** | GitHub Actions 3 jobs parallel produce `..._arm64.apk` + `_windows-x64.zip` + `latest.json` + `sha256` via `softprops/action-gh-release@v2` without manual steps. GH Pages `yourvpn.github.io` serves landing + download + `latest.json` mirror (Jekyll or `flutter build web`). `show-me-your-work` TSV per decision + `agent-memory` vault + `handoff` doc for next session. | CI green + `https://yourvpn.github.io/latest.json` fetch + `handoff` doc exists |
+| **After Phase 9 (Release+Website+Upstream+Tracking)** | GitHub Actions 3 jobs parallel produce `..._arm64.apk` + `_windows-x64.zip` + `latest.json` + `sha256` via `softprops/action-gh-release@v2` without manual steps. GH Pages `qanatvpn.github.io` serves landing + download + `latest.json` mirror (Jekyll or `flutter build web`). `show-me-your-work` TSV per decision + `agent-memory` vault + `handoff` doc for next session. | CI green + `https://qanatvpn.github.io/latest.json` fetch + `handoff` doc exists |
 
 ---
 
@@ -154,7 +154,7 @@ flowchart TD
 ### GitHub Pages Website for VPN
 
 - **What:** Static landing + docs + download + API mirror for `latest.json`. Not in spec before, now added as `website` component.
-- **How:** `docs/` folder → `gh-pages` branch via `peaceiris/actions-gh-pages@v4` or `flutter build web` → `build/web` → `gh-pages`. Content: hero prism (from `prototype-final.html` signature), download buttons filtered by platform (`navigator.platform`), `fetch('https://yourvpn.github.io/latest.json')` for in-app updater mirror, docs from `SPEC.md`/`CONTEXT.md` self-contained (no external VPN names), `CNAME` `vpn.yourdomain.com`. Style: blended Bento×Hum, `material_3_expressive` tokens, `M3EMaterialApp` web.
+- **How:** `docs/` folder → `gh-pages` branch via `peaceiris/actions-gh-pages@v4` or `flutter build web` → `build/web` → `gh-pages`. Content: hero prism (from `prototype-final.html` signature), download buttons filtered by platform (`navigator.platform`), `fetch('https://qanatvpn.github.io/latest.json')` for in-app updater mirror, docs from `SPEC.md`/`CONTEXT.md` self-contained (no external VPN names), `CNAME` `vpn.yourdomain.com`. Style: blended Bento×Hum, `material_3_expressive` tokens, `M3EMaterialApp` web.
 
 ### Keeping Up With Upstream Sources
 

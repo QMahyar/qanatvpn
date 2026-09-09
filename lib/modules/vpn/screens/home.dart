@@ -30,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
           children: <Widget>[
             Padding(
               padding: const EdgeInsetsDirectional.all(8),
-              child: Text('YOURVPN', style: theme.textTheme.headlineMedium),
+              child: Text('QanatVPN', style: theme.textTheme.headlineMedium),
             ),
             Expanded(
               child: LayoutBuilder(

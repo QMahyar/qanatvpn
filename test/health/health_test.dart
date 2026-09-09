@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/health/health.dart';
+import 'package:qanatvpn/modules/health/health.dart';
 
 class FakeDnsProber implements DnsProber {
   FakeDnsProber({this.hijacked = false});

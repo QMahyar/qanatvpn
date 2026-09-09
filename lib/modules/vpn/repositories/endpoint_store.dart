@@ -58,7 +58,7 @@ class EndpointStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/endpoints.json'
-        : '${defaultBaseDirSync()}/.yourvpn/endpoints.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/endpoints.json',
   );
 }
 

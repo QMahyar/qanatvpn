@@ -4,11 +4,11 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:yourvpn/modules/vpn/amnezia/awg_config.dart';
-import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/endpoints_controller.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/endpoint_outbound.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
+import 'package:qanatvpn/modules/vpn/amnezia/awg_config.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoints_controller.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/endpoint_outbound.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
 
 final String singBoxExe = p.join(
   Directory.current.path,
@@ -25,7 +25,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-endpoints');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-endpoints');
   });
 
   tearDown(() async {

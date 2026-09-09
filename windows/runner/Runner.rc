@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.yourvpn" "\0"
-            VALUE "FileDescription", "yourvpn" "\0"
+            VALUE "CompanyName", "com.qanatvpn" "\0"
+            VALUE "FileDescription", "qanatvpn" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "yourvpn" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.yourvpn. All rights reserved." "\0"
-            VALUE "OriginalFilename", "yourvpn.exe" "\0"
-            VALUE "ProductName", "yourvpn" "\0"
+            VALUE "InternalName", "qanatvpn" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.qanatvpn. All rights reserved." "\0"
+            VALUE "OriginalFilename", "qanatvpn.exe" "\0"
+            VALUE "ProductName", "qanatvpn" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -1,10 +1,10 @@
-# AGENTS.md — YOURVPN
+# AGENTS.md — QANATVPN
 
 > Flutter+Go VPN (Android+Win first, 1 TUN fork, all protocols WG/AWG priority first, 30-field routing, max WFP firewall). Original self-contained, AGPL. Read this before any task — it turns a generic agent into a project-aware one at fixed cost.
 
 ## Project overview
 
-Yourvpn wins vs 13 researched VPNs on every capability row, star is WG+AmneziaWG (all values Jc/H1-H4/I1-I5/Id/Ip/Ib) + sing-box advanced routing for highly censored networks. Stack: Flutter 3.47.2 + material_3_expressive 45 M3E + cue/motion_kit + Go 1.25 `hoaxisr/amnezia-box` `with_awg` → `libbox.aar` via gomobile. Platforms: Android + Windows first (MVP). Docs are self-contained original — README contains no external VPN names, LICENSE contains AGPL + third-party SHAs.
+QanatVPN wins vs 13 researched VPNs on every capability row, star is WG+AmneziaWG (all values Jc/H1-H4/I1-I5/Id/Ip/Ib) + sing-box advanced routing for highly censored networks. Stack: Flutter 3.47.2 + material_3_expressive 45 M3E + cue/motion_kit + Go 1.25 `hoaxisr/amnezia-box` `with_awg` → `libbox.aar` via gomobile. Platforms: Android + Windows first (MVP). Docs are self-contained original — README contains no external VPN names, LICENSE contains AGPL + third-party SHAs.
 
 ## Where to find what (progress, ongoing, what's left)
 
@@ -93,7 +93,7 @@ VPN Research/  (repo root — no empty dirs)
 
 **YAGNI enforcement:** No `lib/`, `android/`, `go/`, `rule_sets/` until `todo:1-2` touches them. No `.hallmark/`, `references/`, `ios/` stubs until needed. Keep flat until feature forces nesting. Spec is gate — don't code beyond `SPEC.md:Project Structure` without updating spec.
 
-Scaffold when needed: `flutter create yourvpn` + `flutter pub add material_3_expressive cue drift go_router` + `melos` (see `scaffold.md:3 options`). Keep `lib/` feature-first, `core/` shared, `app/` shell — no cross-feature imports.
+Scaffold when needed: `flutter create qanatvpn` + `flutter pub add material_3_expressive cue drift go_router` + `melos` (see `scaffold.md:3 options`). Keep `lib/` feature-first, `core/` shared, `app/` shell — no cross-feature imports.
 
 ## Testing
 
@@ -110,7 +110,7 @@ Scaffold when needed: `flutter create yourvpn` + `flutter pub add material_3_exp
 
 ## Git workflow and versioning
 
-- Branch: `main` + feature branches `feat/<module-id>` (e.g., `feat/tunnel-lifecycle-03`). Commit `feat:`, `fix:`, `chore(upstream):`, `docs:`. Tag `v1.2.3` → 3 jobs produce `yourvpn_v1.2.3_arm64.apk` etc. + `latest.json` + `sha256` via `softprops` without manual steps. `latest.json` platform map mirrors `flutter_server_box` + `RecomBox`. Keep `AGENTS.md` + `SPEC.md` + `CONTEXT.md` in version control, update after every major agent session per `writing-for-agents` pruning (one source of truth, no duplication, relevance check, hunt no-ops).
+- Branch: `main` + feature branches `feat/<module-id>` (e.g., `feat/tunnel-lifecycle-03`). Commit `feat:`, `fix:`, `chore(upstream):`, `docs:`. Tag `v1.2.3` → 3 jobs produce `qanatvpn_v1.2.3_arm64.apk` etc. + `latest.json` + `sha256` via `softprops` without manual steps. `latest.json` platform map mirrors `flutter_server_box` + `RecomBox`. Keep `AGENTS.md` + `SPEC.md` + `CONTEXT.md` in version control, update after every major agent session per `writing-for-agents` pruning (one source of truth, no duplication, relevance check, hunt no-ops).
 
 ## Skills that apply (from using-agent-skills)
 
@@ -134,7 +134,7 @@ Scaffold when needed: `flutter create yourvpn` + `flutter pub add material_3_exp
 - **2026-09-04 (roadmap P2 sweep, commits `cf92abf`→`418ac7f`, 302 tests): TRANSPORTS + URLTEST + BACKUP + UPDATES FAIL-CLOSED.** Scout workflow (7 agents incl. real-engine probes) → 5 inline clusters → adversarial review workflow. Updates wiring fail-closed (epoch parse, StoredUpdate, mirror, geo seeding actually wired — rootBundle fallback works on Android). Urltest best-node (form fields, latency sweep, engine-side auto-select via GROUP tag). Transports parity: SSH + XHTTP/gRPC/HTTPUpgrade/http + ECH import+emit, every shape probed through real `sing-box.exe check` (xhttp `x_padding_bytes` MANDATORY on fork). Encrypted backup (Argon2id+AES-GCM, merge-by-tag, picker flow). StatsTile real metrics + 200% pre-clamp golden (2 real overflows fixed). **pub.dev 403s on this network → use `PUB_HOSTED_URL=https://pub.flutter-io.cn`.** New deps: cryptography, file_picker (static 12.x API). Per-session details → `tasks/progress-2026-09-04.md`.
 - **2026-09-02 (sessions 8a-k, commits `8277f07` → `5cb7150` → `d47e9b7`, 180 tests): FULL APP RUNTIME WIRED.** Engine start (libbox 1.14 `CommandServer.startOrReloadService` via `BoxEngine.kt`; TUN opened by Go `openTun` callback — fd never crosses to Dart; legacy establish/protect removed). Updates UI + workmanager 24h + latest.json single-producer (android metadata job). Routing 30/30 fields + groups 3-tier + TOR-CHAIN (detour; no chain outbound in 1.14). Groups/rules editors + stores, endpoint import→store→engine (6 protocols probed on real sing-box), AWG profile editor UI (todo-04 UI), wizard per-app→OverrideOptions, Windows sing-box.exe subprocess adapter, crash events via CommandClient log stream, live logs tab, diagnostics tab (Health module wired), tag selection, UI polish (l10n everywhere, TextScaler clamp 0.9-1.35, ReduceMotion), golden infra (matchesGoldenFile — caught+fixed real EndpointTile overflow). **All 5 tabs real screens; tabs.dart deleted.** Per-session details → `tasks/progress-2026-09-02.md`.
 - **Engine truths probed on the real binary (do not re-derive):** aar has NO `Box` class (daemon architecture); `endpoints[].id/ip/ib` FATAL (WireSock-only — parse but never emit); tuic `alpn` must be under `tls.alpn`; reality REQUIRES utls; no `chain` outbound (chaining = `DialerOptions.detour`); CommandClient has only 6 commands (no service-status — crash detection = FATAL scan in log stream). Full list → `docs/decisions.tsv`.
-- **2026-09-01 (sessions 1-7):** scaffold (Flutter 3.47.2/Dart 3.13.2/NDK 28/JDK 17), fork pinned `1.14.0-rc.1-awgm.15` SHA `57276220` (aar via Makefile + `with_awg`, javapkg `com.yourvpn`; Windows pivot = sing-box.exe subprocess), 17/17 todos (tunnel/geo/ingestion/routing/dns/awg deep modules + UI + health + updates + sec + CI + site + upstream tracking), 8-way review + critical fixes, 96 tests, git init (`5592cf3`).
+- **2026-09-01 (sessions 1-7):** scaffold (Flutter 3.47.2/Dart 3.13.2/NDK 28/JDK 17), fork pinned `1.14.0-rc.1-awgm.15` SHA `57276220` (aar via Makefile + `with_awg`, javapkg `com.qanatvpn`; Windows pivot = sing-box.exe subprocess), 17/17 todos (tunnel/geo/ingestion/routing/dns/awg deep modules + UI + health + updates + sec + CI + site + upstream tracking), 8-way review + critical fixes, 96 tests, git init (`5592cf3`).
 - **Open (all need external resources):** on-device proof (no adb device), push/CI (no git remote — user creates repo), website polish, logical AND/OR rule-groups UI (compiler+store support it), on-device 7 leak tests. → `tasks/handoff.md`
 
 ## Pointers (keep top short, details behind pointers)

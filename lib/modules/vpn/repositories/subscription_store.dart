@@ -114,6 +114,6 @@ class SubscriptionStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/subscriptions.json'
-        : '${defaultBaseDirSync()}/.yourvpn/subscriptions.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/subscriptions.json',
   );
 }

@@ -35,7 +35,7 @@ class RuleStore {
   File _file() => File(
     baseDir != null
         ? '$baseDir/rules.json'
-        : '${defaultBaseDirSync()}/.yourvpn/rules.json',
+        : '${defaultBaseDirSync()}/.qanatvpn/rules.json',
   );
 }
 

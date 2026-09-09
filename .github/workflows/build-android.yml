@@ -107,7 +107,7 @@ jobs:
           V="${GITHUB_REF_NAME#v}"
           cd build/app/outputs/flutter-apk
           for abi in arm64-v8a armeabi-v7a x86_64; do
-            name="yourvpn_v${V}_${abi}.apk"
+            name="qanatvpn_v${V}_${abi}.apk"
             cp "app-$abi-release.apk" "$name"
             # Sibling .sha256 per asset: the in-app installer probes this
             # exact URL and fails closed when absent/mismatched (audit W1.5).
@@ -118,8 +118,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/app/outputs/flutter-apk/yourvpn_*.apk
-            build/app/outputs/flutter-apk/yourvpn_*.apk.sha256
+            build/app/outputs/flutter-apk/qanatvpn_*.apk
+            build/app/outputs/flutter-apk/qanatvpn_*.apk.sha256
           generate_release_notes: true
 
   # Single producer of latest.json: waits until BOTH platform jobs have

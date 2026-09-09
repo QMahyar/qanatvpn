@@ -4,13 +4,13 @@ import 'dart:io';
 import 'package:cryptography/cryptography.dart'
     show SecretBoxAuthenticationError;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/backup/backup_service.dart';
-import 'package:yourvpn/modules/onboarding/split_store.dart';
-import 'package:yourvpn/modules/routing/policy_store.dart';
-import 'package:yourvpn/modules/routing/routing_policy.dart';
-import 'package:yourvpn/modules/routing/rule_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/ingestion_adapter.dart';
+import 'package:qanatvpn/core/backup/backup_service.dart';
+import 'package:qanatvpn/modules/onboarding/split_store.dart';
+import 'package:qanatvpn/modules/routing/policy_store.dart';
+import 'package:qanatvpn/modules/routing/routing_policy.dart';
+import 'package:qanatvpn/modules/routing/rule_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/ingestion_adapter.dart';
 
 void main() {
   late Directory dir;
@@ -239,7 +239,7 @@ void main() {
     doc['kdf']['iterations'] = 1;
     final tampered = jsonEncode(doc);
 
-    final dir = await Directory.systemTemp.createTemp('yourvpn-aad');
+    final dir = await Directory.systemTemp.createTemp('qanatvpn-aad');
     addTearDown(() => dir.delete(recursive: true));
     final path = '${dir.path}/tampered.qnv';
     await File(path).writeAsString(tampered);
@@ -266,7 +266,7 @@ void main() {
     await service.export(path, 'pw');
     final doc =
         jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
-    expect(doc['magic'], 'YOURVPN-BACKUP');
+    expect(doc['magic'], 'QANATVPN-BACKUP');
     expect(doc['version'], 1);
     expect((doc['kdf'] as Map)['algo'], 'argon2id');
     expect((doc['kdf'] as Map)['memoryKiB'], 19456);

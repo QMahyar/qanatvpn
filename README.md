@@ -1,4 +1,4 @@
-# YOURVPN
+# QANATVPN
 
 A censorship-resistant VPN client for Android and Windows, built for highly
 censored networks. WireGuard and AmneziaWG are first-class citizens — every
@@ -43,7 +43,7 @@ other VPN clients. Licensed AGPL-3.0.
 ## Download
 
 Grab the latest APK (`arm64-v8a` for most phones) or the Windows zip from
-[Releases](https://github.com/QMahyar/yourvpn/releases). Every artifact has a
+[Releases](https://github.com/QMahyar/qanatvpn/releases). Every artifact has a
 sibling `.sha256`; the in-app updater verifies downloads automatically.
 
 ## Build from source
@@ -52,8 +52,8 @@ Requirements: Flutter 3.47.2, Go 1.25, JDK 17, Android NDK r28, and git
 submodules.
 
 ```bash
-git clone --recurse-submodules https://github.com/QMahyar/yourvpn.git
-cd yourvpn
+git clone --recurse-submodules https://github.com/QMahyar/qanatvpn.git
+cd qanatvpn
 
 flutter pub get && flutter gen-l10n
 

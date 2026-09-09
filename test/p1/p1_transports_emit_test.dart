@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:yourvpn/modules/vpn/repositories/ingestion/endpoint_outbound.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/ingestion_adapter.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/endpoint_outbound.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/ingestion_adapter.dart';
 
 /// Engine-probe gate for the cluster-B emitter shapes: every new outbound
 /// round-trips through [endpointToOutboundJson] into a full config doc, then

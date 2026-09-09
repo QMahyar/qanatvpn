@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/core/services/windows_box_process.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/core/services/windows_box_process.dart';
 
 /// Real sing-box.exe smoke through the production adapter: spawn → started →
 /// stop → stopped. Skips wherever the exe is not built (linux CI, before the

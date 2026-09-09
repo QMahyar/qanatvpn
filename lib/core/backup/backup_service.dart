@@ -40,7 +40,7 @@ class BackupService {
        _splitStore = splitStore ?? const SplitStore(),
        _random = random ?? Random.secure();
 
-  static const String magic = 'YOURVPN-BACKUP';
+  static const String magic = 'QANATVPN-BACKUP';
   static const int version = 1;
 
   /// OWASP Argon2id minimums for interactive authentication.

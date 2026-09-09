@@ -3,14 +3,14 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/routing/groups_controller.dart';
-import 'package:yourvpn/modules/routing/policy_store.dart';
-import 'package:yourvpn/modules/routing/routing_policy.dart';
-import 'package:yourvpn/modules/routing/rule_store.dart';
-import 'package:yourvpn/modules/routing/rules_controller.dart';
-import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/endpoints_controller.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
+import 'package:qanatvpn/modules/routing/groups_controller.dart';
+import 'package:qanatvpn/modules/routing/policy_store.dart';
+import 'package:qanatvpn/modules/routing/routing_policy.dart';
+import 'package:qanatvpn/modules/routing/rule_store.dart';
+import 'package:qanatvpn/modules/routing/rules_controller.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoints_controller.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
 
 /// Store write coalescing: rapid controller edits update state immediately
 /// but hit disk once (debounced). A kill mid-burst loses nothing already
@@ -19,7 +19,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-coalesce');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-coalesce');
   });
 
   tearDown(() async {

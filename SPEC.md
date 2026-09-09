@@ -1,4 +1,4 @@
-# Spec: YOURVPN — Original Flutter+Go VPN (All Protocols, WG+AmneziaWG Priority First, 1 TUN Fork, Max Firewall) — v2.0 EXTREME DETAIL
+# Spec: QANATVPN — Original Flutter+Go VPN (All Protocols, WG+AmneziaWG Priority First, 1 TUN Fork, Max Firewall) — v2.0 EXTREME DETAIL
 
 > Generated from `goal.md` FROZEN FINAL (2026-08-30 07:30) — Reverted to **All protocols, WG+AmneziaWG priority first** — `Apply all 3 and freeze` + 4 extra deeps + Hallmark blended prototype. This spec is the gated source of truth. Do not code beyond this spec without updating it.
 > Stack: Flutter 3.47.2 + Dart + `material_3_expressive` 45 M3E + `cue`/`motion_kit`/`transit_kit` + Go 1.25 (`hoaxisr/amnezia-box` fork `with_awg` + `XTLS/Xray-core`) via gomobile + original MethodChannel. Platforms: Android + Windows first (MVP). License: AGPL-3.0 self-contained (no external mentions in README/docs, LICENSE contains third-party notices). Source-driven from official docs.
@@ -23,7 +23,7 @@
 1. **WG+AWG star on DPI:** As a user on LTE with TSPU DPI that blocks vanilla WireGuard, I open wizard → grant VpnService → allow battery exemption (`isIgnoringBatteryOptimizations` → `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, VPN acceptable use) → pick allowlist `Telegram+Chrome` → connect to HKG-02 WG+AWG endpoint (`jc 6, jmin 8, jmax 48, s1 123, h1 … , i1 …`, `awg` type via `hoaxisr/amnezia-box` libbox.aar sanity `strings libbox.so | grep -c amneziawg >0`) → `ipleak.net` shows VPN IP, `dnsleaktest.com` Extended shows VPN DNS, YouTube loads, Telegram calls work, and Airplane toggle triggers max firewall block (no leak per 7 tests).
 2. **All-protocols fallback:** As a power user on Windows 11, I import Clash YAML + `vless://` (Reality+Vision+XHTTP) + `ss://` + `[Interface]` WG INI (preshared_key) + `hysteria2://` (mport, hopInterval) in one sub update (ETag 24h, 6h cache) → group auto-sorts via 3-tier (`HKG-AUTO` filter `香港|HK` → `MANUAL` `.*` → `PROXY` + `TOR-CHAIN` relay `tor-socks 127.0.0.1:9050`) → I set `PROCESS-NAME,steam.exe,DIRECT` + `wifi_ssid,My WIFI,DIRECT` + `rule_set,geosite-cn,DIRECT` via full 30-field editor + logical `and` → `steam.exe` bypasses, `chrome.exe` via PROXY, `geosite-cn` direct, and `MethodChannel` `setRoutingRules()` enforces via `route.rules` + `rule_set` SRS binary.
 3. **Priority build order:** As a maintainer, I see WG/AWG + core routing land week 1-2, VLESS/VMess/Trojan/SS week 3, Hysteria2/TUIC/SSH/Tor week 4 — so the star (WG+AWG) is testable earliest, and full win vs 13 lands by week 4, not after 9 weeks.
-4. **Updates platform-aware:** As a maintainer, I push `geosite-cn.srs` + app `v1.2.3` to GitHub Releases → user's daily 24h ETag check fetches `.srs` via `download_detour: proxy` with `If-None-Match`, and platform-aware updater shows `Update v1.2.3 for windows-x64` (asset `yourvpn_v1.2.3_windows-x64.zip`) vs `android-arm64-v8a.apk`, with changelog + `latest.json` platform map, without hitting 60/hr unauth limit thanks to 6h `stale-while-revalidate` + `x-ratelimit-reset`/`retry-after` handling (sesori pattern).
+4. **Updates platform-aware:** As a maintainer, I push `geosite-cn.srs` + app `v1.2.3` to GitHub Releases → user's daily 24h ETag check fetches `.srs` via `download_detour: proxy` with `If-None-Match`, and platform-aware updater shows `Update v1.2.3 for windows-x64` (asset `qanatvpn_v1.2.3_windows-x64.zip`) vs `android-arm64-v8a.apk`, with changelog + `latest.json` platform map, without hitting 60/hr unauth limit thanks to 6h `stale-while-revalidate` + `x-ratelimit-reset`/`retry-after` handling (sesori pattern).
 5. **Tor chaining with WG:** As a user needing WG-over-Tor, I set the endpoint's `detour` to the `tor-entry` socks outbound (Tor sidecar on `127.0.0.1:9050`) — sing-box 1.14 has no `chain` outbound; chaining is `DialerOptions.detour`. If Tor entry is blocked, sing-box stays up (no `FATAL start outbound/tor` per #4200), falling back to `block`.
 
 ---
@@ -48,7 +48,7 @@
 
 ## Commands
 
-Full executable commands with flags — run from repo root (`yourvpn/`). CI uses same.
+Full executable commands with flags — run from repo root (`qanatvpn/`). CI uses same.
 
 ```bash
 # ── Dev ──
@@ -87,7 +87,7 @@ cp "C:/Program Files/Git/mingw64/bin/libgcc_s_seh-1.dll" build/windows/x64/runne
 cp "C:/Program Files/Git/mingw64/bin/libwinpthread-1.dll" build/windows/x64/runner/Release/
 cp "C:/Windows/System32/msvcp140.dll" build/windows/x64/runner/Release/ 2>/dev/null || true
 flutter build windows --release --dart-define=UPDATE_CHANNEL=windowsPortable
-Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/windows/Output/YourVPN_v1.2.3_windows-x64.zip" -Force
+Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/windows/Output/QanatVPN_v1.2.3_windows-x64.zip" -Force
 
 # ── Test (all must pass before push)
 flutter test --coverage  # ≥70% for lib/modules/routing_editor + lib/services
@@ -126,13 +126,13 @@ dart run fl_build -p android && dart run fl_build -p windows  # like flutter_ser
 ## Project Structure
 
 ```
-yourvpn/  # ORIGINAL SELF-CONTAINED — README/docs contain no external project names; LICENSE contains AGPL + third-party notices as required by law
+qanatvpn/  # ORIGINAL SELF-CONTAINED — README/docs contain no external project names; LICENSE contains AGPL + third-party notices as required by law
 ├── lib/                          # Flutter Dart — Feature-Based MVVM + source-driven (docs.flutter.dev)
 │   ├── main.dart                 # M3EMaterialApp + dynamic_color + M3ETheme (material_3_expressive 45 M3E) + cue
 │   ├── app/                      # M3EMaterialApp + go_router (ShellRoute bottom nav, sharedAxisX via transit_kit, cue spring)
 │   ├── core/
 │   │   ├── network/              # http + flutter_cache_manager 6h stale-while-revalidate + ETag + retry-after
-│   │   ├── routing/              # go_router + deep link yourvpn://
+│   │   ├── routing/              # go_router + deep link qanatvpn://
 │   │   └── services/             # ORIGINAL MethodChannel vpn_service → Go libbox (not vpnclient_engine) + singbox_config_builder
 │   ├── modules/
 │   │   ├── vpn/                  # WG/AWG priority first — HKG-02 WG+AWG example in mock
@@ -156,7 +156,7 @@ yourvpn/  # ORIGINAL SELF-CONTAINED — README/docs contain no external project 
 │   │   │   └── libbox-legacy.aar # API 21
 │   │   └── src/main/
 │   │       ├── AndroidManifest.xml  # FOREGROUND_SERVICE, FOREGROUND_SERVICE_DATA_SYNC|REMOTE_MESSAGING, VpnService, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-│   │       └── kotlin/com/yourvpn/ # minimal: ForegroundService (dataSync), BatteryOptHelper, no VPN logic (in Go)
+│   │       └── kotlin/com/qanatvpn/ # minimal: ForegroundService (dataSync), BatteryOptHelper, no VPN logic (in Go)
 │   └── key.properties            # storeFile upload-keystore.jks (F-Droid pin e9fe39...), not committed
 ├── windows/
 │   ├── runner/                   # Flutter Windows runner + libbox.dll + msvcp140.dll etc.
@@ -396,13 +396,13 @@ type WireGuardAWGOptions struct {
 
 All must be true to ship `v1.0` (WG/AWG priority first, full win by week 4):
 
-1. **Capability win (WG/AWG priority):** Script `scripts/compare_capabilities.py` vs `research/*.md` shows `yourvpn >=` every researched VPN on every row **for WG/AWG star first** (Jc/Jmin/Jmax/S1-S4/H1-H4/I1-I5/Id/Ip/Ib + FakeIP DNS fix + 30 fields + 3-tier groups + relay + WFP max + uTLS). ECH moved to v1.1 (see audit). Full win (VLESS etc.) by week 4, but WG/AWG + routing win by week 2.
+1. **Capability win (WG/AWG priority):** Script `scripts/compare_capabilities.py` vs `research/*.md` shows `qanatvpn >=` every researched VPN on every row **for WG/AWG star first** (Jc/Jmin/Jmax/S1-S4/H1-H4/I1-I5/Id/Ip/Ib + FakeIP DNS fix + 30 fields + 3-tier groups + relay + WFP max + uTLS). ECH moved to v1.1 (see audit). Full win (VLESS etc.) by week 4, but WG/AWG + routing win by week 2.
 2. **Leak-free (7 tests):** On Android 13+ and Win 11, after guided 3-step wizard + battery exemption, `ipleak.net` + `dnsleaktest.com` Extended + `browserleaks.com` WebRTC all show VPN IP/DNS only; 7 tests pass: reboot+startup (no packets before VPN), sleep/wake 60s, Wi-Fi↔hotspot handoff (no reply when `reconnecting`), DoH/QUIC bound, IPv6 no public v6, split audit (per-app bypass no rows), captive portal. Per RTINGS July 2026 (6/16 leaked).
 3. **AmneziaWG all values:** `awg` endpoint JSON (`jc 6, jmin 8, jmax 48, s1 123, h1 … , i1 …`, `id/ip/ib` masquerade) via `hoaxisr/amnezia-box` libbox.aar (sanity `strings libbox.so | grep -c amneziawg >0` + not `Awg is not included`) connects to real AWG 2.0 server handshake+keepalive+traffic, validated on LTE with TSPU-like DPI (like `Leadaxe/wireguard-go-awg2-lx`).
 4. **Tor isolated (if kept for chain):** Tor sidecar on `127.0.0.1:9050` via `socks` detour `tor-socks`; killing Tor does not crash sing-box (no `FATAL start outbound/tor` per #4200), sing-box stays up via `block` fallback — or Tor deferred to v1.1 if pure WG/AWG scope chosen.
 5. **UX polished (blended Bento×Hum):** Guided 3-step wizard (VPN permission → battery exemption → per-app allowlist/bypass) + Flutter M3E dark/light/AMOLED + adaptive bento home (power pulse + Hum push shift + color-shift cards + eye blink) + live connections/requests/DNS via `SubscribeDNSQueries` + traffic chart `fl_chart` + `showNotification: true` foreground `foreground_service` + `autoRunOnBoot: true` + EN/FA RTL `EdgeInsetsDirectional` + a11y `Semantics` + `ReduceMotion`.
-6. **Updates platform-aware:** Daily 24h ETag checks for SRS + subs + app via `api.github.com/repos/<you>/yourvpn/releases/latest`, semver compare, filter asset by `platform` (`-arm64-v8a.apk`, `-windows-x64.zip`), 6h cache avoids 403 `x-ratelimit-remaining:0`, `initial_path` offline, `latest.json` platform map.
-7. **Build reproducible:** GitHub Actions 3 jobs parallel produce `yourvpn_v1.2.3_arm64.apk`, `_arm.apk`, `_amd64.apk`, `_windows_amd64.zip` with `sha256` + `latest.json` (like `lollipopkit/flutter_server_box` + `RecomBox`), uploaded via `softprops/action-gh-release@v2` without manual steps, `flutter analyze` + `golangci-lint` green, `strings libbox.so | grep amneziawg` green.
+6. **Updates platform-aware:** Daily 24h ETag checks for SRS + subs + app via `api.github.com/repos/<you>/qanatvpn/releases/latest`, semver compare, filter asset by `platform` (`-arm64-v8a.apk`, `-windows-x64.zip`), 6h cache avoids 403 `x-ratelimit-remaining:0`, `initial_path` offline, `latest.json` platform map.
+7. **Build reproducible:** GitHub Actions 3 jobs parallel produce `qanatvpn_v1.2.3_arm64.apk`, `_arm.apk`, `_amd64.apk`, `_windows_amd64.zip` with `sha256` + `latest.json` (like `lollipopkit/flutter_server_box` + `RecomBox`), uploaded via `softprops/action-gh-release@v2` without manual steps, `flutter analyze` + `golangci-lint` green, `strings libbox.so | grep amneziawg` green.
 8. **Compliance self-contained:** AGPL-3.0 `LICENSE` + `THIRD_PARTY.md` (fork SHAs: `hoaxisr/amnezia-box@awg-1.14-rc1`, `XTLS/Xray-core@26.x`, `Leadaxe/wireguard-go-awg2-lx`) + `src` tarball per release + Play `VpnService` declaration (`Network-related tools`, encryption doc, 90s disclosure video) ready, but README/docs contain **no external project names** (original).
 
 ---

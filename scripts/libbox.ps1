@@ -35,7 +35,7 @@ $psi.WorkingDirectory = $fork
 $psi.UseShellExecute = $false
 foreach ($a in @(
     'bind', '-v', '-o', $out, '-target', 'android', '-androidapi', $api,
-    '-javapkg=com.yourvpn', '-libname=box', '-trimpath', '-buildvcs=false',
+    '-javapkg=com.qanatvpn', '-libname=box', '-trimpath', '-buildvcs=false',
     '-ldflags', $ldflags, '-tags', $tags, './experimental/libbox'
 )) { [void]$psi.ArgumentList.Add($a) }
 

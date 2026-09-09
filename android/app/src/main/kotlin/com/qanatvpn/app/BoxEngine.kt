@@ -1,4 +1,4 @@
-package com.yourvpn.yourvpn
+package com.qanatvpn.app
 
 import android.app.PendingIntent
 import android.content.Context
@@ -11,26 +11,26 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
-import com.yourvpn.libbox.CommandClient
-import com.yourvpn.libbox.CommandClientHandler
-import com.yourvpn.libbox.CommandClientOptions
-import com.yourvpn.libbox.CommandServer
-import com.yourvpn.libbox.CommandServerHandler
-import com.yourvpn.libbox.ConnectionEvents
-import com.yourvpn.libbox.ConnectionOwner
-import com.yourvpn.libbox.InterfaceUpdateListener
-import com.yourvpn.libbox.Libbox
-import com.yourvpn.libbox.LogIterator
-import com.yourvpn.libbox.NetworkInterface
-import com.yourvpn.libbox.NetworkInterfaceIterator
-import com.yourvpn.libbox.OutboundGroupItemIterator
-import com.yourvpn.libbox.OutboundGroupIterator
-import com.yourvpn.libbox.OverrideOptions
-import com.yourvpn.libbox.SetupOptions
-import com.yourvpn.libbox.StatusMessage
-import com.yourvpn.libbox.StringIterator
-import com.yourvpn.libbox.SystemProxyStatus
-import com.yourvpn.libbox.TunOptions
+import com.qanatvpn.libbox.CommandClient
+import com.qanatvpn.libbox.CommandClientHandler
+import com.qanatvpn.libbox.CommandClientOptions
+import com.qanatvpn.libbox.CommandServer
+import com.qanatvpn.libbox.CommandServerHandler
+import com.qanatvpn.libbox.ConnectionEvents
+import com.qanatvpn.libbox.ConnectionOwner
+import com.qanatvpn.libbox.InterfaceUpdateListener
+import com.qanatvpn.libbox.Libbox
+import com.qanatvpn.libbox.LogIterator
+import com.qanatvpn.libbox.NetworkInterface
+import com.qanatvpn.libbox.NetworkInterfaceIterator
+import com.qanatvpn.libbox.OutboundGroupItemIterator
+import com.qanatvpn.libbox.OutboundGroupIterator
+import com.qanatvpn.libbox.OverrideOptions
+import com.qanatvpn.libbox.SetupOptions
+import com.qanatvpn.libbox.StatusMessage
+import com.qanatvpn.libbox.StringIterator
+import com.qanatvpn.libbox.SystemProxyStatus
+import com.qanatvpn.libbox.TunOptions
 import io.flutter.plugin.common.MethodChannel
 import java.net.NetworkInterface as JavaNetworkInterface
 import java.util.concurrent.ExecutorService
@@ -215,13 +215,13 @@ object BoxEngine {
     }
 
     private fun ensureVpnServiceRunning(context: Context) {
-        if (YourVpnService.INSTANCE != null) return
-        context.startService(Intent(context, YourVpnService::class.java))
+        if (QanatVpnService.INSTANCE != null) return
+        context.startService(Intent(context, QanatVpnService::class.java))
         val deadline = System.currentTimeMillis() + SERVICE_WAIT_MS
-        while (YourVpnService.INSTANCE == null && System.currentTimeMillis() < deadline) {
+        while (QanatVpnService.INSTANCE == null && System.currentTimeMillis() < deadline) {
             Thread.sleep(50)
         }
-        if (YourVpnService.INSTANCE == null) {
+        if (QanatVpnService.INSTANCE == null) {
             throw IllegalStateException("VpnService did not start")
         }
     }
@@ -229,19 +229,19 @@ object BoxEngine {
 
 /// The libbox PlatformInterface Go calls back into: TUN creation from the
 /// config's tun options, socket protection, default interface monitoring.
-class PlatformInterfaceWrapper(context: Context) : com.yourvpn.libbox.PlatformInterface {
+class PlatformInterfaceWrapper(context: Context) : com.qanatvpn.libbox.PlatformInterface {
     private val TAG = "BoxEngine.Platform"
     private val appContext = context.applicationContext
 
     private var tunPfd: ParcelFileDescriptor? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
-    override fun localDNSTransport(): com.yourvpn.libbox.LocalDNSTransport? = null
+    override fun localDNSTransport(): com.qanatvpn.libbox.LocalDNSTransport? = null
 
     override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
 
     override fun autoDetectInterfaceControl(fd: Int) {
-        val service = YourVpnService.INSTANCE
+        val service = QanatVpnService.INSTANCE
             ?: throw Exception("VpnService is not running")
         if (!service.protect(fd)) {
             throw Exception("protect(fd=$fd) failed")
@@ -249,7 +249,7 @@ class PlatformInterfaceWrapper(context: Context) : com.yourvpn.libbox.PlatformIn
     }
 
     override fun openTun(options: TunOptions): Int {
-        val service = YourVpnService.INSTANCE
+        val service = QanatVpnService.INSTANCE
             ?: throw Exception("VpnService is not running")
         val builder = service.Builder()
         builder.setSession(SESSION)
@@ -420,11 +420,11 @@ class PlatformInterfaceWrapper(context: Context) : com.yourvpn.libbox.PlatformIn
             )
             item.flags = 0
             item.type = when {
-                it.name.startsWith("wlan") -> com.yourvpn.libbox.Libbox.InterfaceTypeWIFI
+                it.name.startsWith("wlan") -> com.qanatvpn.libbox.Libbox.InterfaceTypeWIFI
                 it.name.startsWith("rmnet") ||
                     it.name.startsWith("ccmni") ||
-                    it.name.startsWith("mobile") -> com.yourvpn.libbox.Libbox.InterfaceTypeCellular
-                else -> com.yourvpn.libbox.Libbox.InterfaceTypeOther
+                    it.name.startsWith("mobile") -> com.qanatvpn.libbox.Libbox.InterfaceTypeCellular
+                else -> com.qanatvpn.libbox.Libbox.InterfaceTypeOther
             }
             item.dnsServer = StringListIterator(emptyList())
             item.gateway = StringListIterator(emptyList())
@@ -440,17 +440,17 @@ class PlatformInterfaceWrapper(context: Context) : com.yourvpn.libbox.PlatformIn
 
     override fun includeAllNetworks(): Boolean = false
 
-    override fun readWIFIState(): com.yourvpn.libbox.WIFIState? = null
+    override fun readWIFIState(): com.qanatvpn.libbox.WIFIState? = null
 
     override fun clearDNSCache() {}
 
-    override fun sendNotification(notification: com.yourvpn.libbox.Notification?) {}
+    override fun sendNotification(notification: com.qanatvpn.libbox.Notification?) {}
 
     override fun cancelNotification(identifier: String?, typeID: Int) {}
 
-    override fun startNeighborMonitor(listener: com.yourvpn.libbox.NeighborUpdateListener?) {}
+    override fun startNeighborMonitor(listener: com.qanatvpn.libbox.NeighborUpdateListener?) {}
 
-    override fun closeNeighborMonitor(listener: com.yourvpn.libbox.NeighborUpdateListener?) {}
+    override fun closeNeighborMonitor(listener: com.qanatvpn.libbox.NeighborUpdateListener?) {}
 
     override fun registerMyInterface(name: String?) {}
 
@@ -459,15 +459,15 @@ class PlatformInterfaceWrapper(context: Context) : com.yourvpn.libbox.PlatformIn
     override fun checkPlatformShell() {}
 
     override fun openShellSession(
-        user: com.yourvpn.libbox.PlatformUser?,
+        user: com.qanatvpn.libbox.PlatformUser?,
         command: String?,
         environ: StringIterator?,
         term: String?,
         rows: Int,
         cols: Int,
-    ): com.yourvpn.libbox.ShellSession = throw Exception("unsupported")
+    ): com.qanatvpn.libbox.ShellSession = throw Exception("unsupported")
 
-    override fun lookupUser(username: String?): com.yourvpn.libbox.PlatformUser =
+    override fun lookupUser(username: String?): com.qanatvpn.libbox.PlatformUser =
         throw Exception("unsupported")
 
     override fun lookupSFTPServer(): String = throw Exception("unsupported")
@@ -479,11 +479,11 @@ class PlatformInterfaceWrapper(context: Context) : com.yourvpn.libbox.PlatformIn
     override fun usePlatformBridge(): Boolean = false
 
     override fun createBridge(
-        options: com.yourvpn.libbox.BridgeOptions?,
-    ): com.yourvpn.libbox.BridgeSession = throw Exception("unsupported")
+        options: com.qanatvpn.libbox.BridgeOptions?,
+    ): com.qanatvpn.libbox.BridgeSession = throw Exception("unsupported")
 
     private companion object {
-        private const val SESSION = "YOURVPN"
+        private const val SESSION = "QANATVPN"
     }
 }
 

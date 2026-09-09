@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
 
 /// Records every step so tests can assert the guarded ordering.
 class FakePlatformAdapter implements PlatformAdapter {

@@ -1,26 +1,26 @@
-# Scaffold — How to Start a Big Flutter+Go Project (YOURVPN) — Research-Driven
+# Scaffold — How to Start a Big Flutter+Go Project (QANATVPN) — Research-Driven
 
 > Research date: 2026-08-30 — Sources: Very Good Ventures FFCA (`engineering.verygood.ventures`), VeryGood CLI (`cli.vgv.dev`), `flutter_architect` (pub.dev), `Ali-El-Khatib/flutter-production-starter`, `jassim-bashir/ultimate-flutter-project-template`, `amos5464/flutter-mobile-app-template`, `thynqit/blueprint-accelerator-flutter`, `samioda.com` monorepo Melos, `amirsheibani/Skeleton`. All via websearch 2026-08-30. This file is the decision behind `SPEC.md:Project Structure` and `tasks/todo.md:1`.
 
 **Status:** FROZEN — use this to run `todo.md:1` scaffold. No `flutter create` guesswork.
 
-> **Executed 2026-09-01 with real SDK** (see `tasks/progress-2026-09-01.md`): ran `flutter create --platforms=android,windows --project-name yourvpn --org com.yourvpn .` — produced `android/` (build.gradle.kts, settings.gradle.kts, gradle wrapper, AndroidManifest, res) + `windows/` (runner+CMake) + `.metadata`; removed default counter `test/widget_test.dart`. **Toolchain pinned:** Flutter **3.47.2** (`C:\tools\flutter`, Dart 3.13.2), Android **SDK 36**, NDK 28, JDK 17, Go 1.26.5 + gomobile. **Android 7+** = Flutter min API 24 (supported). Version note: `material_3_expressive` **1.x** requires Flutter ≥ 3.44 / Dart ≥ 3.12 + `material_ui`, so the spec's `3.41.9` pin was bumped to `3.47.2`. Pubspec fixed: `cue ^0.3.1`, `material_3_expressive ^1.1.1`, add `material_ui ^1.1.0`, `flutter_foreground_task ^11.0.1`. Non-go: `flutter analyze` clean, 154 deps resolved. **One deviation:** no `go/amnezia-box/submodules/wireguard-go` — the fork wires AmneziaWG via its own go.mod `replace`; root `go.mod` stale replace to be fixed at todo:2.
+> **Executed 2026-09-01 with real SDK** (see `tasks/progress-2026-09-01.md`): ran `flutter create --platforms=android,windows --project-name qanatvpn --org com.qanatvpn .` — produced `android/` (build.gradle.kts, settings.gradle.kts, gradle wrapper, AndroidManifest, res) + `windows/` (runner+CMake) + `.metadata`; removed default counter `test/widget_test.dart`. **Toolchain pinned:** Flutter **3.47.2** (`C:\tools\flutter`, Dart 3.13.2), Android **SDK 36**, NDK 28, JDK 17, Go 1.26.5 + gomobile. **Android 7+** = Flutter min API 24 (supported). Version note: `material_3_expressive` **1.x** requires Flutter ≥ 3.44 / Dart ≥ 3.12 + `material_ui`, so the spec's `3.41.9` pin was bumped to `3.47.2`. Pubspec fixed: `cue ^0.3.1`, `material_3_expressive ^1.1.1`, add `material_ui ^1.1.0`, `flutter_foreground_task ^11.0.1`. Non-go: `flutter analyze` clean, 154 deps resolved. **One deviation:** no `go/amnezia-box/submodules/wireguard-go` — the fork wires AmneziaWG via its own go.mod `replace`; root `go.mod` stale replace to be fixed at todo:2.
 
 ---
 
 ## 1. The question
 
-You have one app (`yourvpn` Android+Win first) with **10+ features** (vpn, routing_editor, groups, logs, diagnostics, updates, profiles, settings, onboarding, health) and **10 modules** (`core`, `tunnel`, `routing`, `dns`, `ui`, `platform`, `sec`, `diag`, `l10n`, `updates`) that must stay deep (see `architecture-review-20260830-074725.html`). You will use AI agents (this AGENTS.md) and need deterministic targets (one legal home per artifact), bounded context (agent reads only `cart_presentation` plus its `cart_domain`, not whole repo), and mechanical enforcement (layer violation = compile error, not review comment).
+You have one app (`qanatvpn` Android+Win first) with **10+ features** (vpn, routing_editor, groups, logs, diagnostics, updates, profiles, settings, onboarding, health) and **10 modules** (`core`, `tunnel`, `routing`, `dns`, `ui`, `platform`, `sec`, `diag`, `l10n`, `updates`) that must stay deep (see `architecture-review-20260830-074725.html`). You will use AI agents (this AGENTS.md) and need deterministic targets (one legal home per artifact), bounded context (agent reads only `cart_presentation` plus its `cart_domain`, not whole repo), and mechanical enforcement (layer violation = compile error, not review comment).
 
 **Three scaffolding families were compared:**
 
 | Family | Top-level unit | Packages | When it wins | When it loses |
 |---|---|---|---|---|
-| **A. Layer-organized (classic)** — Very Good Layered Architecture, `lib/features/counter/` + `lib/core/` + `lib/shared/` inside one `yourvpn` package | Layer (data/domain/presentation as folders inside one package) | 1 package (`yourvpn`) | Single app, <3 features, no AI, no reuse | 10+ features → any feature spread across 3 layers, no package boundary for agent, import anything |
+| **A. Layer-organized (classic)** — Very Good Layered Architecture, `lib/features/counter/` + `lib/core/` + `lib/shared/` inside one `qanatvpn` package | Layer (data/domain/presentation as folders inside one package) | 1 package (`qanatvpn`) | Single app, <3 features, no AI, no reuse | 10+ features → any feature spread across 3 layers, no package boundary for agent, import anything |
 | **B. Feature-first folders inside one package (light FFCA)** — `lib/features/<feature>/data|domain|presentation/` + `lib/core/` + `lib/shared/` + `lib/app/` (used by `ultimate-flutter-project-template`, `Skeleton`, `flutter-clean-architecture-template`) | Feature as folder, layers as subfolders inside same package | Single app, 5-10 features, want folder-first without Melos overhead | Agent still sees whole repo as one package, can import anything — boundary is convention, not compiler |
 | **C. Feature-first **packages** monorepo (FFCA)** — Very Good Ventures FFCA: `apps/mobile_app` + `features/product/product_domain` + `features/product/product_data` + `features/product/product_presentation` + `shared/ui_kit` as **separate Dart/Flutter packages** via Dart workspaces + Melos | Feature as **package**, each layer as separate package | AI-assisted, monorepo, multi-app reuse, 10+ features, need compile-time boundaries | Overhead of ~3 packages per feature, needs Melos + Dart workspaces + barrel files |
 
-**Your case: B for MVP, graduate to C when second app appears.** Why: You have one app now (`yourvpn` Android+Win), 10 features, AI agents, 6 deep modules that need bounded context — B gives you feature-first folders with clean architecture dependency rule (`presentation → domain ← data`, `domain` pure Dart, no Flutter) and deterministic targets without Melos overhead. C's package boundaries would give compile-time enforcement and deferred loading (Flutter `deferred import` per feature, Android dynamic feature modules), but at the cost of ~30 packages + `melos bootstrap` + barrel files — worth it when you add `admin_app` or `kiosk_app` or split teams per feature. Start B, keep C's naming conventions so graduation is a `dart fix` + `melos.yaml`, not a rewrite.
+**Your case: B for MVP, graduate to C when second app appears.** Why: You have one app now (`qanatvpn` Android+Win), 10 features, AI agents, 6 deep modules that need bounded context — B gives you feature-first folders with clean architecture dependency rule (`presentation → domain ← data`, `domain` pure Dart, no Flutter) and deterministic targets without Melos overhead. C's package boundaries would give compile-time enforcement and deferred loading (Flutter `deferred import` per feature, Android dynamic feature modules), but at the cost of ~30 packages + `melos bootstrap` + barrel files — worth it when you add `admin_app` or `kiosk_app` or split teams per feature. Start B, keep C's naming conventions so graduation is a `dart fix` + `melos.yaml`, not a rewrite.
 
 ---
 
@@ -88,7 +88,7 @@ presentation (UI) → domain (business logic, pure Dart, no Flutter) ← data (A
 | Data with backend | `{feature}_data_{backend}` | `vpn_data_singbox` (later) |
 | Shared | descriptive | `shared/ui_kit`, `shared/api_client` |
 
-**Barrel files:** Each layer has `lib/{feature}_{layer}.dart` + subfeature barrels per screen. App imports `package:yourvpn/features/vpn/presentation/vpn_module.dart`, not deep paths.
+**Barrel files:** Each layer has `lib/{feature}_{layer}.dart` + subfeature barrels per screen. App imports `package:qanatvpn/features/vpn/presentation/vpn_module.dart`, not deep paths.
 
 ---
 
@@ -99,10 +99,10 @@ presentation (UI) → domain (business logic, pure Dart, no Flutter) ← data (A
 For when you want a CLI that scaffolds B with your choices and generates feature skeletons.
 
 ```bash
-# 0. Create base — run from empty repo root (no nested yourvpn/yourvpn)
-flutter create . --project-name yourvpn --org com.yourvpn --platforms android,windows
+# 0. Create base — run from empty repo root (no nested qanatvpn/qanatvpn)
+flutter create . --project-name qanatvpn --org com.qanatvpn --platforms android,windows
 
-# 1. Scaffold B with YOURVPN stack (not generic Dio+GetIt)
+# 1. Scaffold B with QANATVPN stack (not generic Dio+GetIt)
 # Use flutter_architect only for folder skeleton, then fix pubspec to SPEC.md:37
 dart pub global activate flutter_architect
 flutter_architect init
@@ -141,7 +141,7 @@ For when you have 2+ apps or split teams and need compile-time boundaries + Melo
 dart pub global activate very_good_cli
 
 # App: Very Good Core (single feature counter, but scalable: lib/app/ + lib/features/counter/ + core)
-very_good create flutter_app yourvpn --desc "YourVPN" --org "com.yourvpn"
+very_good create flutter_app qanatvpn --desc "QanatVPN" --org "com.qanatvpn"
 
 # Then convert to FFCA monorepo per engineering.verygood.ventures:
 mkdir -p apps/mobile_app features/vpn/vpn_domain features/vpn/vpn_data features/vpn/vpn_presentation shared/ui_kit
@@ -159,8 +159,8 @@ melos run analyze && melos run test
 For when you want the 5-layer `app/core/design_system/features/shared` with `main_dev.dart` + `gen/` and a decision tree.
 
 ```bash
-git clone https://github.com/jassim-bashir/ultimate-flutter-project-template yourvpn
-cd yourvpn && flutter pub get
+git clone https://github.com/jassim-bashir/ultimate-flutter-project-template qanatvpn
+cd qanatvpn && flutter pub get
 # Follow docs/architecture/lego_features.md: features as LEGO modules with intentional public APIs
 # Keep: lib/app/ (app_bootstrap, app_shell) + lib/core/ (network, storage, env, di, security) + lib/design_system/ (tokens) + lib/features/<feature>/data|domain|presentation/ + lib/shared/
 ```
@@ -169,11 +169,11 @@ cd yourvpn && flutter pub get
 
 ---
 
-## 4. Recommended path for YOURVPN (per todo.md:1)
+## 4. Recommended path for QANATVPN (per todo.md:1)
 
-**Now (MVP, one app, 10 features, AI agents):** **Option A with B structure** — `flutter create yourvpn` + `flutter_architect init` (Clean + Riverpod + GoRouter + Dio + GetIt + en,fa + GitHub Actions). This gives you `lib/app/` + `lib/core/` + `lib/features/` + `lib/shared/` + `lib/design_system/` + `lib/l10n/` + `main_dev.dart` in 2 commands, with barrel files and `service_locator.dart` wired. Keep dependency rule `presentation → domain ← data` and `features never import other features` from day one — that is the real gain, not the tool.
+**Now (MVP, one app, 10 features, AI agents):** **Option A with B structure** — `flutter create qanatvpn` + `flutter_architect init` (Clean + Riverpod + GoRouter + Dio + GetIt + en,fa + GitHub Actions). This gives you `lib/app/` + `lib/core/` + `lib/features/` + `lib/shared/` + `lib/design_system/` + `lib/l10n/` + `main_dev.dart` in 2 commands, with barrel files and `service_locator.dart` wired. Keep dependency rule `presentation → domain ← data` and `features never import other features` from day one — that is the real gain, not the tool.
 
-**Graduate to C (FFCA packages) when:** you add second app (`apps/admin_app` for SlipGate-like server) or split teams per feature (`tunnel` vs `routing` vs `diag`) and need `melos` + `Dart workspaces` to make `cart_presentation` import failure a compile error. The package boundaries then give AI agents bounded context (only `cart_domain` + `shared` resolve when working in `cart_presentation`) and mechanical enforcement via `analyzer` hook. Until then, B's folders + `analysis_options.yaml` custom lint (`import 'package:yourvpn/features/**'`) is enough.
+**Graduate to C (FFCA packages) when:** you add second app (`apps/admin_app` for SlipGate-like server) or split teams per feature (`tunnel` vs `routing` vs `diag`) and need `melos` + `Dart workspaces` to make `cart_presentation` import failure a compile error. The package boundaries then give AI agents bounded context (only `cart_domain` + `shared` resolve when working in `cart_presentation`) and mechanical enforcement via `analyzer` hook. Until then, B's folders + `analysis_options.yaml` custom lint (`import 'package:qanatvpn/features/**'`) is enough.
 
 **If you hate CLIs:** Option C clone + `melos` manually is the same B, just with more docs.
 

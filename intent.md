@@ -1,4 +1,4 @@
-# Intent — YOURVPN vs 13 Competition VPNs — Why This Matrix Wins
+# Intent — QANATVPN vs 13 Competition VPNs — Why This Matrix Wins
 
 > This is the user-facing companion to `goal.md` (frozen, self-contained) and `SPEC.md` (buildable). `goal.md` is the source of truth for agents; this file is the human-readable comparison that an objective agent (or reviewer) can use to check `you >=` every researched VPN on every row. All data below comes from `01-Karing.md … 13-Matsuri-SagerNet.md` (websearch 2026-08-30) plus live grilling locks.
 > Self-contained original — no external project names in README/docs, but this intent file is internal and may name them for comparison.
@@ -38,7 +38,7 @@ You are building an **original public AGPL Flutter+Go VPN (Android+Win first, 1 
 | **Clash Verge Rev** (141k★, Tauri 2 + Rust + React 19 + MUI 7) | `verge-mihomo` stable + `verge-mihomo-alpha` sidecar `--ext-ctl` | TUN `system/gvisor/mixed`, `sysproxy.exe`, `DNS enhanced-mode fake-ip` vs `redir-host`, `sniffer SNI`, `tauri-plugin-mihomo-api` pool |
 | **Matsuri/SagerNet** (Kotlin, SagerNet successor) | `libcore` + `Xray` via plugins (`Shadowsocks-libev` SIP003, `hysteria-plugin` etc.) | `VpnService`, `tun2socks`, plugin APKs, dex classpath scanner per-app |
 
-**You (YOURVPN):** Flutter 3.47.2 + Go `amnezia-box` `awg-1.14-rc1` `with_awg` → `libbox.aar` (all Jc/H1/I1/Id/Ip/Ib + ChaCha + FakeIP DNS fix via `dnsRouter.Lookup`) + `XTLS/Xray-core` 26.x side lib for VLESS edge, via `gomobile bind -androidapi 24` → single TUN `mixed` via `Tunnel` deep module `connect(tag)` (not `setServer(json string)`). **Why you >=:** You unify the two winning TUN patterns — Karing/Throne single TUN + WG Tunnel `protect()` + WireSock WFP per-app — behind one deep `Tunnel` seam (03), with typed `Endpoint` hidden. No other single VPN does 1 TUN + all Amnezia values + 30 fields + per-app PROCESS-NAME.
+**You (QANATVPN):** Flutter 3.47.2 + Go `amnezia-box` `awg-1.14-rc1` `with_awg` → `libbox.aar` (all Jc/H1/I1/Id/Ip/Ib + ChaCha + FakeIP DNS fix via `dnsRouter.Lookup`) + `XTLS/Xray-core` 26.x side lib for VLESS edge, via `gomobile bind -androidapi 24` → single TUN `mixed` via `Tunnel` deep module `connect(tag)` (not `setServer(json string)`). **Why you >=:** You unify the two winning TUN patterns — Karing/Throne single TUN + WG Tunnel `protect()` + WireSock WFP per-app — behind one deep `Tunnel` seam (03), with typed `Endpoint` hidden. No other single VPN does 1 TUN + all Amnezia values + 30 fields + per-app PROCESS-NAME.
 
 ### 2.2 Protocols
 
@@ -110,7 +110,7 @@ You are building an **original public AGPL Flutter+Go VPN (Android+Win first, 1 
 | **Clash YAML** | All Clash/Mihomo clients: full via `fkYAML`, `proxy-providers` + `rule-providers` `mrs`/`yaml`, `interval: 86400` | Yes, via `IngestionAdapter` |
 | **sing-box JSON** | Karing, Hiddify | Yes, `outbound` array |
 | **URI** | `vmess://`/`vless://`/`ss://`/`trojan://`/`socks://`/`http://` + `hysteria2://`/`hy2://`/`tuic://`/`wireguard://` INI `[Interface]` | Yes, all via sealed union |
-| **Other** | SIP008 `server_key`, Hiddify subscription `hiddify://`, `v2rayn://`, `mrs`/`srs` providers | Yes, SIP008, `mrs`/`srs`, `hiddify://`, `yourvpn://` deeplink |
+| **Other** | SIP008 `server_key`, Hiddify subscription `hiddify://`, `v2rayn://`, `mrs`/`srs` providers | Yes, SIP008, `mrs`/`srs`, `hiddify://`, `qanatvpn://` deeplink |
 | **Update** | ETag `If-None-Match`, `interval: 86400`, `path` | Same, `ETag` + 6h stale-while-revalidate + `x-ratelimit-reset`/`retry-after` (sesori) + `initial_path` fallback, `CacheFile.enabled` |
 
 **You >=:** You add sealed union normalization + ETag inside `IngestionAdapter`, not leaking format quirks into `VpnServer` like shallow parsers.
@@ -136,7 +136,7 @@ You are building an **original public AGPL Flutter+Go VPN (Android+Win first, 1 
 | Traffic stats | All | Yes, per-proxy/per-app, `fl_chart` |
 | Backup/sync | Karing `iCloud/WebDAV/LAN ZIP` + FlClash WebDAV `drift` | Yes, WebDAV + LAN ZIP, `drift` sqlite |
 | Geo updater | `geodat2srs` + `sing-box rule-set compile` + `CacheFile` | Yes, `GeoAsset` 05 Deep |
-| Hotkeys/tray/deeplink | Throne `QHotkey`, Karing `yourvpn://` | Yes, `QHotkey` + tray + `yourvpn://` |
+| Hotkeys/tray/deeplink | Throne `QHotkey`, Karing `qanatvpn://` | Yes, `QHotkey` + tray + `qanatvpn://` |
 | Logs | Verge `core version/logs` + FlClash `connections polling` | Yes, `SubscribeDNSQueries` + pcap toggle + `fl_chart` + `Health` hierarchical Logs→Ping→Stats |
 
 ---

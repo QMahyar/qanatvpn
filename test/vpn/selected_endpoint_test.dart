@@ -2,20 +2,20 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/routing/groups_controller.dart';
-import 'package:yourvpn/modules/routing/policy_store.dart';
-import 'package:yourvpn/modules/routing/routing_policy.dart';
-import 'package:yourvpn/modules/vpn/logic/selected_endpoint.dart';
-import 'package:yourvpn/modules/vpn/repositories/endpoints_controller.dart'
+import 'package:qanatvpn/modules/routing/groups_controller.dart';
+import 'package:qanatvpn/modules/routing/policy_store.dart';
+import 'package:qanatvpn/modules/routing/routing_policy.dart';
+import 'package:qanatvpn/modules/vpn/logic/selected_endpoint.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoints_controller.dart'
     show endpointStoreProvider;
-import 'package:yourvpn/modules/vpn/repositories/endpoint_store.dart';
-import 'package:yourvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
+import 'package:qanatvpn/modules/vpn/repositories/endpoint_store.dart';
+import 'package:qanatvpn/modules/vpn/repositories/ingestion/normalized_endpoint.dart';
 
 void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('yourvpn-selected');
+    dir = await Directory.systemTemp.createTemp('qanatvpn-selected');
   });
 
   tearDown(() async {

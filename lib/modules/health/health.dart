@@ -108,7 +108,7 @@ class FakeIpDnsProber implements DnsProber {
   Future<bool> isHijacked() async {
     try {
       final List<InternetAddress> addresses = await InternetAddress.lookup(
-        'probe.yourvpn.internal',
+        'probe.qanatvpn.internal',
       ).timeout(const Duration(seconds: 3));
       return addresses.any(_inFakeIpPool);
     } on Object {

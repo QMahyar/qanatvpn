@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/health/diagnostics_controller.dart';
-import 'package:yourvpn/modules/health/health.dart';
+import 'package:qanatvpn/modules/health/diagnostics_controller.dart';
+import 'package:qanatvpn/modules/health/health.dart';
 
 class _FakeHealth extends Fake implements Health {
   _FakeHealth(this.report);

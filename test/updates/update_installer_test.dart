@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/modules/updates/update_installer.dart';
+import 'package:qanatvpn/modules/updates/update_installer.dart';
 
 /// UpdateVerifier: download + sha256-verify pipeline (audit W1.5 — update
 /// artifacts were installed with zero integrity checks before).
@@ -57,7 +57,7 @@ void main() {
         .listSync()
         .whereType<File>()
         .where(
-          (f) => f.uri.pathSegments.last.startsWith('yourvpn_update_'),
+          (f) => f.uri.pathSegments.last.startsWith('qanatvpn_update_'),
         )
         .length;
     final before = ourTempFiles();

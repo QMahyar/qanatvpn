@@ -1,4 +1,4 @@
-package com.yourvpn.yourvpn
+package com.qanatvpn.app
 
 import android.app.Activity
 import android.content.Context

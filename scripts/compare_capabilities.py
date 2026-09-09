@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# scripts/compare_capabilities.py — verify yourvpn >= every researched VPN on every row
+# scripts/compare_capabilities.py — verify qanatvpn >= every researched VPN on every row
 # Usage: python scripts/compare_capabilities.py
 # Reads research/*.md + SPEC.md success criteria 1, reports matrix.
 # TODO at todo:1 — implement capability matrix parsing.

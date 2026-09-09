@@ -7,7 +7,7 @@ import 'http_cache.dart';
 /// every fetch identifies the app + version-less channel pointer. Callers
 /// that set their own UA keep it (first-writer wins in [plainFetch]).
 const String kDefaultUserAgent =
-    'yourvpn (+https://github.com/QMahyar/yourvpn)';
+    'qanatvpn (+https://github.com/QMahyar/qanatvpn)';
 
 /// Plain HTTP fetch with no cache semantics: the background updater and the
 /// endpoint importer both want raw responses with status + headers.

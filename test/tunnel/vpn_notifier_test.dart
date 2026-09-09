@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/modules/vpn/logic/vpn_notifier.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/modules/vpn/logic/vpn_notifier.dart';
 
 class _StubTunnel implements Tunnel {
   final StreamController<TunnelState> _status =

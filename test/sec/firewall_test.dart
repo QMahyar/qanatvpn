@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/modules/sec/firewall.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/modules/sec/firewall.dart';
 
 void main() {
   group('FirewallPolicy.baseRules', () {

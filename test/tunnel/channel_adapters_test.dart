@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yourvpn/core/services/channel_adapters.dart';
-import 'package:yourvpn/core/services/tunnel.dart';
-import 'package:yourvpn/modules/logs/log_bus.dart';
+import 'package:qanatvpn/core/services/channel_adapters.dart';
+import 'package:qanatvpn/core/services/tunnel.dart';
+import 'package:qanatvpn/modules/logs/log_bus.dart';
 
 /// Production-path coverage for the MethodChannel seam: arg shapes, event
 /// fan-out, error mapping, and the Tor SOCKS probe. Tunnel tests use fakes;
