@@ -1,147 +1,114 @@
-# AGENTS.md — QANATVPN
+# AGENTS.md — QanatVPN
 
-> Flutter+Go VPN (Android+Win first, 1 TUN fork, all protocols WG/AWG priority first, 30-field routing, max WFP firewall). Original self-contained, AGPL. Read this before any task — it turns a generic agent into a project-aware one at fixed cost.
+> Censorship-resistant VPN client: Flutter 3.47.2 + material_3_expressive, Go engine
+> (sing-box 1.14-rc1 + AmneziaWG fork, `with_awg`) as libbox.aar (Android) and
+> sing-box.exe subprocess (Windows). AGPL. Original, self-contained.
+>
+> **READ THIS FILE TOP-DOWN. It is a progressive index — follow the pointers, do not
+> load everything.** Session state lives in `tasks/handoff.md` (read that first, 60 sec).
 
-## Project overview
+## State at a glance
 
-QanatVPN wins vs 13 researched VPNs on every capability row, star is WG+AmneziaWG (all values Jc/H1-H4/I1-I5/Id/Ip/Ib) + sing-box advanced routing for highly censored networks. Stack: Flutter 3.47.2 + material_3_expressive 45 M3E + cue/motion_kit + Go 1.25 `hoaxisr/amnezia-box` `with_awg` → `libbox.aar` via gomobile. Platforms: Android + Windows first (MVP). Docs are self-contained original — README contains no external VPN names, LICENSE contains AGPL + third-party SHAs.
+- **v0.1.1 RELEASED** — first complete distribution (3 ABI APKs + Windows zip +
+  latest.json with sha256, live at qmahyar.github.io/qanatvpn/latest.json).
+- 372 tests green, analyze clean. Repo: github.com/QMahyar/qanatvpn.
+- Full audit trail: mother-audit (5 workflows, 1003 findings, 351 confirmed) →
+  W1–W4 remediation, 19/22 shipped. Open queue: `tasks/todo.md`.
 
-## Where to find what (progress, ongoing, what's left)
+## Session start (in order)
 
-| Area                                     | Read first                                                                                   | What it tells you                                                                                                                                                                                    |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Spec (what to build)**                 | `SPEC.md` v2.0                                                                               | Objective, Tech Stack, Commands, Project Structure, Code Style, Testing, Boundaries (Always/Ask/Never), Success Criteria, Open Questions, Deep Modules (6 deepening)                                 |
-| **Intent (why this vs competition)**     | `intent.md`                                                                                  | 13 VPNs matrix vs your 22 locks, comparison per capability, build order WG/AWG first                                                                                                                 |
-| **Decisions (why not how)**              | `goal.md` FROZEN FINAL + `CONTEXT.md`                                                        | 22 locks, 10 glossary terms, grilling Q1-10, 1 TUN fork rebase rationale                                                                                                                             |
-| **Plan (how to build, in what order)**   | `tasks/plan.md`                                                                              | Dependency graph, build order `03→01+02→04→05→06`, risks, parallel/seq, verification checkpoints                                                                                                     |
-| **Tasks (what to do next)**              | `tasks/todo.md`                                                                              | 17 discrete tasks, each ≤5 files, Acceptance/Verify/Files, ordered by dependency                                                                                                                     |
-| **Progress (what's done, what's left)**  | `tasks/progress-*.md` + `handoff.md` + `docs/decisions.tsv`                                  | Daily logs, show-me-your-work TSV per decision, compact handoff for next session                                                                                                                     |
-| **Architecture diagram**                 | `docs/archify.html` (showcase, 950×560, 9/9 checks) + `docs/archify-candidate.json`          | Interactive arch: 10 nodes, 8 orthogonal routes, region `Flutter+Go` + sg-tunnel; build `node bin/archify.mjs deliver architecture docs/archify-candidate.json docs/archify.html --quality showcase` |
-| **Architecture review**                  | `C:\Users\qmahyar\AppData\Local\Temp\architecture-review-20260830-074725.html`               | 6 deepening candidates, top pick 03 Tunnel, before/after Mermaid                                                                                                                                     |
-| **Prototype (what it looks/feels like)** | `docs/prototype-final.html` (blended Bento×Hum, all screens) + `hallmark-variants/01` + `10` | Hero prism, bento home 10 tiles, 30-field editor, DNS scanner 0-6, wizard 3-step, live logs                                                                                                          |
-| **Research (competition)**               | `research/01-Karing.md … 13-Matsuri-SagerNet.md` + `research/audit.md`                       | 13 VPNs extreme detail, 6 must-changes (fork SHA-pin, Tor SOCKS sidecar, Flutter+M3E scaffold, ECH→v1.1, Keep All slice, AGPL+THIRD_PARTY)                                                           |
+1. `tasks/handoff.md` — current state, gotchas, next steps (60 sec)
+2. `tasks/todo.md` — the fix queue; only the section you work on
+3. `docs/project-map.md` — module map; load only your task's section
+4. Source files + one existing test for the pattern
 
-## Tracking progress across sessions
-
-**Every developed feature must update the trackers before handoff:**
-
-1. After each `todo.md` task, append `tasks/progress-YYYY-MM-DD.md` (daily log), update `tasks/todo.md` checkbox, append `docs/decisions.tsv` (what/why/evidence/result), run `handoff` to emit `handoff.md` (compact: done/next/blockers + file pointers).
-2. Next session's agent runs `recall` — reads `handoff.md` + latest `progress-*.md` + `CONTEXT.md` + `tasks/todo.md` — then `context-engineering` loads only that todo's files (guard context window).
-3. If work exceeds one session, `wayfinder` splits `todo.md` into `tasks/tickets/*.md` with `blocked-on` edges. Parallel agents claim disjoint files (see `tasks/plan.md` parallel vs sequential).
-4. Long-term facts live in `agent-memory` vault (`C:\Users\qmahyar\.config\opencode\agent-memory`), not in chat. Use `recall` to surface.
-
-**Evidence before synthesis:** Run `flutter test --coverage`, `sing-box check -c`, `strings libbox.so | grep -q amneziawg` — not "seems right".
-
-## Build and test commands (read, don't guess)
+## Verify loop (run before every commit)
 
 ```bash
-flutter pub get && flutter gen-l10n
-make -C go/amnezia-box lib_android && cp go/amnezia-box/libbox.aar android/app/libs/
-flutter test --coverage && flutter test test/updater/github_releases_api_test.dart
-dart format --set-exit-if-changed . && flutter analyze && golangci-lint run ./...
-sing-box check -c profiles/config.wg-awg.json && sing-box rule-set compile schemas/geosite-cn.json -o rule_sets/geosite-cn.srs
-flutter build apk --split-per-abi && flutter build windows
+C:/tools/flutter/bin/flutter.bat test --no-pub    # 372 pass
+C:/tools/flutter/bin/flutter.bat analyze           # no issues
+# if routing/config touched:
+windows/sing-box.exe check -c profiles/config.wg-awg.json
 ```
 
-CI: 3 jobs parallel (`subosito/flutter-action@v2` 3.47.2 + `setup-go@v5` 1.25 + `android-actions/setup-android@v3` NDK 28 + JDK 17) → `softprops/action-gh-release@v2` + `latest.json` + `sha256`. See `SPEC.md:Commands`.
+## Environment gotchas (this machine — do not re-derive)
 
-## Code style (one snippet beats 3 paragraphs)
+| Gotcha | Workaround |
+|---|---|
+| Plain `git push` stalls mid-upload | `git -c http.version=HTTP/1.1 push origin master` |
+| pub.dev 403s | `PUB_HOSTED_URL=https://pub.dev` + `pub get --offline` (cache is warm) |
+| Flutter is NOT on PATH | `C:/tools/flutter/bin/flutter.bat` (run via `cmd //c`) |
+| gomobile panics on bash's hidden `=E:` env vars | Launch via clean env: `env -i PATH=... HOME=... bash script` — see decisions.tsv |
+| pubspec.lock pinned to pub.dev (151 pkgs) | Never `pub add`; edit constraints + `pub get` |
+| GitHub CLI logged in as QMahyar (admin) | `gh workflow run` works; pages env rejects tag refs — dispatch from master with `-f release_tag=vX.Y.Z` |
 
-- Tokens locked: `var(--color-*)` + `var(--font-*)` — no inline `oklch()` outside `:root` (Hallmark). `EdgeInsetsDirectional` not `EdgeInsets.only(left:)` (FA RTL). `Semantics` on icon-only, `TextScaler.clamp 0.9-1.35`, `ReduceMotion` guard.
-- Naming: `lowerCamelCase` Dart, `PascalCase` widgets (`VpnNotifier`), `snake_case` Go, `SCREAMING_SNAKE` constants. Files: `vpn_notifier.dart`, `route_rule.dart`, `singbox_config_builder.dart:18`.
-- Active voice, sentence case, no em dashes, no bold-label lists, no puffery — see `SPEC.md:Code Style` example (`VpnNotifier.connect(tag)` + `RouteRule` 30 fields + `WireGuardAWGOptions`).
+## Engine truths (verified on the real binary — never re-derive, trust these)
 
-## Project structure — YAGNI (current + future, create only when needed)
+| Truth | Consequence |
+|---|---|
+| aar has NO `Box` class (daemon architecture) | Engine control via `CommandServer.startOrReloadService` only |
+| `endpoints[].id/ip/ib` are WireSock-only | Parse, never emit (FATAL) |
+| tuic `alpn` must live under `tls.alpn` | Top-level alpn FATALs |
+| reality REQUIRES utls | Emit fp always |
+| No `chain` outbound | Chaining = `DialerOptions.detour` |
+| `CommandClient` has 6 commands, no service-status | Crash detection = FATAL scan in log stream |
+| xhttp `x_padding_bytes` MANDATORY (no omitempty) | Absent field FATALs; headers must not contain host key |
+| SSH outbound-only, ECH pq/dynamic fields FATAL at init | Emit guards in place |
+| urltest accepts `idle_timeout` + `interrupt_exist_connections` | Model + both emitters support them |
+| Local geo rule-sets (type local, seeded via `ensure()`) | Never remote-only — start dies if PROXY not up |
+| Kill-switch rules injected into every profile | hijack-dns first, ip_version-6 reject, LAN reject (probed) |
 
-**Rule:** YAGNI — don't pre-create empty folders. Current files live where they are now; future dirs are listed but not created until their `tasks/todo.md` task needs them. One place per asset, no duplicates.
+Full list: `docs/decisions.tsv` (85 rows).
 
-```
-VPN Research/  (repo root — no empty dirs)
-├── AGENTS.md, SPEC.md, goal.md, CONTEXT.md, intent.md, scaffold.md  # specs at root — discoverable, single source
-├── research/              # 13 VPNs + audit — competition facts only
-│   ├── 01-Karing.md … 13-Matsuri-SagerNet.md (13 × 60-100KB)
-│   └── audit.md           # 6 must-changes + 3 refines distilled from research
-├── docs/                  # rendered artifacts — never code
-│   ├── archify-candidate.json  # showcase arch spec (10 nodes, 950×560, source for archify.html)
-│   ├── archify.html            # delivered showcase (9/9 checks, visual-check pass)
-│   ├── archify.visual-check.*.png + .json/.html  # containment evidence
-│   └── prototype-final.html    # blended Bento×Hum prototype (was root, now docs)
-├── tasks/                 # planning + progress — single writer per session
-│   ├── plan.md            # dependency graph + Phase 0-9 order
-│   ├── todo.md            # 16 tasks ≤5 files each
-│   ├── progress-YYYY-MM-DD.md  # future — daily log, create after each task
-│   ├── tickets/*.md            # future — wayfinder tickets, only if >1 session
-│   ├── handoff.md              # future — compact hand for next agent
-│   └── decisions.tsv           # future — show-me-your-work log (docs/decisions.tsv alt)
-│
-├── (future — create on demand per todo, not now)
-│   ├── lib/               # Flutter Dart — Feature-Based MVVM (created at todo:1 scaffold)
-│   │   ├── main.dart + app/ (M3EMaterialApp + go_router ShellRoute)
-│   │   ├── core/ (network 6h cache + routing + services/MethodChannel vpn_service)
-│   │   ├── modules/vpn/ (logic/VpnNotifier + models + repositories + screens)
-│   │   ├── modules/routing_editor/ + groups/ + logs/ + diagnostics/ + updates/ + profiles/ + i18n/
-│   │   ├── l10n/ (app_en.arb, app_fa.arb) + utils/singbox_config_builder.dart
-│   ├── android/app/libs/libbox.aar (from go/amnezia-box with_awg)  # todo:2 core
-│   ├── windows/libbox.dll + runner/                                 # todo:2
-│   ├── go/amnezia-box/ (submodule hoaxisr/amnezia-box awg-1.14-rc1) # todo:2
-│   ├── go/xray-core/ + go/tor/ (SOCKS 9050)                          # todo:5
-│   ├── rule_sets/*.srs + assets/geoip/ + profiles/config.wg-awg.json # todo:4,6
-│   ├── test/updater/ + test/routing/ + test/health/                 # todo:3..8
-│   ├── .github/workflows/build-*.yml (3 jobs parallel)             # todo:9
-│   └── scripts/compare_capabilities.py (future — success criteria 1)
-```
+## Task routing (load only what your task needs)
 
-**YAGNI enforcement:** No `lib/`, `android/`, `go/`, `rule_sets/` until `todo:1-2` touches them. No `.hallmark/`, `references/`, `ios/` stubs until needed. Keep flat until feature forces nesting. Spec is gate — don't code beyond `SPEC.md:Project Structure` without updating spec.
-
-Scaffold when needed: `flutter create qanatvpn` + `flutter pub add material_3_expressive cue drift go_router` + `melos` (see `scaffold.md:3 options`). Keep `lib/` feature-first, `core/` shared, `app/` shell — no cross-feature imports.
-
-## Testing
-
-- Framework: `flutter test` + `go test` + `sing-box check` + leak tests via `tcpdump`/`dnsleaktest.com`/`ipleak.net`.
-- Where: `test/` (unit), `test/integration/` (engine), `androidTest/` (VpnService), `go/...` (libbox), `test/l10n/` (ARB golden at 200%).
-- Coverage: `flutter test --coverage` ≥70% for `lib/modules/routing_editor`, `lib/services`. Leak tests before every tag.
-- Verification checkpoints per phase in `tasks/plan.md:Verification Checkpoints` — run the checkpoint for the phase you just touched, not whole suite.
+| Task touches | Read first | Then |
+|---|---|---|
+| Tunnel / engine lifecycle | `docs/project-map.md` § tunnel | `lib/core/services/tunnel.dart`, `test/tunnel/` |
+| Routing editor / config emit | project-map § routing | `lib/modules/routing/`, `lib/modules/vpn/repositories/profile_config_source.dart` |
+| Ingestion / parsers | project-map § ingestion | `lib/modules/vpn/repositories/ingestion/` |
+| Updates / releases | project-map § updates | `lib/modules/updates/`, `.github/workflows/` |
+| Security items | project-map § sec | `lib/modules/sec/`, `lib/core/backup/backup_service.dart`, `lib/modules/logs/log_bus.dart` |
+| UI / screens | project-map § ui | target screen + one golden test |
+| Docs / spec | project-map § docs | SPEC.md section only |
 
 ## Boundaries
 
-- **Always:** Run `flutter test --coverage` + `sing-box check` + `dart format` before commits. Validate `route.rules` via `sing-box rule-set compile`. Use original `MethodChannel` (not `vpnclient_engine_flutter` to avoid Extended GPL attribution) with `with_awg` tag. Cache GitHub API 6h + `x-ratelimit-reset`. Pin flutter 3.47.2, Go 1.25, NDK 28, JDK 17. Encrypt `device→tunnel`.
-- **Ask first:** DB schema (`drift`), new deps (`pubspec.yaml`/`go.mod` replace), CI/signing (`key.properties`), new protocol (`outbound.type`), changing `route.rules` `final`/`auto_detect_interface`, new locale beyond EN/FA.
-- **Never:** Commit secrets (`key.properties`, `upload-keystore.jks`, tokens), edit `go/amnezia-box` fork directly (rebase via `git fetch`), remove failing `test/updater` 403/429 tests, skip `isIgnoringBatteryOptimizations` (Doze kills), use `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` for non-VPN, ship without `sing-box check` + 7 leak tests, use `EdgeInsets.only(left:)` (breaks FA), copy other VPN text verbatim into README/docs (original self-contained only).
+**Always:** verify loop before commits · probe engine claims on the real binary
+(`windows/sing-box.exe check`) · update `tasks/handoff.md` + `tasks/progress-YYYY-MM-DD.md`
++ `docs/decisions.tsv` after every task · `EdgeInsetsDirectional` (FA RTL) ·
+`Semantics` on icon-only · TextScaler clamp 0.9–1.35.
 
-## Git workflow and versioning
+**Ask first:** DB schema · new deps · CI/signing changes · new protocol ·
+`route.rules` `final`/`auto_detect_interface` semantics · locales beyond EN/FA.
 
-- Branch: `main` + feature branches `feat/<module-id>` (e.g., `feat/tunnel-lifecycle-03`). Commit `feat:`, `fix:`, `chore(upstream):`, `docs:`. Tag `v1.2.3` → 3 jobs produce `qanatvpn_v1.2.3_arm64.apk` etc. + `latest.json` + `sha256` via `softprops` without manual steps. `latest.json` platform map mirrors `flutter_server_box` + `RecomBox`. Keep `AGENTS.md` + `SPEC.md` + `CONTEXT.md` in version control, update after every major agent session per `writing-for-agents` pruning (one source of truth, no duplication, relevance check, hunt no-ops).
+**Never:** commit secrets (`key.properties`, `upload-keystore.jks`) · edit
+`go/amnezia-box` directly (rebase via fetch) · remove failing updater tests ·
+skip `isIgnoringBatteryOptimizations` check · use `ACTION_REQUEST_IGNORE_BATTERY_
+OPTIMIZATIONS` for non-VPN · ship without the verify loop · copy other VPN
+clients' text · plain `git push` (stalls — see gotchas) · `pub add` (lock drift).
 
-## Skills that apply (from using-agent-skills)
+## Pointers (deep docs — load per task, not at session start)
 
-- `spec-driven-development` → SPEC is gate
-- `planning-and-task-breakdown` → plan's dependency graph (this file's plan section)
-- `incremental-implementation` + `test-driven-development` → thin vertical slices, red-green per todo
-- `source-driven-development` → verify against `sing-box.sagernet.org`, `developer.android.com`, `pub.dev` before code
-- `context-engineering` → load `SPEC.md` + `CONTEXT.md` + one module's source per task
-- `show-me-your-work` → TSV `docs/decisions.tsv` per decision
-- `wayfinder` → if >1 session, tickets with `blocked-on`
-- `handoff` + `agent-memory` + `recall` → cross-session (see Tracking above)
-- `shipping-and-launch` + `ci-cd-and-automation` + `git-workflow-and-versioning` → release + GH Pages + upstream
-- `frontend-design` + `hallmark` + `unslop` → blended Bento×Hum prototype, distinctive, no AI slop
-- `impeccable`/`high-end-visual-design` → polish passes (when UI ready)
-- `security-and-hardening` → max WFP firewall, 7 leak tests
-- `observability-and-instrumentation` → instrument as you build (Health logs)
-- `doubt-driven-development` → fresh-context review before sec
+| Level | File | When |
+|---|---|---|
+| 2 | `tasks/handoff.md` | Session start (always) |
+| 2 | `docs/project-map.md` | Per task — module map with key files + patterns |
+| 3 | `SPEC.md` | Architecture/deep modules; §Commands; §Boundaries |
+| 3 | `goal.md` | Frozen intent, 22 capability locks |
+| 3 | `tasks/plan.md` | Dependency graph, phases |
+| 3 | `docs/decisions.tsv` | Every decision with evidence |
+| 4 | `tasks/progress-*.md` | Daily logs |
+| 4 | `tasks/mother-audit-2026-09-05.md` | The full audit report |
+| 4 | `research/` + `docs/prototype-final.html` | Competition facts, design target |
 
-## Latest progress (update after each task — this is the hand)
+## History (condensed — details in git log)
 
-- **2026-09-04 (roadmap P2 sweep, commits `cf92abf`→`418ac7f`, 302 tests): TRANSPORTS + URLTEST + BACKUP + UPDATES FAIL-CLOSED.** Scout workflow (7 agents incl. real-engine probes) → 5 inline clusters → adversarial review workflow. Updates wiring fail-closed (epoch parse, StoredUpdate, mirror, geo seeding actually wired — rootBundle fallback works on Android). Urltest best-node (form fields, latency sweep, engine-side auto-select via GROUP tag). Transports parity: SSH + XHTTP/gRPC/HTTPUpgrade/http + ECH import+emit, every shape probed through real `sing-box.exe check` (xhttp `x_padding_bytes` MANDATORY on fork). Encrypted backup (Argon2id+AES-GCM, merge-by-tag, picker flow). StatsTile real metrics + 200% pre-clamp golden (2 real overflows fixed). **pub.dev 403s on this network → use `PUB_HOSTED_URL=https://pub.flutter-io.cn`.** New deps: cryptography, file_picker (static 12.x API). Per-session details → `tasks/progress-2026-09-04.md`.
-- **2026-09-02 (sessions 8a-k, commits `8277f07` → `5cb7150` → `d47e9b7`, 180 tests): FULL APP RUNTIME WIRED.** Engine start (libbox 1.14 `CommandServer.startOrReloadService` via `BoxEngine.kt`; TUN opened by Go `openTun` callback — fd never crosses to Dart; legacy establish/protect removed). Updates UI + workmanager 24h + latest.json single-producer (android metadata job). Routing 30/30 fields + groups 3-tier + TOR-CHAIN (detour; no chain outbound in 1.14). Groups/rules editors + stores, endpoint import→store→engine (6 protocols probed on real sing-box), AWG profile editor UI (todo-04 UI), wizard per-app→OverrideOptions, Windows sing-box.exe subprocess adapter, crash events via CommandClient log stream, live logs tab, diagnostics tab (Health module wired), tag selection, UI polish (l10n everywhere, TextScaler clamp 0.9-1.35, ReduceMotion), golden infra (matchesGoldenFile — caught+fixed real EndpointTile overflow). **All 5 tabs real screens; tabs.dart deleted.** Per-session details → `tasks/progress-2026-09-02.md`.
-- **Engine truths probed on the real binary (do not re-derive):** aar has NO `Box` class (daemon architecture); `endpoints[].id/ip/ib` FATAL (WireSock-only — parse but never emit); tuic `alpn` must be under `tls.alpn`; reality REQUIRES utls; no `chain` outbound (chaining = `DialerOptions.detour`); CommandClient has only 6 commands (no service-status — crash detection = FATAL scan in log stream). Full list → `docs/decisions.tsv`.
-- **2026-09-01 (sessions 1-7):** scaffold (Flutter 3.47.2/Dart 3.13.2/NDK 28/JDK 17), fork pinned `1.14.0-rc.1-awgm.15` SHA `57276220` (aar via Makefile + `with_awg`, javapkg `com.qanatvpn`; Windows pivot = sing-box.exe subprocess), 17/17 todos (tunnel/geo/ingestion/routing/dns/awg deep modules + UI + health + updates + sec + CI + site + upstream tracking), 8-way review + critical fixes, 96 tests, git init (`5592cf3`).
-- **Open (all need external resources):** on-device proof (no adb device), push/CI (no git remote — user creates repo), website polish, logical AND/OR rule-groups UI (compiler+store support it), on-device 7 leak tests. → `tasks/handoff.md`
-
-## Pointers (keep top short, details behind pointers)
-
-- Next session first read → `tasks/handoff.md` (60 sec) + latest `tasks/progress-*.md`
-- Deep modules interface details → `SPEC.md:Architecture — Deep Modules`
-- Build order + risks + verification → `tasks/plan.md`
-- Why WG/AWG + routing vs pure WG → `goal.md:4-6` + `audit.md`
-- Upstream rebase steps → `tasks/plan.md:Upstream tracker` + `go/amnezia-box` README
-- Hallmark theme tokens → `docs/prototype-final.html` `:root` + `references/themes/`
+- 2026-09-01: MVP core, 17/17 todos, 96 tests
+- 2026-09-02: full app runtime wired, 180 tests
+- 2026-09-04: P2 sweep (transports, urltest, backup, metrics), 302 tests
+- 2026-09-05/06: mother-audit (1003 findings) → W1 ship-blockers, W2 all 7,
+  W3 security (redaction, HTTPS-only, FLAG_SECURE, AAD, kill-switch rules),
+  W4 (geo local rule-sets, urltest parity, registry repin, job object, l10n)
+- 2026-09-08/09: renamed QanatVPN everywhere, libbox.aar rebuilt
+  (javapkg com.qanatvpn), CI fully green, **v0.1.1 released**
