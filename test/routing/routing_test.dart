@@ -398,10 +398,8 @@ void main() {
 
     test(
       'assembler injects detour into TOR-CHAIN endpoint (real check)',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe',
       () async {
-      if (!singBoxAvailable) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
       final geo = await geoSeededFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
@@ -442,9 +440,6 @@ void main() {
     test(
       'auto urltest → selector → endpoint config passes real sing-box',
       () async {
-      if (!singBoxAvailable) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
       final geo = await geoSeededFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(
@@ -498,10 +493,8 @@ void main() {
   group('ConfigAssembler → sing-box check', () {
     test(
       'compiled policy produces a config the real sing-box accepts',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe',
       () async {
-        if (!singBoxAvailable) {
-          markTestSkipped('needs windows/sing-box.exe');
-        }
         final geo = await geoSeededFor(dir);
         final assembler = ConfigAssembler(geoAsset: geo);
         final config = assembler.build(
@@ -524,10 +517,9 @@ void main() {
       },
     );
 
-    test('rule_set entries reference compiled tags only', () async {
-      if (!singBoxAvailable) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
+    test('rule_set entries reference compiled tags only',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe',
+      () async {
       final geo = await geoSeededFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
       final config = assembler.build(

@@ -15,6 +15,8 @@ final String singBoxExe = p.join(
 const goodPrivateKey = 'eCbtX5g5Pof3zH0Gu6dzulIzLB0B5xj+OhIfgVtWu1A=';
 const goodPeerKey = 'fz8KXfDEl+8/SgXJmjotjTxLWm5/gJGis8TV5vcIGSo=';
 
+bool singBoxAvailableForTest() => File('windows/sing-box.exe').existsSync();
+
 void main() {
   group('presets', () {
     test('balanced preset validates cleanly with good endpoint material', () {
@@ -164,7 +166,9 @@ void main() {
   });
 
   group('toEndpointJson', () {
-    test('emits fork-accepted awg endpoint (real sing-box check)', () async {
+    test('emits fork-accepted awg endpoint (real sing-box check)',
+      skip: singBoxAvailableForTest() ? false : 'needs windows/sing-box.exe',
+      () async {
       final config = AwgProfile.fromPreset(
         AwgProfile.balanced,
         privateKey: goodPrivateKey,
@@ -181,9 +185,6 @@ void main() {
       );
 
       final singBox = File(singBoxExe);
-      if (!singBox.existsSync()) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
       final configJson = <String, dynamic>{
         'log': <String, dynamic>{'level': 'info'},
         'endpoints': <dynamic>[json],
@@ -291,9 +292,6 @@ void main() {
         mtu: 1408,
       );
       final singBox = File(singBoxExe);
-      if (!singBox.existsSync()) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
       final file = File(
         '${Directory.systemTemp.path}/awg_v6_test_${DateTime.now().millisecondsSinceEpoch}.json',
       );

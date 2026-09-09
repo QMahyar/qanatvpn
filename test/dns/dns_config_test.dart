@@ -72,10 +72,10 @@ void main() {
     expect(config.fakeIpFilters, contains('+.local'));
   });
 
-  test('full config with DNS + FakeIP passes real sing-box check', () async {
-    if (!File(singBoxExe).existsSync()) {
-      markTestSkipped('needs windows/sing-box.exe');
-    }
+  test('full config with DNS + FakeIP passes real sing-box check',
+      skip: File(singBoxExe).existsSync()
+          ? false
+          : 'needs windows/sing-box.exe', () async {
     // W4.1: seed the local rule-set files the same way startup does.
     final geo = geoFor(dir);
     for (final tag in GeoAsset.registry.keys) {
