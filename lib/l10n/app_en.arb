@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "QANATVPN",
+  "appTitle": "QanatVPN",
   "connect": "Connect",
   "disconnect": "Disconnect",
   "@connect": { "description": "Connect button" },

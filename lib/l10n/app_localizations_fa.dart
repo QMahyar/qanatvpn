@@ -9,7 +9,7 @@ class AppLocalizationsFa extends AppLocalizations {
   AppLocalizationsFa([String locale = 'fa']) : super(locale);
 
   @override
-  String get appTitle => 'QANATVPN';
+  String get appTitle => 'QanatVPN';
 
   @override
   String get connect => 'اتصال';

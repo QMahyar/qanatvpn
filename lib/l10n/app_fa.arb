@@ -1,6 +1,6 @@
 {
   "@@locale": "fa",
-  "appTitle": "QANATVPN",
+  "appTitle": "QanatVPN",
   "connect": "اتصال",
   "disconnect": "قطع اتصال",
   "@connect": { "description": "دکمه اتصال" },

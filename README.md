@@ -1,4 +1,4 @@
-# QANATVPN
+# QanatVPN
 
 A censorship-resistant VPN client for Android and Windows, built for highly
 censored networks. WireGuard and AmneziaWG are first-class citizens — every
