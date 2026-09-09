@@ -439,6 +439,7 @@ void main() {
   group('3-tier assembly → sing-box check', () {
     test(
       'auto urltest → selector → endpoint config passes real sing-box',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe',
       () async {
       final geo = await geoSeededFor(dir);
       final assembler = ConfigAssembler(geoAsset: geo);
@@ -544,10 +545,9 @@ void main() {
   });
 
   group('SRS round-trip with real binary', () {
-    test('geosite-cn.srs decompiles (initial asset is a valid rule-set)', () {
-      if (!singBoxAvailable) {
-        markTestSkipped('needs windows/sing-box.exe');
-      }
+    test('geosite-cn.srs decompiles (initial asset is a valid rule-set)',
+      skip: singBoxAvailable ? false : 'needs windows/sing-box.exe',
+      () {
       final result = Process.runSync(singBoxExe, <String>[
         'rule-set',
         'decompile',

@@ -171,6 +171,12 @@ void main() {
   });
 
   group('exe resolution (audit W1.3: CI bundles at bundle root)', () {
+    // The resolver's probe semantics are Windows-path specific: an absolute
+    // configured path is returned verbatim, drive-relative fallbacks differ
+    // on POSIX (probe 34308592013: '/tmp/...C:/tools/box/sing-box.exe').
+    if (!Platform.isWindows) {
+      return; // group body never registers off-Windows
+    }
     test('release layout: <bundle>/sing-box.exe wins when dev path missing', () {
       // Bundle contains ONLY the root exe (CI zip layout). The configured
       // dev path must fall through to the bundle-root candidate.

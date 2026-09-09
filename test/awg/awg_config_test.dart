@@ -272,7 +272,9 @@ void main() {
       expect(config.validate(), contains(contains('brackets')));
     });
 
-    test('IPv6 config passes real sing-box check', () {
+    test('IPv6 config passes real sing-box check',
+        skip: singBoxAvailableForTest() ? false : 'needs windows/sing-box.exe',
+        () {
       final config = awgConfigForTest(
         values: const AwgValues(
           jc: 5,
